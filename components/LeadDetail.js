@@ -52,7 +52,7 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
   };
 
   const handleConvert = async () => {
-    if (!confirm(`Convert "${lead.lead_name}" to a Deal at Offers/LOI?`)) return;
+    if (!confirm(`Convert "${lead.lead_name}" to a Deal at Tracking?`)) return;
     setConverting(true);
     try {
       await convertLeadToDeal(lead);
@@ -120,8 +120,8 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
 
   const Field = ({ label, value, mono }) => (
     <div>
-      <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
-      <div style={{ fontSize: '14px', color: value ? 'var(--text-primary)' : 'var(--text-muted)', fontFamily: mono ? 'var(--font-mono)' : 'inherit' }}>{value || '—'}</div>
+      <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
+      <div style={{ fontSize: '15px', color: value ? 'var(--text-primary)' : 'var(--text-muted)', fontFamily: mono ? 'var(--font-mono)' : 'inherit' }}>{value || '—'}</div>
     </div>
   );
 
@@ -134,23 +134,23 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{lead.lead_name}</h2>
               {lead.tier && (
-                <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 8px', borderRadius: '5px', background: tierColor(lead.tier) + '22', color: tierColor(lead.tier) }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, padding: '3px 8px', borderRadius: '5px', background: tierColor(lead.tier) + '22', color: tierColor(lead.tier) }}>
                   {lead.tier}
                 </span>
               )}
-              <span style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, background: stageColor + '22', color: stageColor }}>
+              <span style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '15px', fontWeight: 600, background: stageColor + '22', color: stageColor }}>
                 {lead.stage}
               </span>
               {lead.score != null && (
-                <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Score: {lead.score}</span>
+                <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Score: {lead.score}</span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
                 {lead.address}{lead.submarket ? ` · ${lead.submarket}` : ''}
               </span>
               {mapsUrl && (
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
                   Google Maps ↗
                 </a>
               )}
@@ -175,9 +175,9 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
         {/* Next action strip */}
         {lead.next_action && (
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Next Action:</span>
-            <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 500 }}>{lead.next_action}</span>
-            {lead.next_action_date && <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>· {lead.next_action_date}</span>}
+            <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Next Action:</span>
+            <span style={{ fontSize: '15px', color: 'var(--amber)', fontWeight: 500 }}>{lead.next_action}</span>
+            {lead.next_action_date && <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>· {lead.next_action_date}</span>}
           </div>
         )}
       </div>
@@ -220,7 +220,7 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div className="card">
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Contact Info</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Contact Info</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <Field label="Decision Maker" value={lead.decision_maker} />
               <Field label="Company" value={lead.company} />
@@ -230,7 +230,7 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
             </div>
           </div>
           <div className="card">
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Scoring</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Scoring</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <Field label="Score" value={lead.score != null ? String(lead.score) : null} />
               <Field label="Tier" value={lead.tier} />
@@ -245,17 +245,17 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       {/* Intel/Notes */}
       {lead.notes && !editing && (
         <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Intel / Why They'll Sell</h3>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>{lead.notes}</div>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Intel / Why They'll Sell</h3>
+          <div style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>{lead.notes}</div>
         </div>
       )}
 
       {/* Catalyst tags */}
       {lead.catalyst_tags?.length > 0 && !editing && (
         <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Catalyst Tags</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Catalyst Tags</h3>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {lead.catalyst_tags.map((tag) => <span key={tag} className="tag tag-amber" style={{ fontSize: '11px' }}>{tag}</span>)}
+            {lead.catalyst_tags.map((tag) => <span key={tag} className="tag tag-amber" style={{ fontSize: '15px' }}>{tag}</span>)}
           </div>
         </div>
       )}
@@ -264,7 +264,7 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Substeps — {lead.stage} ({subsDone}/{subs.length})
             </h3>
           </div>
@@ -278,37 +278,37 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
                   const checked = substeps[step] || false;
                   return (
                     <div key={step} onClick={() => toggleSub(step)} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
-                      <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: '2px solid', borderColor: checked ? 'var(--accent)' : 'var(--border)', background: checked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 700 }}>{checked ? '✓' : ''}</div>
-                      <span style={{ fontSize: '13px', color: checked ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: checked ? 'line-through' : 'none' }}>{step}</span>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: '2px solid', borderColor: checked ? 'var(--accent)' : 'var(--border)', background: checked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '15px', fontWeight: 700 }}>{checked ? '✓' : ''}</div>
+                      <span style={{ fontSize: '15px', color: checked ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: checked ? 'line-through' : 'none' }}>{step}</span>
                     </div>
                   );
                 })}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No substeps defined for this stage</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No substeps defined for this stage</div>
           )}
         </div>
 
         <div className="card">
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>AI Next Step</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>AI Next Step</h3>
           <button className="btn btn-ghost" onClick={handleAI} disabled={aiLoading} style={{ width: '100%', marginBottom: '12px', color: 'var(--amber)', borderColor: 'var(--amber)' }}>
             {aiLoading ? 'Thinking...' : 'Get AI Recommendation'}
           </button>
           {aiStep && (
             <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: '8px', borderLeft: '3px solid var(--amber)' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--amber)', marginBottom: '4px' }}>{aiStep}</div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--amber)', marginBottom: '4px' }}>{aiStep}</div>
             </div>
           )}
           {!aiStep && lead.next_action && (
             <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: '8px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Next Action</div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{lead.next_action}</div>
-              {lead.next_action_date && <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>Due: {lead.next_action_date}</div>}
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Next Action</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: 500 }}>{lead.next_action}</div>
+              {lead.next_action_date && <div style={{ fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>Due: {lead.next_action_date}</div>}
             </div>
           )}
           {lead.phone && (
-            <a href={`tel:${lead.phone}`} style={{ display: 'block', textAlign: 'center', marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'var(--accent-soft)', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, fontSize: '14px', border: '1px solid var(--accent)' }}>
+            <a href={`tel:${lead.phone}`} style={{ display: 'block', textAlign: 'center', marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'var(--accent-soft)', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, fontSize: '15px', border: '1px solid var(--accent)' }}>
               Call {lead.decision_maker || 'Contact'} — {lead.phone}
             </a>
           )}
@@ -318,12 +318,12 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       {/* Linked property */}
       {linkedProperty && (
         <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Linked Property</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Linked Property</h3>
           <div onClick={() => onPropertyClick && onPropertyClick(linkedProperty)} style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '6px', cursor: 'pointer', border: '1px solid transparent', transition: 'border-color 0.15s' }}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}>
-            <div style={{ fontSize: '14px', fontWeight: 600 }}>{linkedProperty.address}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600 }}>{linkedProperty.address}</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '2px' }}>
               {linkedProperty.submarket} · {linkedProperty.building_sf ? linkedProperty.building_sf.toLocaleString() + ' SF' : ''} · {linkedProperty.owner}
             </div>
           </div>
@@ -333,13 +333,13 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       {/* Tasks */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Tasks {pendingTasks > 0 && <span style={{ color: '#ef4444' }}>({pendingTasks} pending)</span>}
           </h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onAddTask?.(lead.id)}>+ Task</button>
         </div>
         {linkedTasks.length === 0 ? (
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No tasks yet</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No tasks yet</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {linkedTasks.sort((a, b) => a.completed - b.completed).map((t) => {
@@ -347,12 +347,12 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
               const overdue = !t.completed && t.due_date && new Date(t.due_date) < new Date();
               return (
                 <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '8px 10px', background: 'var(--bg-input)', borderRadius: '6px', borderLeft: `3px solid ${t.completed ? 'var(--border)' : pc}`, opacity: t.completed ? 0.6 : 1 }}>
-                  <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : pc, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '9px' }}>{t.completed ? '✓' : ''}</div>
+                  <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : pc, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '15px' }}>{t.completed ? '✓' : ''}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
-                    {t.due_date && <div style={{ fontSize: '11px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
+                    <div style={{ fontSize: '15px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
+                    {t.due_date && <div style={{ fontSize: '15px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
                   </div>
-                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: pc + '22', color: pc, flexShrink: 0 }}>{t.priority}</span>
+                  <span style={{ fontSize: '15px', padding: '1px 5px', borderRadius: '3px', background: pc + '22', color: pc, flexShrink: 0 }}>{t.priority}</span>
                 </div>
               );
             })}
@@ -363,22 +363,22 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
       {/* Activities */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activities ({linkedActivities.length})</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activities ({linkedActivities.length})</h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onAddActivity && onAddActivity(lead.id)}>+ Log</button>
         </div>
         {linkedActivities.length === 0 ? (
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No activities yet — log your first call</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No activities yet — log your first call</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {linkedActivities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((a) => (
               <div key={a.id} style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '6px', opacity: a.completed ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
-                  <span className="tag tag-blue" style={{ fontSize: '10px' }}>{a.activity_type}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 500 }}>{a.subject}</span>
-                  {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '10px' }}>{a.outcome}</span>}
+                  <span className="tag tag-blue" style={{ fontSize: '15px' }}>{a.activity_type}</span>
+                  <span style={{ fontSize: '15px', fontWeight: 500 }}>{a.subject}</span>
+                  {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '15px' }}>{a.outcome}</span>}
                 </div>
-                {a.notes && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{a.notes}</div>}
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</div>
+                {a.notes && <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{a.notes}</div>}
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</div>
               </div>
             ))}
           </div>

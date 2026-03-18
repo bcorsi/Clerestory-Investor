@@ -63,7 +63,7 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
               key={f}
               className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setFilter(f)}
-              style={{ fontSize: '12px', textTransform: 'capitalize' }}
+              style={{ fontSize: '15px', textTransform: 'capitalize' }}
             >
               {f} ({counts[f]})
             </button>
@@ -103,7 +103,7 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
                 border: '2px solid', borderColor: activity.completed ? 'var(--accent)' : 'var(--border)',
                 background: activity.completed ? 'var(--accent)' : 'transparent',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontSize: '10px', fontWeight: 700,
+                color: 'white', fontSize: '15px', fontWeight: 700,
               }}
             >
               {activity.completed ? '✓' : ''}
@@ -112,13 +112,13 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
             {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '4px' }}>
-                <span style={{ fontSize: '13px' }}>{typeIcon(activity.activity_type)}</span>
-                <span className={`tag ${typeColor(activity.activity_type)}`} style={{ fontSize: '10px' }}>
+                <span style={{ fontSize: '15px' }}>{typeIcon(activity.activity_type)}</span>
+                <span className={`tag ${typeColor(activity.activity_type)}`} style={{ fontSize: '15px' }}>
                   {activity.activity_type}
                 </span>
                 {activity.subject && (
                   <span style={{
-                    fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)',
+                    fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)',
                     textDecoration: activity.completed ? 'line-through' : 'none',
                   }}>
                     {activity.subject}
@@ -128,14 +128,14 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
 
               {/* Linked record */}
               {(activity.address || activity.lead_name) && (
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                   {activity.address || ''}
                 </div>
               )}
 
               {/* Notes */}
               {activity.notes && (
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '4px' }}>
+                <div style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '4px' }}>
                   {activity.notes}
                 </div>
               )}
@@ -143,17 +143,17 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
               {/* Meta row */}
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {activity.activity_date && (
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {activity.activity_date}
                   </span>
                 )}
                 {activity.due_date && !activity.completed && (
-                  <span style={{ fontSize: '11px', color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>
                     Due: {activity.due_date}
                   </span>
                 )}
                 {activity.outcome && (
-                  <span className="tag tag-ghost" style={{ fontSize: '10px' }}>{activity.outcome}</span>
+                  <span className="tag tag-ghost" style={{ fontSize: '15px' }}>{activity.outcome}</span>
                 )}
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
             {/* Delete */}
             <button
               onClick={() => handleDelete(activity)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px', padding: '2px 4px', flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px', padding: '2px 4px', flexShrink: 0 }}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--red)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
             >
@@ -171,7 +171,7 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
         ))}
 
         {filtered.length === 0 && (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '15px', border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>
             {filter === 'pending' ? 'No pending activities' : filter === 'completed' ? 'No completed activities' : 'No activities yet'}
             <div style={{ marginTop: '8px' }}>
               <button className="btn btn-ghost btn-sm" onClick={onAdd}>+ Add your first activity</button>

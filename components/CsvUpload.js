@@ -225,14 +225,14 @@ export default function CsvUpload({ onClose, onDone }) {
           {preview && !result && (
             <div>
               <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <strong>{file.name}</strong> · {preview.totalRows} rows · {Object.keys(preview.colMapping).length}/{preview.headers.length} columns mapped
                 </span>
                 <button className="btn btn-ghost btn-sm" onClick={() => { setFile(null); setPreview(null); }}>Change file</button>
               </div>
 
               {/* Column mapping preview */}
-              <div style={{ marginBottom: '16px', fontSize: '12px' }}>
+              <div style={{ marginBottom: '16px', fontSize: '15px' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {preview.headers.map((h) => {
                     const mapped = preview.colMapping[h];
@@ -251,7 +251,7 @@ export default function CsvUpload({ onClose, onDone }) {
                   <thead>
                     <tr>
                       {preview.headers.map((h) => (
-                        <th key={h} style={{ fontSize: '10px', padding: '6px 8px' }}>{h}</th>
+                        <th key={h} style={{ fontSize: '15px', padding: '6px 8px' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -259,7 +259,7 @@ export default function CsvUpload({ onClose, onDone }) {
                     {preview.rows.map((row, i) => (
                       <tr key={i}>
                         {preview.headers.map((h) => (
-                          <td key={h} style={{ fontSize: '11px', padding: '4px 8px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row[h]}</td>
+                          <td key={h} style={{ fontSize: '15px', padding: '4px 8px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row[h]}</td>
                         ))}
                       </tr>
                     ))}
@@ -277,7 +277,7 @@ export default function CsvUpload({ onClose, onDone }) {
                 {result.imported} of {result.total} rows imported
               </div>
               {result.errors > 0 && (
-                <div style={{ fontSize: '13px', color: 'var(--red)' }}>{result.errors} errors (check console for details)</div>
+                <div style={{ fontSize: '15px', color: 'var(--red)' }}>{result.errors} errors (check console for details)</div>
               )}
             </div>
           )}

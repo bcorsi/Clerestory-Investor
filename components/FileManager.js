@@ -94,7 +94,7 @@ export default function FileManager({ propertyId, dealId, showToast }) {
             onDrop={handleDrop}
           >
             <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }}>🖼</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Drop photos here or click to upload</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>Drop photos here or click to upload</div>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
@@ -117,7 +117,7 @@ export default function FileManager({ propertyId, dealId, showToast }) {
                   style={{
                     position: 'absolute', top: '4px', right: '4px',
                     background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none',
-                    borderRadius: '4px', width: '22px', height: '22px', fontSize: '12px',
+                    borderRadius: '4px', width: '22px', height: '22px', fontSize: '15px',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     opacity: 0, transition: 'opacity 0.15s',
                   }}
@@ -175,8 +175,8 @@ export default function FileManager({ propertyId, dealId, showToast }) {
             onDrop={handleDrop}
           >
             <div style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }}>📁</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Drop files here or click to upload</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>PDF, Excel, Word, PowerPoint, CSV</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>Drop files here or click to upload</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '4px' }}>PDF, Excel, Word, PowerPoint, CSV</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -193,24 +193,24 @@ export default function FileManager({ propertyId, dealId, showToast }) {
               >
                 <span style={{ fontSize: '18px', flexShrink: 0 }}>{getFileIcon(file.file_name)}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {file.file_name}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
                     {formatFileSize(file.file_size)} · {new Date(file.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 <button
                   onClick={() => downloadFile(file)}
                   className="btn btn-ghost btn-sm"
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: '15px' }}
                 >
                   ↓
                 </button>
                 <button
                   onClick={() => handleDelete(file)}
                   className="btn btn-ghost btn-sm"
-                  style={{ fontSize: '11px', color: 'var(--text-muted)' }}
+                  style={{ fontSize: '15px', color: 'var(--text-muted)' }}
                 >
                   ×
                 </button>
@@ -220,7 +220,7 @@ export default function FileManager({ propertyId, dealId, showToast }) {
             <div
               style={{
                 padding: '8px 12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)',
-                textAlign: 'center', cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)',
+                textAlign: 'center', cursor: 'pointer', fontSize: '15px', color: 'var(--text-muted)',
                 transition: 'border-color 0.15s',
               }}
               onClick={() => { fileRef.current.accept = '*'; fileRef.current.click(); }}
@@ -263,7 +263,7 @@ export default function FileManager({ propertyId, dealId, showToast }) {
             />
             <div style={{
               position: 'absolute', bottom: '-40px', left: 0, right: 0, textAlign: 'center',
-              fontSize: '13px', color: 'rgba(255,255,255,0.7)',
+              fontSize: '15px', color: 'rgba(255,255,255,0.7)',
             }}>
               {lightbox.file_name}
             </div>

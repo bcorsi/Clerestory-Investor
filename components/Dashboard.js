@@ -161,16 +161,16 @@ export default function Dashboard({
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '4px' }}>
               <TimeGreeting />
             </h2>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}><DayOfWeek /></div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}><DayOfWeek /></div>
           </div>
           <button
             className="btn btn-ghost"
             onClick={generateBrief}
             disabled={briefLoading}
-            style={{ fontSize: '12px', gap: '6px', color: 'var(--amber)', borderColor: 'var(--amber)' }}
+            style={{ fontSize: '15px', gap: '6px', color: 'var(--amber)', borderColor: 'var(--amber)' }}
           >
             {briefLoading ? '⟳ Generating...' : '✦ AI Morning Brief'}
           </button>
@@ -183,11 +183,11 @@ export default function Dashboard({
             borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: '8px',
           }}>
             {briefLoading ? (
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Analyzing your pipeline, leads, and tasks...</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Analyzing your pipeline, leads, and tasks...</div>
             ) : briefError ? (
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Could not generate brief. Click to retry.</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>Could not generate brief. Click to retry.</div>
             ) : (
-              <div style={{ fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: '1.65', fontWeight: 450 }}>
+              <div style={{ fontSize: '15px', color: 'var(--text-primary)', lineHeight: '1.65', fontWeight: 450 }}>
                 <span style={{ color: 'var(--amber)', fontWeight: 600, marginRight: '6px' }}>✦</span>
                 {brief}
               </div>
@@ -205,7 +205,7 @@ export default function Dashboard({
         </div>
         <div className="stat-card">
           <div className="stat-label">Commission</div>
-          <div className="stat-value" style={{ color: 'var(--green)', fontSize: '22px' }}>{fmt.price(Math.round(totalCommission))}</div>
+          <div className="stat-value" style={{ color: 'var(--green)', fontSize: '24px' }}>{fmt.price(Math.round(totalCommission))}</div>
           <div className="stat-sub">{fmt.price(Math.round(weightedComm))} weighted</div>
         </div>
         <div className="stat-card" onClick={() => setPage('lead-gen')} style={{ cursor: 'pointer', transition: 'border-color 0.15s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--amber)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
@@ -234,14 +234,14 @@ export default function Dashboard({
           {/* Overdue + Today Tasks */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600 }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>
                 {overdueTasks.length > 0 ? '🔴 ' : ''}Today's Actions
               </h3>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: '10px' }} onClick={() => setPage('tasks')}>All tasks →</button>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px' }} onClick={() => setPage('tasks')}>All tasks →</button>
             </div>
 
             {[...overdueTasks, ...todayTasks].length === 0 ? (
-              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>No tasks due today</div>
+              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '15px' }}>No tasks due today</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[...overdueTasks.map(t => ({...t, _overdue: true})), ...todayTasks].slice(0, 8).map(task => (
@@ -256,10 +256,10 @@ export default function Dashboard({
                       background: task._overdue ? 'var(--red)' : priorityColor(task.priority),
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</div>
-                      {task._overdue && <div style={{ fontSize: '10px', color: 'var(--red)', fontWeight: 600 }}>OVERDUE — {task.due_date}</div>}
+                      <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</div>
+                      {task._overdue && <div style={{ fontSize: '15px', color: 'var(--red)', fontWeight: 600 }}>OVERDUE — {task.due_date}</div>}
                     </div>
-                    <span style={{ fontSize: '10px', color: priorityColor(task.priority), fontWeight: 600, flexShrink: 0 }}>{task.priority}</span>
+                    <span style={{ fontSize: '15px', color: priorityColor(task.priority), fontWeight: 600, flexShrink: 0 }}>{task.priority}</span>
                   </div>
                 ))}
               </div>
@@ -267,11 +267,11 @@ export default function Dashboard({
 
             {upcomingTasks.length > 0 && (
               <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>This Week</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>This Week</div>
                 {upcomingTasks.slice(0, 4).map(task => (
                   <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: '56px' }}>{new Date(task.due_date + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                    <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: '56px' }}>{new Date(task.due_date + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })}</span>
+                    <span style={{ fontSize: '15px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
                   </div>
                 ))}
               </div>
@@ -281,21 +281,21 @@ export default function Dashboard({
           {/* Catalyst Alerts */}
           {urgentCatalysts.length > 0 && (
             <div className="card">
-              <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>⚡ Catalyst Alerts</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>⚡ Catalyst Alerts</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {urgentCatalysts.map((sig, i) => (
                   <div key={i} onClick={() => sig.type === 'lead' ? onLeadClick?.(sig.record) : onPropertyClick?.(sig.record)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '5px', cursor: 'pointer', transition: 'all 0.15s', background: sig.urgency === 'immediate' ? 'var(--red-soft)' : 'var(--amber-soft)' }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'translateX(3px)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)', flexShrink: 0 }}>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)', flexShrink: 0 }}>
                       {sig.urgency === 'immediate' ? '!!!' : '!!'}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.label}</div>
-                      <div style={{ fontSize: '10px', color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)' }}>{sig.tag}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.label}</div>
+                      <div style={{ fontSize: '15px', color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)' }}>{sig.tag}</div>
                     </div>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>{sig.type === 'lead' ? '◎' : '⌂'}</span>
+                    <span style={{ fontSize: '15px', color: 'var(--text-muted)', flexShrink: 0 }}>{sig.type === 'lead' ? '◎' : '⌂'}</span>
                   </div>
                 ))}
               </div>
@@ -309,8 +309,8 @@ export default function Dashboard({
           {/* Pipeline Momentum */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600 }}>Pipeline Momentum</h3>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: '10px' }} onClick={() => setPage('pipeline')}>View pipeline →</button>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Pipeline Momentum</h3>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px' }} onClick={() => setPage('pipeline')}>View pipeline →</button>
             </div>
 
             <div style={{ display: 'flex', gap: '2px', height: '24px', borderRadius: '5px', overflow: 'hidden', marginBottom: '14px' }}>
@@ -332,9 +332,9 @@ export default function Dashboard({
                 return (
                   <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 0' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: STAGE_COLORS[stage], flexShrink: 0 }} />
-                    <span style={{ fontSize: '12px', color: count > 0 ? 'var(--text-primary)' : 'var(--text-muted)', flex: 1 }}>{stage}</span>
-                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: count > 0 ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: count > 0 ? 600 : 400 }}>{count}</span>
-                    {value > 0 && <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: '52px', textAlign: 'right' }}>{(value / 1000000).toFixed(1)}M</span>}
+                    <span style={{ fontSize: '15px', color: count > 0 ? 'var(--text-primary)' : 'var(--text-muted)', flex: 1 }}>{stage}</span>
+                    <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: count > 0 ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: count > 0 ? 600 : 400 }}>{count}</span>
+                    {value > 0 && <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: '52px', textAlign: 'right' }}>{(value / 1000000).toFixed(1)}M</span>}
                   </div>
                 );
               })}
@@ -342,7 +342,7 @@ export default function Dashboard({
 
             {closingThisMonth.length > 0 && (
               <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--green)', marginBottom: '8px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--green)', marginBottom: '8px' }}>
                   Closing This Month ({closingThisMonth.length})
                 </div>
                 {closingThisMonth.map(deal => (
@@ -350,9 +350,9 @@ export default function Dashboard({
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{deal.deal_name}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>{deal.deal_name}</div>
                     </div>
-                    {deal.commission_est && <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--green)', fontWeight: 500 }}>{fmt.price(deal.commission_est)}</span>}
+                    {deal.commission_est && <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--green)', fontWeight: 500 }}>{fmt.price(deal.commission_est)}</span>}
                   </div>
                 ))}
               </div>
@@ -362,8 +362,8 @@ export default function Dashboard({
           {/* Lead Gen Funnel */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600 }}>Lead Funnel</h3>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: '10px' }} onClick={() => setPage('lead-gen')}>View leads →</button>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Lead Funnel</h3>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px' }} onClick={() => setPage('lead-gen')}>View leads →</button>
             </div>
 
             {LEAD_STAGES.map(stage => {
@@ -372,16 +372,16 @@ export default function Dashboard({
               return (
                 <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: LEAD_STAGE_COLORS[stage], flexShrink: 0 }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1 }}>{stage}</span>
-                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{stageLeads.length}</span>
-                  {hotCount > 0 && <span style={{ fontSize: '10px', fontWeight: 600, color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '1px 5px', borderRadius: '3px' }}>{hotCount} hot</span>}
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)', flex: 1 }}>{stage}</span>
+                  <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{stageLeads.length}</span>
+                  {hotCount > 0 && <span style={{ fontSize: '15px', fontWeight: 600, color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '1px 5px', borderRadius: '3px' }}>{hotCount} hot</span>}
                 </div>
               );
             })}
 
             {untouchedLeads.length > 0 && (
               <div style={{ marginTop: '10px', padding: '8px 10px', borderRadius: '6px', background: 'var(--amber-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--amber)' }}>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--amber)' }}>
                   {untouchedLeads.length} lead{untouchedLeads.length !== 1 ? 's' : ''} awaiting first contact
                 </div>
               </div>
@@ -395,12 +395,12 @@ export default function Dashboard({
           {/* Hot Leads */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600 }}>🔥 Hot Leads</h3>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>A+ and A tier</span>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>🔥 Hot Leads</h3>
+              <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>A+ and A tier</span>
             </div>
 
             {hotLeads.length === 0 ? (
-              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>No A+/A tier leads yet</div>
+              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '15px' }}>No A+/A tier leads yet</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {hotLeads.slice(0, 7).map(lead => (
@@ -412,12 +412,12 @@ export default function Dashboard({
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.lead_name}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{lead.submarket || lead.address || ''}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.lead_name}</div>
+                      <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{lead.submarket || lead.address || ''}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: tierColor(lead.tier), background: tierColor(lead.tier) + '18', padding: '1px 5px', borderRadius: '3px' }}>{lead.tier}</span>
-                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{lead.score}</span>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: tierColor(lead.tier), background: tierColor(lead.tier) + '18', padding: '1px 5px', borderRadius: '3px' }}>{lead.tier}</span>
+                      <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{lead.score}</span>
                     </div>
                   </div>
                 ))}
@@ -428,24 +428,24 @@ export default function Dashboard({
           {/* Activity Feed */}
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600 }}>Recent Activity</h3>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: '10px' }} onClick={() => setPage('activities')}>View all →</button>
+              <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Recent Activity</h3>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px' }} onClick={() => setPage('activities')}>View all →</button>
             </div>
 
             {recentActivities.length === 0 ? (
-              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>No recent activity</div>
+              <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '15px' }}>No recent activity</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {recentActivities.map(act => {
                   const linked = findLinkedName(act);
                   return (
                     <div key={act.id} style={{ display: 'flex', gap: '10px', padding: '6px 4px', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <span style={{ fontSize: '14px', lineHeight: '18px', flexShrink: 0 }}>{activityIcon(act.activity_type)}</span>
+                      <span style={{ fontSize: '15px', lineHeight: '18px', flexShrink: 0 }}>{activityIcon(act.activity_type)}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '15px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {act.subject || act.activity_type}
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
                           {linked && <span>{linked} · </span>}
                           {act.outcome && <span style={{ color: act.outcome === 'Spoke' || act.outcome === 'Meeting Set' ? 'var(--green)' : 'var(--text-muted)' }}>{act.outcome} · </span>}
                           {act.activity_date}
@@ -460,7 +460,7 @@ export default function Dashboard({
 
           {/* Market Summary */}
           <div className="card">
-            <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>By Market</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>By Market</h3>
             {['SGV', 'IE', 'LA', 'OC'].map(mkt => {
               const propCount = properties.filter(p => p.market === mkt).length;
               const dealCount = deals.filter(d => {
@@ -470,8 +470,8 @@ export default function Dashboard({
               if (propCount === 0 && dealCount === 0) return null;
               return (
                 <div key={mkt} style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', minWidth: '36px' }}>{mkt}</span>
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', minWidth: '36px' }}>{mkt}</span>
+                  <div style={{ display: 'flex', gap: '12px', fontSize: '15px', color: 'var(--text-muted)' }}>
                     <span>{propCount} prop</span>
                     <span>{dealCount} deal</span>
                   </div>

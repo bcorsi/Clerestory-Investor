@@ -56,7 +56,7 @@ export default function AddLeaseCompModal({ onClose, onSave }) {
         </div>
         <div className="modal-body">
           {/* Location */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Address *</label>
@@ -79,7 +79,7 @@ export default function AddLeaseCompModal({ onClose, onSave }) {
           </div>
 
           {/* Deal Terms */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Deal Terms</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Deal Terms</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">RSF</label>
@@ -126,7 +126,7 @@ export default function AddLeaseCompModal({ onClose, onSave }) {
           </div>
 
           {/* Expenses */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Expenses ($/SF/Mo)</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Expenses ($/SF/Mo)</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">CAM</label>
@@ -143,14 +143,14 @@ export default function AddLeaseCompModal({ onClose, onSave }) {
           </div>
           {/* Auto-calculated totals */}
           {form.rate && totalExpenses > 0 && (
-            <div style={{ display: 'flex', gap: '20px', padding: '10px 14px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', marginBottom: '14px', fontSize: '12px' }}>
+            <div style={{ display: 'flex', gap: '20px', padding: '10px 14px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', marginBottom: '14px', fontSize: '15px' }}>
               <span style={{ color: 'var(--text-muted)' }}>Total Expenses: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>${totalExpenses.toFixed(2)}</span></span>
               <span style={{ color: 'var(--text-muted)' }}>Gross Equiv: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--amber)' }}>${grossEquiv.toFixed(2)}</span></span>
             </div>
           )}
 
           {/* Parties */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Parties & Source</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Parties & Source</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Landlord</label>
@@ -167,7 +167,7 @@ export default function AddLeaseCompModal({ onClose, onSave }) {
           </div>
 
           {/* Building */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Building Info (optional)</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Building Info (optional)</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Building SF</label>

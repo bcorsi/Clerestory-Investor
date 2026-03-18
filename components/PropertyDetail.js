@@ -71,10 +71,10 @@ export default function PropertyDetail({
   const SectionHeader = ({ title, count, onAdd, addLabel }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h3>
-        {count != null && <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', background: 'var(--bg-input)', padding: '1px 6px', borderRadius: '10px' }}>{count}</span>}
+        <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h3>
+        {count != null && <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', background: 'var(--bg-input)', padding: '1px 6px', borderRadius: '10px' }}>{count}</span>}
       </div>
-      {onAdd && <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px' }} onClick={onAdd}>{addLabel || '+ Add'}</button>}
+      {onAdd && <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px' }} onClick={onAdd}>{addLabel || '+ Add'}</button>}
     </div>
   );
 
@@ -97,11 +97,11 @@ export default function PropertyDetail({
           <div>
             <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '4px' }}>{p.address}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
                 {[p.city, p.submarket, p.zip].filter(Boolean).join(' · ')}
               </span>
               {p.address && (
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.address || '') + ', ' + (p.city || '') + ', CA')}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((p.address || '') + ', ' + (p.city || '') + ', CA')}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
                   Google Maps ↗
                 </a>
               )}
@@ -116,32 +116,32 @@ export default function PropertyDetail({
 
         {/* Key metrics strip */}
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-          {p.building_sf && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Building SF</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{fmt.sf(p.building_sf)}</div></div>}
-          {p.land_acres && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Land</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.land_acres} ac</div></div>}
-          {p.clear_height && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Clear Ht</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.clear_height}'</div></div>}
-          {(p.dock_doors != null) && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Dock Doors</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.dock_doors}</div></div>}
-          {p.year_built && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Year Built</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.year_built}</div></div>}
+          {p.building_sf && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Building SF</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{fmt.sf(p.building_sf)}</div></div>}
+          {p.land_acres && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Land</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.land_acres} ac</div></div>}
+          {p.clear_height && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Clear Ht</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.clear_height}'</div></div>}
+          {(p.dock_doors != null) && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Dock Doors</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.dock_doors}</div></div>}
+          {p.year_built && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Year Built</div><div style={{ fontSize: '16px', fontWeight: 700 }}>{p.year_built}</div></div>}
           {p.probability != null && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Probability</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Probability</div>
               <div style={{ fontSize: '16px', fontWeight: 700, color: probColor(p.probability) }}>{p.probability}%</div>
             </div>
           )}
           {p.ai_score != null && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>AI Score</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>AI Score</div>
               <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>{p.ai_score}</div>
             </div>
           )}
-          {avgLeaseRate && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Avg Lease Rate</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>${avgLeaseRate}/SF</div></div>}
-          {avgSalePsf && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Avg Sale $/SF</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>${avgSalePsf}/SF</div></div>}
+          {avgLeaseRate && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Avg Lease Rate</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>${avgLeaseRate}/SF</div></div>}
+          {avgSalePsf && <div><div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Avg Sale $/SF</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>${avgSalePsf}/SF</div></div>}
         </div>
 
         {/* Catalyst tags */}
         {p.catalyst_tags?.length > 0 && (
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
             {p.catalyst_tags.map((tag) => (
-              <span key={tag} className={`tag ${urgencyBadge(tag)}`} style={{ fontSize: '11px' }}>{tag}</span>
+              <span key={tag} className={`tag ${urgencyBadge(tag)}`} style={{ fontSize: '15px' }}>{tag}</span>
             ))}
           </div>
         )}
@@ -149,7 +149,7 @@ export default function PropertyDetail({
         {/* OneDrive link */}
         {p.onedrive_url && (
           <div style={{ marginTop: '10px' }}>
-            <a href={p.onedrive_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <a href={p.onedrive_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               📁 OneDrive Files ↗
             </a>
           </div>
@@ -160,7 +160,7 @@ export default function PropertyDetail({
       <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '16px', overflowX: 'auto' }}>
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
+            padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: '15px', fontWeight: 500, whiteSpace: 'nowrap',
             background: 'transparent', color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-muted)',
             borderBottom: activeTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
             transition: 'all 0.15s',
@@ -183,8 +183,8 @@ export default function PropertyDetail({
                 ['Last Sale $/SF', p.price_psf ? `$${p.price_psf}/SF` : null], ['Last Transfer', p.last_transfer_date],
               ].map(([label, val]) => val ? (
                 <div key={label}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '2px' }}>{label}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{val}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '2px' }}>{label}</div>
+                  <div style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{val}</div>
                 </div>
               ) : null)}
             </div>
@@ -197,17 +197,17 @@ export default function PropertyDetail({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {p.apns.map((a, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: 'var(--bg-input)', borderRadius: '4px' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{a.apn}</span>
-                    {a.acres && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{a.acres} ac</span>}
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{a.apn}</span>
+                    {a.acres && <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{a.acres} ac</span>}
                   </div>
                 ))}
               </div>
-            ) : <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No APNs recorded</div>}
+            ) : <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No APNs recorded</div>}
 
             {p.notes && (
               <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '6px' }}>Notes</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{p.notes}</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '6px' }}>Notes</div>
+                <div style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{p.notes}</div>
               </div>
             )}
           </div>
@@ -228,7 +228,7 @@ export default function PropertyDetail({
                   onMouseEnter={(e) => e.currentTarget.style.borderColor = color}
                   onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}>
                   <div style={{ fontSize: '22px', fontWeight: 700, color: count > 0 ? color : 'var(--text-muted)' }}>{count}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{label}</div>
+                  <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -241,22 +241,22 @@ export default function PropertyDetail({
         <div className="card">
           <SectionHeader title="Leads" count={linkedLeads.length} />
           {linkedLeads.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '16px 0' }}>No leads linked to this property</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', padding: '16px 0' }}>No leads linked to this property</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {linkedLeads.map((l) => (
                 <LinkedCard key={l.id} onClick={() => onLeadClick?.(l)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{l.lead_name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{l.decision_maker || l.owner || '—'}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 600 }}>{l.lead_name}</div>
+                      <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '2px' }}>{l.decision_maker || l.owner || '—'}</div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      {l.tier && <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#3b82f622', color: '#3b82f6' }}>{l.tier}</span>}
-                      <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: (LEAD_STAGE_COLORS?.[l.stage] || '#6b7280') + '22', color: LEAD_STAGE_COLORS?.[l.stage] || '#6b7280' }}>{l.stage}</span>
+                      {l.tier && <span style={{ fontSize: '15px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#3b82f622', color: '#3b82f6' }}>{l.tier}</span>}
+                      <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '15px', fontWeight: 600, background: (LEAD_STAGE_COLORS?.[l.stage] || '#6b7280') + '22', color: LEAD_STAGE_COLORS?.[l.stage] || '#6b7280' }}>{l.stage}</span>
                     </div>
                   </div>
-                  {l.next_action && <div style={{ fontSize: '12px', color: 'var(--amber)', marginTop: '6px' }}>→ {l.next_action}</div>}
+                  {l.next_action && <div style={{ fontSize: '15px', color: 'var(--amber)', marginTop: '6px' }}>→ {l.next_action}</div>}
                 </LinkedCard>
               ))}
             </div>
@@ -269,24 +269,24 @@ export default function PropertyDetail({
         <div className="card">
           <SectionHeader title="Deals" count={linkedDeals.length} />
           {linkedDeals.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '16px 0' }}>No deals linked to this property</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', padding: '16px 0' }}>No deals linked to this property</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {linkedDeals.map((d) => (
                 <LinkedCard key={d.id} onClick={() => onDealClick?.(d)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{d.deal_name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 600 }}>{d.deal_name}</div>
+                      <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '2px' }}>
                         {d.deal_type}{d.buyer ? ` · ${d.buyer}` : ''}{d.seller ? ` · ${d.seller}` : ''}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {d.deal_value && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{fmt.price(d.deal_value)}</span>}
-                      <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, background: (STAGE_COLORS?.[d.stage] || '#6b7280') + '22', color: STAGE_COLORS?.[d.stage] || '#6b7280' }}>{d.stage}</span>
+                      {d.deal_value && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--accent)', fontWeight: 600 }}>{fmt.price(d.deal_value)}</span>}
+                      <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '15px', fontWeight: 600, background: (STAGE_COLORS?.[d.stage] || '#6b7280') + '22', color: STAGE_COLORS?.[d.stage] || '#6b7280' }}>{d.stage}</span>
                     </div>
                   </div>
-                  {d.commission_est && <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '4px' }}>Est. commission: {fmt.price(d.commission_est)}</div>}
+                  {d.commission_est && <div style={{ fontSize: '15px', color: '#22c55e', marginTop: '4px' }}>Est. commission: {fmt.price(d.commission_est)}</div>}
                 </LinkedCard>
               ))}
             </div>
@@ -299,15 +299,15 @@ export default function PropertyDetail({
         <div className="card">
           <SectionHeader title="Contacts" count={linkedContacts.length} />
           {linkedContacts.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '16px 0' }}>No contacts linked to this property</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', padding: '16px 0' }}>No contacts linked to this property</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {linkedContacts.map((c) => (
                 <LinkedCard key={c.id} onClick={() => onContactClick?.(c)}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>{c.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.title}{c.company ? ` · ${c.company}` : ''}</div>
-                  {c.phone && <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '4px' }}>{c.phone}</div>}
-                  {c.email && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{c.email}</div>}
+                  <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>{c.name}</div>
+                  <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{c.title}{c.company ? ` · ${c.company}` : ''}</div>
+                  {c.phone && <div style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginTop: '4px' }}>{c.phone}</div>}
+                  {c.email && <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{c.email}</div>}
                 </LinkedCard>
               ))}
             </div>
@@ -322,34 +322,34 @@ export default function PropertyDetail({
           <div className="card">
             <SectionHeader title="Lease Comps" count={displayLeaseComps.length} />
             {displayLeaseComps.length === 0 ? (
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No lease comps linked</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No lease comps linked</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Address', 'Tenant', 'SF', 'Rate', 'Type', 'Term', 'Start', 'Free Rent', 'TIs'].map((h) => (
-                        <th key={h} style={{ padding: '6px 10px', textAlign: h === 'SF' || h === 'Rate' || h === 'Term' || h === 'TIs' || h === 'Free Rent' ? 'right' : 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                        <th key={h} style={{ padding: '6px 10px', textAlign: h === 'SF' || h === 'Rate' || h === 'Term' || h === 'TIs' || h === 'Free Rent' ? 'right' : 'left', fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {displayLeaseComps.map((c) => (
                       <tr key={c.id} onClick={() => onLeaseCompClick?.(c)} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: onLeaseCompClick ? 'pointer' : 'default' }}>
-                        <td style={{ padding: '8px 10px', fontSize: '13px', fontWeight: 500 }}>{c.address}</td>
-                        <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-muted)' }}>{c.tenant || '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.rsf ? c.rsf.toLocaleString() : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>${c.rate}/SF</td>
-                        <td style={{ padding: '8px 10px', fontSize: '11px' }}>{c.lease_type || '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.term_months ? `${c.term_months}mo` : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{c.start_date?.slice(0, 7) || '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.free_rent_months ? `${c.free_rent_months}mo` : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.ti_psf ? `$${c.ti_psf}` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px', fontWeight: 500 }}>{c.address}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px', color: 'var(--text-muted)' }}>{c.tenant || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.rsf ? c.rsf.toLocaleString() : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>${c.rate}/SF</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px' }}>{c.lease_type || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.term_months ? `${c.term_months}mo` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{c.start_date?.slice(0, 7) || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.free_rent_months ? `${c.free_rent_months}mo` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.ti_psf ? `$${c.ti_psf}` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {avgLeaseRate && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right' }}>Avg rate: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>${avgLeaseRate}/SF NNN</span></div>}
+                {avgLeaseRate && <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right' }}>Avg rate: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>${avgLeaseRate}/SF NNN</span></div>}
               </div>
             )}
           </div>
@@ -358,33 +358,33 @@ export default function PropertyDetail({
           <div className="card">
             <SectionHeader title="Sale Comps" count={displaySaleComps.length} />
             {displaySaleComps.length === 0 ? (
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No sale comps linked</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No sale comps linked</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Address', 'SF', 'Price', '$/SF', 'Cap Rate', 'Date', 'Buyer', 'Type'].map((h) => (
-                        <th key={h} style={{ padding: '6px 10px', textAlign: ['SF','Price','$/SF','Cap Rate'].includes(h) ? 'right' : 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                        <th key={h} style={{ padding: '6px 10px', textAlign: ['SF','Price','$/SF','Cap Rate'].includes(h) ? 'right' : 'left', fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {displaySaleComps.map((c) => (
                       <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '8px 10px', fontSize: '13px', fontWeight: 500 }}>{c.address}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.building_sf ? c.building_sf.toLocaleString() : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.sale_price ? fmt.price(c.sale_price) : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>{c.price_psf ? `$${Math.round(c.price_psf)}` : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '12px', textAlign: 'right' }}>{c.cap_rate ? `${parseFloat(c.cap_rate).toFixed(2)}%` : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{c.sale_date?.slice(0, 7) || '—'}</td>
-                        <td style={{ padding: '8px 10px', fontSize: '12px' }}>{c.buyer || '—'}</td>
-                        <td style={{ padding: '8px 10px', fontSize: '11px' }}>{c.sale_type || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px', fontWeight: 500 }}>{c.address}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.building_sf ? c.building_sf.toLocaleString() : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.sale_price ? fmt.price(c.sale_price) : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>{c.price_psf ? `$${Math.round(c.price_psf)}` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px', textAlign: 'right' }}>{c.cap_rate ? `${parseFloat(c.cap_rate).toFixed(2)}%` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{c.sale_date?.slice(0, 7) || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px' }}>{c.buyer || '—'}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '15px' }}>{c.sale_type || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {avgSalePsf && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right' }}>Avg $/SF: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>${avgSalePsf}/SF</span></div>}
+                {avgSalePsf && <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right' }}>Avg $/SF: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>${avgSalePsf}/SF</span></div>}
               </div>
             )}
           </div>
@@ -403,7 +403,7 @@ export default function PropertyDetail({
         <div className="card">
           <SectionHeader title="Tasks" count={pendingTasks} onAdd={() => onAddTask?.(p.id)} addLabel="+ Task" />
           {linkedTasks.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '16px 0' }}>No tasks for this property</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', padding: '16px 0' }}>No tasks for this property</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {linkedTasks.sort((a, b) => a.completed - b.completed).map((t) => {
@@ -411,14 +411,14 @@ export default function PropertyDetail({
                 const overdue = !t.completed && t.due_date && new Date(t.due_date) < new Date();
                 return (
                   <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '8px 10px', background: 'var(--bg-input)', borderRadius: '6px', borderLeft: `3px solid ${t.completed ? 'var(--border)' : priorityColor}`, opacity: t.completed ? 0.6 : 1 }}>
-                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : priorityColor, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '9px' }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : priorityColor, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '15px' }}>
                       {t.completed ? '✓' : ''}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
-                      {t.due_date && <div style={{ fontSize: '11px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
+                      <div style={{ fontSize: '15px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
+                      {t.due_date && <div style={{ fontSize: '15px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
                     </div>
-                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: priorityColor + '22', color: priorityColor }}>{t.priority}</span>
+                    <span style={{ fontSize: '15px', padding: '1px 5px', borderRadius: '3px', background: priorityColor + '22', color: priorityColor }}>{t.priority}</span>
                   </div>
                 );
               })}
@@ -432,19 +432,19 @@ export default function PropertyDetail({
         <div className="card">
           <SectionHeader title="Activity Log" count={linkedActivities.length} onAdd={() => onAddActivity?.(p.id)} addLabel="+ Log" />
           {linkedActivities.length === 0 ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '16px 0' }}>No activity logged for this property</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', padding: '16px 0' }}>No activity logged for this property</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {linkedActivities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((a) => (
                 <div key={a.id} style={{ padding: '10px 12px', background: 'var(--bg-input)', borderRadius: '6px', opacity: a.completed ? 0.7 : 1 }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px' }}>{a.activity_type === 'Call' ? '📞' : a.activity_type === 'Email' ? '✉️' : a.activity_type === 'Meeting' ? '🤝' : '✓'}</span>
-                    <span className="tag tag-blue" style={{ fontSize: '10px' }}>{a.activity_type}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{a.subject}</span>
-                    {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '10px' }}>{a.outcome}</span>}
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</span>
+                    <span style={{ fontSize: '15px' }}>{a.activity_type === 'Call' ? '📞' : a.activity_type === 'Email' ? '✉️' : a.activity_type === 'Meeting' ? '🤝' : '✓'}</span>
+                    <span className="tag tag-blue" style={{ fontSize: '15px' }}>{a.activity_type}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 500 }}>{a.subject}</span>
+                    {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '15px' }}>{a.outcome}</span>}
+                    <span style={{ fontSize: '15px', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</span>
                   </div>
-                  {a.notes && <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{a.notes}</div>}
+                  {a.notes && <div style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{a.notes}</div>}
                 </div>
               ))}
             </div>

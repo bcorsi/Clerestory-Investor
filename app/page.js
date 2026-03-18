@@ -89,6 +89,11 @@ export default function App() {
       setAccounts(accts); setActivities(acts); setTasks(tks);
       setLeaseComps(lcs); setSaleComps(scs);
       setSelectedProperty((prev) => prev ? props.find((p) => p.id === prev.id) || prev : prev);
+      setSelectedLead((prev) => prev ? lds.find((l) => l.id === prev.id) || prev : prev);
+      setSelectedDeal((prev) => prev ? dls.find((d) => d.id === prev.id) || prev : prev);
+      setSelectedContact((prev) => prev ? cts.find((c) => c.id === prev.id) || prev : prev);
+      setSelectedAccount((prev) => prev ? accts.find((a) => a.id === prev.id) || prev : prev);
+      setSelectedLeaseComp((prev) => prev ? lcs.find((c) => c.id === prev.id) || prev : prev);
     } catch (err) { console.error('Load error:', err); }
     finally { setLoading(false); }
   }, []);

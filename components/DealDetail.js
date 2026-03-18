@@ -47,8 +47,8 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
 
   const Field = ({ label, value, mono, highlight }) => (
     <div>
-      <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
-      <div style={{ fontSize: '14px', color: highlight ? 'var(--accent)' : value ? 'var(--text-primary)' : 'var(--text-muted)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: highlight ? 700 : 400 }}>{value || '—'}</div>
+      <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
+      <div style={{ fontSize: '15px', color: highlight ? 'var(--accent)' : value ? 'var(--text-primary)' : 'var(--text-muted)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: highlight ? 700 : 400 }}>{value || '—'}</div>
     </div>
   );
 
@@ -60,11 +60,11 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{deal.deal_name}</h2>
-              <span style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, background: stageColor + '22', color: stageColor }}>
+              <span style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '15px', fontWeight: 600, background: stageColor + '22', color: stageColor }}>
                 {deal.stage}
               </span>
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
               {deal.address}{deal.submarket ? ` · ${deal.submarket}` : ''}
             </div>
           </div>
@@ -78,25 +78,25 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
         <div style={{ display: 'flex', gap: '24px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
           {deal.deal_value && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Deal Value</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Deal Value</div>
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--accent)' }}>{fmt.price(deal.deal_value)}</div>
             </div>
           )}
           {deal.commission_est && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Est. Commission</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Est. Commission</div>
               <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e' }}>{fmt.price(deal.commission_est)}</div>
             </div>
           )}
           {deal.probability != null && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Probability</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Probability</div>
               <div style={{ fontSize: '18px', fontWeight: 700 }}>{deal.probability}%</div>
             </div>
           )}
           {deal.close_date && (
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>Est. Close</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '2px' }}>Est. Close</div>
               <div style={{ fontSize: '18px', fontWeight: 700 }}>{deal.close_date}</div>
             </div>
           )}
@@ -142,7 +142,7 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div className="card">
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Deal Details</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Deal Details</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <Field label="Type" value={deal.deal_type} />
               <Field label="Strategy" value={deal.strategy} />
@@ -153,8 +153,8 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
             </div>
           </div>
           <div className="card">
-            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Notes</h3>
-            <div style={{ fontSize: '13px', color: deal.notes ? 'var(--text-secondary)' : 'var(--text-muted)', lineHeight: 1.7 }}>{deal.notes || 'No notes'}</div>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Notes</h3>
+            <div style={{ fontSize: '15px', color: deal.notes ? 'var(--text-secondary)' : 'var(--text-muted)', lineHeight: 1.7 }}>{deal.notes || 'No notes'}</div>
           </div>
         </div>
       )}
@@ -162,12 +162,12 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
       {/* Linked property */}
       {linkedProperty && (
         <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Property</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Property</h3>
           <div onClick={() => onPropertyClick && onPropertyClick(linkedProperty)} style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '6px', cursor: 'pointer', border: '1px solid transparent', transition: 'border-color 0.15s' }}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}>
-            <div style={{ fontSize: '14px', fontWeight: 600 }}>{linkedProperty.address}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600 }}>{linkedProperty.address}</div>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '2px' }}>
               {linkedProperty.submarket} · {linkedProperty.building_sf ? fmt.sf(linkedProperty.building_sf) : ''} · {linkedProperty.owner}
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
 
       {/* Stage pipeline progress */}
       <div className="card" style={{ marginBottom: '16px' }}>
-        <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Pipeline Stage</h3>
+        <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Pipeline Stage</h3>
         <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexWrap: 'wrap' }}>
           {DEAL_STAGES.filter(s => s !== 'Dead').map((s, i) => {
             const isActive = s === deal.stage;
@@ -184,7 +184,7 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
             return (
               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                 <div style={{
-                  padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: isActive ? 700 : 500,
+                  padding: '3px 8px', borderRadius: '4px', fontSize: '15px', fontWeight: isActive ? 700 : 500,
                   background: isActive ? STAGE_COLORS[s] : isPast ? STAGE_COLORS[s] + '44' : 'var(--bg-input)',
                   color: isActive ? 'white' : isPast ? STAGE_COLORS[s] : 'var(--text-muted)',
                   border: `1px solid ${isActive ? STAGE_COLORS[s] : 'var(--border)'}`,
@@ -193,7 +193,7 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
                   {s}
                 </div>
                 {i < DEAL_STAGES.filter(s => s !== 'Dead').length - 1 && (
-                  <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>›</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '15px' }}>›</span>
                 )}
               </div>
             );
@@ -204,13 +204,13 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
       {/* Tasks */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Tasks {pendingTasks > 0 && <span style={{ color: '#ef4444' }}>({pendingTasks} pending)</span>}
           </h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onAddTask?.(deal.id)}>+ Task</button>
         </div>
         {linkedTasks.length === 0 ? (
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No tasks yet</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No tasks yet</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {linkedTasks.sort((a, b) => a.completed - b.completed).map((t) => {
@@ -218,12 +218,12 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
               const overdue = !t.completed && t.due_date && new Date(t.due_date) < new Date();
               return (
                 <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '8px 10px', background: 'var(--bg-input)', borderRadius: '6px', borderLeft: `3px solid ${t.completed ? 'var(--border)' : pc}`, opacity: t.completed ? 0.6 : 1 }}>
-                  <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : pc, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '9px' }}>{t.completed ? '✓' : ''}</div>
+                  <div style={{ width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, marginTop: '2px', border: '2px solid', borderColor: t.completed ? 'var(--accent)' : pc, background: t.completed ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '15px' }}>{t.completed ? '✓' : ''}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
-                    {t.due_date && <div style={{ fontSize: '11px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
+                    <div style={{ fontSize: '15px', fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
+                    {t.due_date && <div style={{ fontSize: '15px', color: overdue ? 'var(--red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>{overdue ? '⚠ ' : ''}{t.due_date}</div>}
                   </div>
-                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: pc + '22', color: pc, flexShrink: 0 }}>{t.priority}</span>
+                  <span style={{ fontSize: '15px', padding: '1px 5px', borderRadius: '3px', background: pc + '22', color: pc, flexShrink: 0 }}>{t.priority}</span>
                 </div>
               );
             })}
@@ -234,22 +234,22 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
       {/* Activities */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activities ({linkedActivities.length})</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activities ({linkedActivities.length})</h3>
           <button className="btn btn-ghost btn-sm" onClick={() => onAddActivity && onAddActivity(null, deal.id)}>+ Log</button>
         </div>
         {linkedActivities.length === 0 ? (
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No activities yet</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No activities yet</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {linkedActivities.map((a) => (
               <div key={a.id} style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '6px', opacity: a.completed ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '2px' }}>
-                  <span className="tag tag-blue" style={{ fontSize: '10px' }}>{a.activity_type}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 500 }}>{a.subject}</span>
-                  {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '10px' }}>{a.outcome}</span>}
+                  <span className="tag tag-blue" style={{ fontSize: '15px' }}>{a.activity_type}</span>
+                  <span style={{ fontSize: '15px', fontWeight: 500 }}>{a.subject}</span>
+                  {a.outcome && <span className="tag tag-ghost" style={{ fontSize: '15px' }}>{a.outcome}</span>}
                 </div>
-                {a.notes && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{a.notes}</div>}
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</div>
+                {a.notes && <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{a.notes}</div>}
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>{a.activity_date}</div>
               </div>
             ))}
           </div>

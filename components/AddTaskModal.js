@@ -57,7 +57,7 @@ export default function AddTaskModal({ onClose, onSave, defaultLeadId, defaultDe
                 {TASK_PRIORITIES.map((p) => (
                   <button key={p} type="button" onClick={() => set('priority', p)} style={{
                     flex: 1, padding: '6px 4px', borderRadius: '6px', border: '1px solid', cursor: 'pointer',
-                    fontSize: '12px', fontWeight: 500, transition: 'all 0.15s',
+                    fontSize: '15px', fontWeight: 500, transition: 'all 0.15s',
                     background: form.priority === p ? priorityColor(p) : 'transparent',
                     borderColor: form.priority === p ? priorityColor(p) : 'var(--border)',
                     color: form.priority === p ? 'white' : 'var(--text-muted)',
@@ -77,7 +77,7 @@ export default function AddTaskModal({ onClose, onSave, defaultLeadId, defaultDe
           </div>
 
           {/* Link to record */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', margin: '4px 0 8px' }}>Link To (optional)</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', margin: '4px 0 8px' }}>Link To (optional)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {leads?.length > 0 && (
               <div className="form-group">

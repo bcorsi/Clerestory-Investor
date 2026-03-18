@@ -81,17 +81,17 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
       <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'center', minWidth: '100px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700 }}>{counts.pending}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Pending</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>Pending</div>
         </div>
         {counts.overdue > 0 && (
           <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'center', borderColor: 'var(--red)' }}>
             <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--red)' }}>{counts.overdue}</div>
-            <div style={{ fontSize: '12px', color: 'var(--red)' }}>Overdue</div>
+            <div style={{ fontSize: '15px', color: 'var(--red)' }}>Overdue</div>
           </div>
         )}
         <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-muted)' }}>{counts.completed}</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Done</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>Done</div>
         </div>
       </div>
 
@@ -99,7 +99,7 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '4px' }}>
           {['pending', 'completed', 'all'].map((f) => (
-            <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter(f)} style={{ fontSize: '12px', textTransform: 'capitalize' }}>
+            <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter(f)} style={{ fontSize: '15px', textTransform: 'capitalize' }}>
               {f} {f !== 'all' ? `(${counts[f] ?? tasks.length})` : `(${tasks.length})`}
             </button>
           ))}
@@ -132,7 +132,7 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
                 border: '2px solid', borderColor: task.completed ? 'var(--accent)' : priorityColor(task.priority),
                 background: task.completed ? 'var(--accent)' : 'transparent',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontSize: '10px', fontWeight: 700,
+                color: 'white', fontSize: '15px', fontWeight: 700,
               }}>
                 {task.completed ? '✓' : ''}
               </button>
@@ -140,24 +140,24 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none' }}>
                     {task.title}
                   </span>
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: priorityColor(task.priority) + '22', color: priorityColor(task.priority), fontWeight: 600 }}>
+                  <span style={{ fontSize: '15px', padding: '1px 6px', borderRadius: '3px', background: priorityColor(task.priority) + '22', color: priorityColor(task.priority), fontWeight: 600 }}>
                     {task.priority}
                   </span>
                 </div>
                 {task.description && (
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>{task.description}</div>
+                  <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '6px' }}>{task.description}</div>
                 )}
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {task.due_date && (
-                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: overdue ? 'var(--red)' : dueToday ? 'var(--amber)' : 'var(--text-muted)', fontWeight: overdue || dueToday ? 600 : 400 }}>
+                    <span style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: overdue ? 'var(--red)' : dueToday ? 'var(--amber)' : 'var(--text-muted)', fontWeight: overdue || dueToday ? 600 : 400 }}>
                       {overdue ? '⚠ Overdue · ' : dueToday ? '⏰ Due today · ' : ''}{task.due_date}
                     </span>
                   )}
                   {linked && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
                       <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{linked.type}</span>: {linked.label}
                     </span>
                   )}
@@ -165,14 +165,14 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
               </div>
 
               {/* Delete */}
-              <button onClick={() => handleDelete(task)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px', padding: '2px 4px', flexShrink: 0 }}
+              <button onClick={() => handleDelete(task)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px', padding: '2px 4px', flexShrink: 0 }}
                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--red)'}
                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>×</button>
             </div>
           );
         })}
         {filtered.length === 0 && (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '15px', border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>
             {filter === 'pending' ? 'No pending tasks — nice work! 🎉' : filter === 'completed' ? 'No completed tasks yet' : 'No tasks'}
             <div style={{ marginTop: '8px' }}>
               <button className="btn btn-ghost btn-sm" onClick={onAdd}>+ Add a task</button>

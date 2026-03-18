@@ -30,7 +30,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
       <div className="card mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '4px' }}>{c.address}</h2>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
             {c.city}{c.submarket ? ` · ${c.submarket}` : ''}
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
@@ -42,15 +42,15 @@ export default function LeaseCompDetail({ comp: c, properties }) {
         <div style={{ textAlign: 'right' }}>
           {c.rate && (
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Rate</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Rate</div>
               <div style={{ fontSize: '32px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--green)', letterSpacing: '-0.02em' }}>
                 ${Number(c.rate).toFixed(2)}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/ SF / Mo {c.lease_type || ''}</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>/ SF / Mo {c.lease_type || ''}</div>
             </div>
           )}
           {grossEquiv && c.lease_type === 'NNN' && (
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
               Gross equiv: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--amber)' }}>${Number(grossEquiv).toFixed(2)}</span>
             </div>
           )}
@@ -91,7 +91,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
             )}
             {c.expense_stop != null && <div className="detail-row"><span className="detail-label">Expense Stop</span><span className="detail-value" style={{ fontFamily: 'var(--font-mono)' }}>${Number(c.expense_stop).toFixed(2)} / SF / Mo</span></div>}
             {!c.cam_psf && !c.insurance_psf && !c.tax_psf && !c.total_expenses_psf && (
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No expense data recorded</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No expense data recorded</div>
             )}
           </div>
 
@@ -109,7 +109,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
           {c.notes && (
             <div className="detail-section">
               <div className="detail-section-title">Notes</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{c.notes}</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{c.notes}</div>
             </div>
           )}
         </div>
@@ -118,7 +118,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
         <div>
           {/* Rate Summary Card */}
           <div className="card mb-4">
-            <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '14px' }}>Rate Summary</h4>
+            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '14px' }}>Rate Summary</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {[
                 ['Base Rate', c.rate, c.lease_type, 'var(--green)'],
@@ -127,8 +127,8 @@ export default function LeaseCompDetail({ comp: c, properties }) {
               ].filter(([, v]) => v).map(([label, val, sub, color]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{label}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{sub}</div>
+                    <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{label}</div>
+                    <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{sub}</div>
                   </div>
                   <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-mono)', color }}>
                     ${Number(val).toFixed(2)}
@@ -140,7 +140,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
             {/* Expense breakdown bar */}
             {c.total_expenses_psf && c.rate && (
               <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cost Breakdown</div>
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cost Breakdown</div>
                 <div style={{ height: '8px', borderRadius: '4px', overflow: 'hidden', display: 'flex', background: 'var(--border)' }}>
                   <div style={{ width: `${(c.rate / (grossEquiv || c.rate + c.total_expenses_psf)) * 100}%`, background: 'var(--green)', transition: 'width 0.3s' }} title="Base Rent" />
                   {c.cam_psf && <div style={{ width: `${(c.cam_psf / (grossEquiv || c.rate + c.total_expenses_psf)) * 100}%`, background: 'var(--accent)' }} title="CAM" />}
@@ -154,7 +154,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
                     ['Ins', 'var(--purple)'],
                     ['Tax', 'var(--amber)'],
                   ].map(([label, color]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-muted)' }}>
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '15px', color: 'var(--text-muted)' }}>
                       <div style={{ width: '6px', height: '6px', borderRadius: '2px', background: color }} />
                       {label}
                     </div>
@@ -166,22 +166,22 @@ export default function LeaseCompDetail({ comp: c, properties }) {
 
           {/* Building Info */}
           <div className="card mb-4">
-            <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Building</h4>
+            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Building</h4>
             {c.building_sf && <div className="detail-row"><span className="detail-label">Building SF</span><span className="detail-value" style={{ fontFamily: 'var(--font-mono)' }}>{fmt.sf(c.building_sf)}</span></div>}
             {c.year_built && <div className="detail-row"><span className="detail-label">Year Built</span><span className="detail-value">{c.year_built}</span></div>}
             {c.clear_height && <div className="detail-row"><span className="detail-label">Clear Height</span><span className="detail-value">{fmt.clearHt(c.clear_height)}</span></div>}
             {!c.building_sf && !c.year_built && !c.clear_height && (
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No building data</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No building data</div>
             )}
           </div>
 
           {/* Linked Property */}
           {linkedProperty && (
             <div className="card mb-4">
-              <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Linked Property</h4>
+              <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Linked Property</h4>
               <div style={{ padding: '10px', background: 'var(--bg-input)', borderRadius: '6px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{linkedProperty.address}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)' }}>{linkedProperty.address}</div>
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   {linkedProperty.city} · {linkedProperty.submarket} · {linkedProperty.building_sf ? fmt.sf(linkedProperty.building_sf) : ''}
                 </div>
               </div>
@@ -190,7 +190,7 @@ export default function LeaseCompDetail({ comp: c, properties }) {
 
           {/* Comp Metadata */}
           <div className="card">
-            <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Comp Info</h4>
+            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Comp Info</h4>
             <div className="detail-row"><span className="detail-label">Address</span><span className="detail-value">{c.address}</span></div>
             <div className="detail-row"><span className="detail-label">City</span><span className="detail-value">{c.city || '—'}</span></div>
             <div className="detail-row"><span className="detail-label">Submarket</span><span className="detail-value">{c.submarket || '—'}</span></div>

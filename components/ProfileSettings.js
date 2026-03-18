@@ -58,8 +58,8 @@ export default function ProfileSettings({ user, showToast }) {
         }}>{initial}</div>
         <div>
           <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>{fullName || 'No name set'}</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{user?.email}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{user?.email}</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '4px' }}>
             Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function ProfileSettings({ user, showToast }) {
 
       {/* Profile Info */}
       <div className="card mb-6">
-        <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>Profile</div>
+        <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>Profile</div>
 
         <div className="form-group">
           <label className="form-label">Full Name</label>
@@ -77,7 +77,7 @@ export default function ProfileSettings({ user, showToast }) {
         <div className="form-group">
           <label className="form-label">Email</label>
           <input className="input" value={user?.email || ''} disabled style={{ opacity: 0.5, cursor: 'not-allowed' }} />
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Email cannot be changed here</div>
+          <div style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '4px' }}>Email cannot be changed here</div>
         </div>
 
         <button className="btn btn-primary" onClick={handleProfileSave} disabled={saving} style={{ marginTop: '8px' }}>
@@ -87,7 +87,7 @@ export default function ProfileSettings({ user, showToast }) {
 
       {/* Change Password */}
       <div className="card mb-6">
-        <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>Change Password</div>
+        <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>Change Password</div>
 
         <div className="form-group">
           <label className="form-label">New Password</label>
@@ -103,7 +103,7 @@ export default function ProfileSettings({ user, showToast }) {
           <div style={{
             padding: '10px 14px', borderRadius: 'var(--radius-sm)',
             background: 'var(--red-soft)', color: 'var(--red)',
-            fontSize: '13px', marginBottom: '12px',
+            fontSize: '15px', marginBottom: '12px',
           }}>{pwError}</div>
         )}
 
@@ -114,8 +114,8 @@ export default function ProfileSettings({ user, showToast }) {
 
       {/* App Info */}
       <div className="card">
-        <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>About</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '13px' }}>
+        <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '16px' }}>About</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '15px' }}>
           <span style={{ color: 'var(--text-muted)' }}>App</span><span style={{ color: 'var(--text-primary)' }}>Clerestory v2</span>
           <span style={{ color: 'var(--text-muted)' }}>Platform</span><span style={{ color: 'var(--text-primary)' }}>Colliers · SGV / IE</span>
           <span style={{ color: 'var(--text-muted)' }}>Stack</span><span style={{ color: 'var(--text-primary)' }}>Next.js + Supabase + Vercel</span>

@@ -87,7 +87,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
         </div>
         <div className="modal-body">
           {/* Location */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Address *</label>
@@ -120,7 +120,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
           </div>
 
           {/* APNs */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>
             Parcels / APNs
           </div>
           {apns.map((a, i) => (
@@ -135,7 +135,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
           <button className="btn btn-ghost btn-sm" onClick={addApn} style={{ marginBottom: '16px' }}>+ Add APN</button>
 
           {/* Physical */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Physical</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '8px', marginBottom: '10px' }}>Physical</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Record Type</label>
@@ -171,7 +171,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
           </div>
 
           {/* Ownership + Tenancy */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Ownership & Tenancy</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Ownership & Tenancy</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Owner</label>
@@ -207,7 +207,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
           </div>
 
           {/* Intelligence */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Intelligence</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Intelligence</div>
           <div className="form-group">
             <label className="form-label">Catalyst Tags</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -216,7 +216,7 @@ export default function AddPropertyModal({ onClose, onSave }) {
                   key={tag}
                   type="button"
                   className={`tag ${form.catalyst_tags.includes(tag) ? 'tag-amber' : 'tag-ghost'}`}
-                  style={{ cursor: 'pointer', border: 'none', fontSize: '11px' }}
+                  style={{ cursor: 'pointer', border: 'none', fontSize: '15px' }}
                   onClick={() => toggleCatalyst(tag)}
                 >
                   {tag}

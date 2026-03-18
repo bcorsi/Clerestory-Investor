@@ -72,13 +72,13 @@ export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
             width: '28px', height: '28px', borderRadius: '50%',
             background: 'var(--accent-soft)', color: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: 600, flexShrink: 0,
+            fontSize: '15px', fontWeight: 600, flexShrink: 0,
           }}>{initial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {userName}
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: '15px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.email || 'Colliers · SGV / IE'}
             </div>
           </div>
@@ -87,7 +87,7 @@ export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
             title="Sign out"
             style={{
               background: 'none', border: 'none', color: 'var(--text-muted)',
-              cursor: 'pointer', fontSize: '14px', padding: '4px',
+              cursor: 'pointer', fontSize: '15px', padding: '4px',
               borderRadius: 'var(--radius-sm)', transition: 'color 0.15s',
             }}
             onMouseEnter={(e) => e.currentTarget.style.color = 'var(--red)'}

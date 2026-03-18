@@ -98,7 +98,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
         </div>
         <div className="modal-body">
           {/* Location */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Address</label>
@@ -131,7 +131,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
           </div>
 
           {/* Physical */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Physical</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Physical</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Record Type</label>
@@ -181,7 +181,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
           </div>
 
           {/* Ownership & Tenancy */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Ownership & Tenancy</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Ownership & Tenancy</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Owner</label>
@@ -231,7 +231,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
           </div>
 
           {/* Intelligence */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Intelligence</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Intelligence</div>
           <div className="form-group">
             <label className="form-label">Catalyst Tags</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -240,7 +240,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
                   key={tag}
                   type="button"
                   className={`tag ${form.catalyst_tags.includes(tag) ? 'tag-amber' : 'tag-ghost'}`}
-                  style={{ cursor: 'pointer', border: 'none', fontSize: '11px' }}
+                  style={{ cursor: 'pointer', border: 'none', fontSize: '15px' }}
                   onClick={() => toggleCatalyst(tag)}
                 >
                   {tag}
@@ -261,7 +261,7 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
           </div>
 
           {/* Links */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Links</div>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Links</div>
           <div className="form-group">
             <label className="form-label">OneDrive Folder Link</label>
             <input className="input" placeholder="https://collaborateicg-my.sharepoint.com/..." value={form.onedrive_url} onChange={(e) => set('onedrive_url', e.target.value)} />

@@ -49,7 +49,7 @@ export default function AuthGate({ onAuth }) {
             fontSize: '22px', fontWeight: 700, color: 'white', marginBottom: '16px',
           }}>C</div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>Clerestory</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>CRE Brokerage Intelligence</p>
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '6px' }}>CRE Brokerage Intelligence</p>
         </div>
 
         {/* Card */}
@@ -109,7 +109,7 @@ export default function AuthGate({ onAuth }) {
                   style={{
                     position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', color: 'var(--text-muted)',
-                    cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-sans)',
+                    cursor: 'pointer', fontSize: '15px', fontFamily: 'var(--font-sans)',
                     padding: '2px 4px', borderRadius: '4px',
                   }}
                 >
@@ -122,7 +122,7 @@ export default function AuthGate({ onAuth }) {
               <div style={{
                 padding: '10px 14px', borderRadius: 'var(--radius-sm)',
                 background: 'var(--red-soft)', color: 'var(--red)',
-                fontSize: '13px', marginBottom: '16px',
+                fontSize: '15px', marginBottom: '16px',
               }}>
                 {error}
               </div>
@@ -132,19 +132,19 @@ export default function AuthGate({ onAuth }) {
               className="btn btn-primary"
               type="submit"
               disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '14px', marginTop: '8px' }}
+              style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '15px', marginTop: '8px' }}
             >
               {loading ? (mode === 'login' ? 'Signing in...' : 'Creating account...') : (mode === 'login' ? 'Sign in' : 'Create account')}
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
+          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '15px', color: 'var(--text-muted)' }}>
             {mode === 'login' ? (
               <>
                 No account yet?{' '}
                 <button
                   onClick={() => { setMode('signup'); setError(null); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 500 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 500 }}
                 >
                   Create one
                 </button>
@@ -154,7 +154,7 @@ export default function AuthGate({ onAuth }) {
                 Already have an account?{' '}
                 <button
                   onClick={() => { setMode('login'); setError(null); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 500 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 500 }}
                 >
                   Sign in
                 </button>
@@ -163,7 +163,7 @@ export default function AuthGate({ onAuth }) {
           </div>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', marginTop: '24px' }}>
+        <p style={{ textAlign: 'center', fontSize: '15px', color: 'var(--text-muted)', marginTop: '24px' }}>
           Colliers · SGV / IE Industrial
         </p>
       </div>

@@ -62,7 +62,7 @@ export default function AddActivityModal({ onClose, onSave, defaultLeadId, defau
                   onClick={() => set('activity_type', t)}
                   style={{
                     padding: '6px 14px', borderRadius: '6px', border: '1px solid',
-                    cursor: 'pointer', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s',
+                    cursor: 'pointer', fontSize: '15px', fontWeight: 500, transition: 'all 0.15s',
                     background: form.activity_type === t ? 'var(--accent)' : 'transparent',
                     borderColor: form.activity_type === t ? 'var(--accent)' : 'var(--border)',
                     color: form.activity_type === t ? 'white' : 'var(--text-muted)',
@@ -108,7 +108,7 @@ export default function AddActivityModal({ onClose, onSave, defaultLeadId, defau
           </div>
 
           {/* Link to record */}
-          <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', margin: '4px 0 10px' }}>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', margin: '4px 0 10px' }}>
             Link To (optional)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -178,7 +178,7 @@ export default function AddActivityModal({ onClose, onSave, defaultLeadId, defau
                 onChange={(e) => set('completed', e.target.checked)}
                 style={{ width: '16px', height: '16px', cursor: 'pointer' }}
               />
-              <label htmlFor="completed" style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <label htmlFor="completed" style={{ fontSize: '15px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 Mark as completed
               </label>
             </div>

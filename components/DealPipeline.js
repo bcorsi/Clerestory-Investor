@@ -46,14 +46,14 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
     <div>
       {/* Header bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', gap: '20px', fontSize: '15px', color: 'var(--text-muted)' }}>
           <span>Pipeline: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 600 }}>{totalValue > 0 ? `$${(totalValue / 1000000).toFixed(1)}M` : '—'}</span></span>
           <span>Commission: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--green)', fontWeight: 600 }}>{totalComm > 0 ? fmt.price(Math.round(totalComm)) : '—'}</span></span>
           <span>Weighted: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--green)', fontWeight: 600 }}>{weightedComm > 0 ? fmt.price(Math.round(weightedComm)) : '—'}</span></span>
         </div>
         <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-input)', borderRadius: '6px', padding: '2px' }}>
           {[['kanban', '⊞'], ['list', '☰']].map(([v, icon]) => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: '4px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '14px', background: view === v ? 'var(--bg-card)' : 'transparent', color: view === v ? 'var(--text-primary)' : 'var(--text-muted)', transition: 'all 0.15s' }}>{icon}</button>
+            <button key={v} onClick={() => setView(v)} style={{ padding: '4px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '15px', background: view === v ? 'var(--bg-card)' : 'transparent', color: view === v ? 'var(--text-primary)' : 'var(--text-muted)', transition: 'all 0.15s' }}>{icon}</button>
           ))}
         </div>
       </div>
@@ -67,15 +67,15 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
             <tbody>
               {deals.map((d) => (
                 <tr key={d.id} onClick={() => onDealClick?.(d)} style={{ cursor: 'pointer' }}>
-                  <td><div style={{ fontWeight: 500 }}>{d.deal_name}</div>{d.address && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{d.address}</div>}</td>
-                  <td><span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', background: (STAGE_COLORS[d.stage] || '#6b7280') + '22', color: STAGE_COLORS[d.stage] || '#6b7280', fontWeight: 600 }}>{d.stage}</span></td>
-                  <td style={{ fontSize: '12px' }}>{d.deal_type || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--accent)' }}>{d.deal_value ? fmt.price(d.deal_value) : '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#22c55e' }}>{d.commission_est ? fmt.price(d.commission_est) : '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{d.probability != null ? `${d.probability}%` : '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{d.close_date || '—'}</td>
-                  <td style={{ fontSize: '12px' }}>{d.buyer || d.tenant_name || '—'}</td>
-                  <td>{d.priority && <span style={{ fontSize: '10px', fontWeight: 600, color: priorityDot(d.priority) }}>{d.priority}</span>}</td>
+                  <td><div style={{ fontWeight: 500 }}>{d.deal_name}</div>{d.address && <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{d.address}</div>}</td>
+                  <td><span style={{ fontSize: '15px', padding: '2px 7px', borderRadius: '4px', background: (STAGE_COLORS[d.stage] || '#6b7280') + '22', color: STAGE_COLORS[d.stage] || '#6b7280', fontWeight: 600 }}>{d.stage}</span></td>
+                  <td style={{ fontSize: '15px' }}>{d.deal_type || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--accent)' }}>{d.deal_value ? fmt.price(d.deal_value) : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: '#22c55e' }}>{d.commission_est ? fmt.price(d.commission_est) : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{d.probability != null ? `${d.probability}%` : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{d.close_date || '—'}</td>
+                  <td style={{ fontSize: '15px' }}>{d.buyer || d.tenant_name || '—'}</td>
+                  <td>{d.priority && <span style={{ fontSize: '15px', fontWeight: 600, color: priorityDot(d.priority) }}>{d.priority}</span>}</td>
                 </tr>
               ))}
               {deals.length === 0 && <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No deals</td></tr>}
@@ -94,14 +94,14 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
                 onDragLeave={onDragLeave}
                 onDrop={(e) => onDrop(e, stage)}>
 
-                <div className="kanban-col-header" style={{ padding: '8px 10px', fontSize: '11px' }}>
+                <div className="kanban-col-header" style={{ padding: '8px 10px', fontSize: '15px' }}>
                   <div className="kanban-col-dot" style={{ background: STAGE_COLORS[stage], width: '7px', height: '7px' }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage}</span>
                   <span className="kanban-col-count">{stageDeals.length}</span>
                 </div>
 
                 {stageValue > 0 && (
-                  <div style={{ padding: '0 10px 6px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                  <div style={{ padding: '0 10px 6px', fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                     {(stageValue / 1000000).toFixed(1)}M
                   </div>
                 )}
@@ -116,15 +116,15 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
                       onDoubleClick={() => onDealClick?.(deal)}
                       style={{ borderLeft: `3px solid ${STAGE_COLORS[stage]}`, opacity: dragging?.id === deal.id ? 0.4 : 1, padding: '12px' }}>
 
-                      <div className="kanban-card-title" style={{ fontSize: '12px', marginBottom: '4px', lineHeight: '1.35' }}>{deal.deal_name}</div>
-                      {deal.address && <div className="kanban-card-sub" style={{ fontSize: '11px', marginBottom: '6px' }}>{deal.address}</div>}
+                      <div className="kanban-card-title" style={{ fontSize: '15px', marginBottom: '4px', lineHeight: '1.35' }}>{deal.deal_name}</div>
+                      {deal.address && <div className="kanban-card-sub" style={{ fontSize: '15px', marginBottom: '6px' }}>{deal.address}</div>}
 
                       <div className="kanban-card-meta" style={{ gap: '6px' }}>
-                        {deal.deal_value && <span className="kanban-card-value" style={{ fontSize: '11px' }}>{fmt.price(deal.deal_value)}</span>}
+                        {deal.deal_value && <span className="kanban-card-value" style={{ fontSize: '15px' }}>{fmt.price(deal.deal_value)}</span>}
                         {deal.priority && (
                           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '3px' }}>
                             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: priorityDot(deal.priority) }} />
-                            <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{deal.priority}</span>
+                            <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{deal.priority}</span>
                           </span>
                         )}
                       </div>
@@ -134,13 +134,13 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
                           <div style={{ height: '3px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${deal.probability}%`, height: '100%', borderRadius: '2px', background: deal.probability >= 70 ? 'var(--green)' : deal.probability >= 40 ? 'var(--amber)' : 'var(--text-muted)' }} />
                           </div>
-                          <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: '2px' }}>{deal.probability}%</div>
+                          <div style={{ fontSize: '15px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginTop: '2px' }}>{deal.probability}%</div>
                         </div>
                       )}
 
                       {expanded === deal.id && (
                         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '15px' }}>
                             {[
                               ['Type', deal.deal_type],
                               ['Strategy', deal.strategy],
@@ -152,23 +152,23 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
                               ['Close Date', deal.close_date ? fmt.date(deal.close_date) : null],
                             ].filter(([, v]) => v).map(([label, val]) => (
                               <div key={label}>
-                                <div style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '1px' }}>{label}</div>
+                                <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '1px' }}>{label}</div>
                                 <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{val}</div>
                               </div>
                             ))}
                           </div>
                           {deal.notes && (
-                            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>{deal.notes.slice(0, 120)}{deal.notes.length > 120 ? '...' : ''}</div>
+                            <div style={{ marginTop: '8px', fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>{deal.notes.slice(0, 120)}{deal.notes.length > 120 ? '...' : ''}</div>
                           )}
                           <div style={{ display: 'flex', gap: '4px', marginTop: '8px', flexWrap: 'wrap' }}>
                             {DEAL_STAGES.filter(s => s !== deal.stage && s !== 'Dead').slice(0, 3).map(s => (
-                              <button key={s} className="btn btn-ghost btn-sm" style={{ fontSize: '9px', padding: '2px 6px' }}
+                              <button key={s} className="btn btn-ghost btn-sm" style={{ fontSize: '15px', padding: '2px 6px' }}
                                 onClick={async (e) => { e.stopPropagation(); await updateRow('deals', deal.id, { stage: s }); showToast(`Moved to ${s}`); onRefresh(); }}>
                                 → {s}
                               </button>
                             ))}
                           </div>
-                          <button className="btn btn-ghost btn-sm" style={{ fontSize: '10px', width: '100%', marginTop: '6px' }}
+                          <button className="btn btn-ghost btn-sm" style={{ fontSize: '15px', width: '100%', marginTop: '6px' }}
                             onClick={(e) => { e.stopPropagation(); onDealClick?.(deal); }}>
                             Open Full Page →
                           </button>
@@ -178,7 +178,7 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
                   ))}
 
                   {stageDeals.length === 0 && !isOver && (
-                    <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', border: '1px dashed var(--border)', borderRadius: '6px' }}>Drop here</div>
+                    <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: '15px', color: 'var(--text-muted)', fontStyle: 'italic', border: '1px dashed var(--border)', borderRadius: '6px' }}>Drop here</div>
                   )}
                 </div>
               </div>

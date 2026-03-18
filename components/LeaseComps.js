@@ -51,7 +51,7 @@ export default function LeaseComps({ comps, onCompClick }) {
           <option value="">All Lease Types</option>
           {LEASE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '15px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
           {filtered.length} comps
         </span>
       </div>

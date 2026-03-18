@@ -166,7 +166,7 @@ export default function AddLeadModal({ onClose, onSave }) {
                   type="button"
                   onClick={() => toggleCatalyst(tag)}
                   style={{
-                    fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid',
+                    fontSize: '15px', padding: '3px 8px', borderRadius: '4px', border: '1px solid',
                     cursor: 'pointer', transition: 'all 0.15s',
                     background: form.catalyst_tags.includes(tag) ? 'var(--accent)' : 'transparent',
                     borderColor: form.catalyst_tags.includes(tag) ? 'var(--accent)' : 'var(--border)',
