@@ -100,6 +100,7 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
           </div>
         </div>
       ) : (
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
           <div className="card">
             <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Company Info</h3>
@@ -117,7 +118,6 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
           </div>
         </div>
 
-        {/* Buyer Criteria Section */}
         {(account.preferred_markets?.length > 0 || account.buyer_type) && (
         <div className="card" style={{ marginBottom: '16px' }}>
           <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Buyer Criteria</h3>
@@ -133,26 +133,23 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
                   const c = {SGV:'#8b5cf6',IE:'#f97316',LA:'#3b82f6',OC:'#06b6d4','San Diego':'#10b981'}[m] || '#6b7280';
                   return <span key={m} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: c+'18', color: c }}>{m}</span>;
                 })}
-                {(!account.preferred_markets || account.preferred_markets.length === 0) && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>—</span>}
               </div>
             </div>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>Deal Types</div>
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                 {(account.deal_type_preference || []).map(t => <span key={t} className="tag tag-ghost" style={{ fontSize: '10px' }}>{t}</span>)}
-                {(!account.deal_type_preference || account.deal_type_preference.length === 0) && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>—</span>}
               </div>
             </div>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>Product Preference</div>
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                 {(account.product_preference || []).map(t => <span key={t} className="tag tag-blue" style={{ fontSize: '10px' }}>{t}</span>)}
-                {(!account.product_preference || account.product_preference.length === 0) && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>—</span>}
               </div>
             </div>
-            <Field label="Min Clear Height" value={account.min_clear_height ? account.min_clear_height + "' ft" : null} />
-            <Field label="SF Range" value={account.min_sf && account.max_sf ? (account.min_sf/1000).toFixed(0) + 'K – ' + (account.max_sf/1000).toFixed(0) + 'K SF' : null} />
-            <Field label="$/SF Range" value={account.min_price_psf && account.max_price_psf ? '$' + Math.round(account.min_price_psf) + ' – $' + Math.round(account.max_price_psf) : null} />
+            <Field label="Min Clear Height" value={account.min_clear_height ? account.min_clear_height + "ft" : null} />
+            <Field label="SF Range" value={account.min_sf && account.max_sf ? (account.min_sf/1000).toFixed(0) + 'K - ' + (account.max_sf/1000).toFixed(0) + 'K SF' : null} />
+            <Field label="$/SF Range" value={account.min_price_psf && account.max_price_psf ? '$' + Math.round(account.min_price_psf) + ' - $' + Math.round(account.max_price_psf) : null} />
             <Field label="Capital Deployed" value={account.est_capital_deployed} />
             <Field label="Deal Count" value={account.deal_count} />
             <Field label="Activity Score" value={account.buyer_activity_score} mono />
@@ -166,9 +163,7 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
           )}
         </div>
         )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-        </div>
+        </>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
