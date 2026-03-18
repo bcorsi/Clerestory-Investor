@@ -3,15 +3,13 @@
 import { useState, useMemo } from 'react';
 import { DEAL_STAGES, STAGE_COLORS, LEAD_STAGES, LEAD_STAGE_COLORS, CATALYST_URGENCY, fmt } from '../lib/constants';
 
-const MODEL = 'claude-sonnet-4-20250514';
-
 async function getMorningBrief(context) {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 300,
+        model: 'claude-sonnet-4-20250514', max_tokens: 300,
         messages: [{ role: 'user', content: `You are a CRE brokerage intelligence assistant. It's ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}. Write a crisp 2-3 sentence morning brief for a broker based on this data. Be specific about what to do TODAY. No fluff, no greeting.
 
 Active deals: ${context.activeDeals} (pipeline: ${context.pipelineValue})
@@ -27,6 +25,7 @@ Reply with ONLY the brief — no preamble, no bullet points.` }],
       }),
     });
     const data = await res.json();
+    if (data.error) return null;
     return data.content?.[0]?.text?.trim() || null;
   } catch { return null; }
 }
@@ -89,16 +88,34 @@ export default function Dashboard({
   const urgentCatalysts = useMemo(() => {
     const signals = [];
     const seen = new Set();
-    [...properties, ...activeLeads].forEach(item => {
+    // Track property addresses that are already represented by a lead
+    const leadAddresses = new Set(activeLeads.map(l => l.address).filter(Boolean));
+
+    // Leads first (more actionable)
+    activeLeads.forEach(item => {
       (item.catalyst_tags || []).forEach(tag => {
         const urg = CATALYST_URGENCY[tag];
-        const key = (item.address || item.lead_name) + tag;
+        const key = (item.address || item.lead_name) + '::' + tag;
         if ((urg === 'immediate' || urg === 'high') && !seen.has(key)) {
           seen.add(key);
-          signals.push({ item: item.address || item.lead_name, tag, urgency: urg });
+          signals.push({ label: item.lead_name, tag, urgency: urg, type: 'lead', record: item });
         }
       });
     });
+
+    // Properties — skip if a lead already covers this address
+    properties.forEach(item => {
+      if (leadAddresses.has(item.address)) return;
+      (item.catalyst_tags || []).forEach(tag => {
+        const urg = CATALYST_URGENCY[tag];
+        const key = (item.address) + '::' + tag;
+        if ((urg === 'immediate' || urg === 'high') && !seen.has(key)) {
+          seen.add(key);
+          signals.push({ label: item.address, tag, urgency: urg, type: 'property', record: item });
+        }
+      });
+    });
+
     return signals.sort((a, b) => a.urgency === 'immediate' ? -1 : 1).slice(0, 6);
   }, [properties, activeLeads]);
 
@@ -267,14 +284,18 @@ export default function Dashboard({
               <h3 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>⚡ Catalyst Alerts</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {urgentCatalysts.map((sig, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '5px', background: sig.urgency === 'immediate' ? 'var(--red-soft)' : 'var(--amber-soft)' }}>
+                  <div key={i} onClick={() => sig.type === 'lead' ? onLeadClick?.(sig.record) : onPropertyClick?.(sig.record)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '5px', cursor: 'pointer', transition: 'all 0.15s', background: sig.urgency === 'immediate' ? 'var(--red-soft)' : 'var(--amber-soft)' }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(3px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)', flexShrink: 0 }}>
                       {sig.urgency === 'immediate' ? '!!!' : '!!'}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.item}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sig.label}</div>
                       <div style={{ fontSize: '10px', color: sig.urgency === 'immediate' ? 'var(--red)' : 'var(--amber)' }}>{sig.tag}</div>
                     </div>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>{sig.type === 'lead' ? '◎' : '⌂'}</span>
                   </div>
                 ))}
               </div>

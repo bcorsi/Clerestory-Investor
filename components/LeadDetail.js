@@ -2,18 +2,19 @@
 
 import { useState } from 'react';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, fmt } from '../lib/constants';
-import { updateRow, convertLeadToDeal, convertLeadToProperty } from '../lib/db';
+import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow } from '../lib/db';
 
 const MODEL = 'claude-sonnet-4-20250514';
 async function getAINextStep(lead) {
   const prompt = `You are a commercial real estate broker assistant. Based on this lead intel, give the single most important next action to take RIGHT NOW. Be specific and direct — max 15 words.\n\nLead: ${lead.lead_name}\nStage: ${lead.stage}\nScore: ${lead.score || 'N/A'} | Tier: ${lead.tier || 'N/A'}\nDecision Maker: ${lead.decision_maker || 'Unknown'}\nPhone: ${lead.phone || 'None'}\nAddress: ${lead.address || 'N/A'}\nCatalysts: ${(lead.catalyst_tags || []).join(', ') || 'None'}\nIntel: ${(lead.notes || '').slice(0, 500)}\n\nReply with ONLY the next action — no preamble.`;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: MODEL, max_tokens: 80, messages: [{ role: 'user', content: prompt }] }),
     });
     const data = await res.json();
+    if (data.error) return 'Review lead intel and identify next contact';
     return data.content?.[0]?.text?.trim() || 'Review lead intel and identify next contact';
   } catch { return 'Review lead intel and identify next contact'; }
 }
@@ -83,7 +84,27 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
 
   const handleAI = async () => {
     setAiLoading(true);
-    try { const s = await getAINextStep(lead); setAiStep(s); }
+    try {
+      const step = await getAINextStep(lead);
+      setAiStep(step);
+
+      // Auto-create a task linked to this lead
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      await insertRow('tasks', {
+        title: step,
+        description: `AI-generated next step for ${lead.lead_name}`,
+        due_date: tomorrow,
+        priority: lead.priority || 'Medium',
+        lead_id: lead.id,
+        property_id: lead.property_id || null,
+      });
+
+      // Update the lead's next_action field
+      await updateRow('leads', lead.id, { next_action: step, next_action_date: tomorrow });
+
+      onRefresh();
+      showToast(`Task created: ${step.slice(0, 40)}...`);
+    }
     catch (err) { console.error(err); }
     finally { setAiLoading(false); }
   };

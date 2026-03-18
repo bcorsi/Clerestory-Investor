@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS } from '../lib/constants';
-import { updateRow, convertLeadToDeal } from '../lib/db';
+import { updateRow, convertLeadToDeal, insertRow } from '../lib/db';
 
 const MODEL = 'claude-sonnet-4-20250514';
 
@@ -20,12 +20,13 @@ Intel: ${lead.notes || 'None'}
 
 Reply with ONLY the next action — no preamble.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: MODEL, max_tokens: 80, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
+  if (data.error) return 'Review lead intel and identify next contact';
   return data.content?.[0]?.text?.trim() || 'Review lead intel and identify next contact';
 }
 
@@ -59,8 +60,27 @@ export default function LeadGen({ leads, onRefresh, showToast, onLeadClick }) {
   const handleAI = async (lead, e) => {
     e.stopPropagation();
     setAiLoading(lead.id);
-    try { const s = await getAINextStep(lead); setAiStep((p) => ({ ...p, [lead.id]: s })); }
-    catch (err) { console.error(err); }
+    try {
+      const step = await getAINextStep(lead);
+      setAiStep((p) => ({ ...p, [lead.id]: step }));
+
+      // Auto-create a task linked to this lead
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      await insertRow('tasks', {
+        title: step,
+        description: `AI-generated next step for ${lead.lead_name}`,
+        due_date: tomorrow,
+        priority: lead.priority || 'Medium',
+        lead_id: lead.id,
+        property_id: lead.property_id || null,
+      });
+
+      // Update the lead's next_action field
+      await updateRow('leads', lead.id, { next_action: step, next_action_date: tomorrow });
+
+      onRefresh();
+      showToast(`Task created: ${step.slice(0, 40)}...`);
+    } catch (err) { console.error(err); }
     finally { setAiLoading(null); }
   };
 
