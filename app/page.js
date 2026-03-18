@@ -48,6 +48,8 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [leaseComps, setLeaseComps] = useState([]);
   const [saleComps, setSaleComps] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [selectedLead, setSelectedLead] = useState(null);
   const [selectedDeal, setSelectedDeal] = useState(null);
@@ -77,7 +79,7 @@ export default function App() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [props, lds, dls, cts, accts, acts, tks, lcs, scs] = await Promise.all([
+      const [props, lds, dls, cts, accts, acts, tks, lcs, scs, nts, fus] = await Promise.all([
         fetchProperties(),
         fetchAll('leads', { order: 'created_at' }),
         fetchAll('deals', { order: 'created_at' }),
@@ -87,10 +89,13 @@ export default function App() {
         fetchAll('tasks', { order: 'created_at' }),
         fetchAll('lease_comps', { order: 'created_at' }),
         fetchAll('sale_comps', { order: 'created_at' }),
+        fetchAll('notes', { order: 'created_at' }).catch(() => []),
+        fetchAll('follow_ups', { order: 'created_at' }).catch(() => []),
       ]);
       setProperties(props); setLeads(lds); setDeals(dls); setContacts(cts);
       setAccounts(accts); setActivities(acts); setTasks(tks);
       setLeaseComps(lcs); setSaleComps(scs);
+      setNotes(nts); setFollowUps(fus);
       setSelectedProperty((prev) => prev ? props.find((p) => p.id === prev.id) || prev : prev);
       setSelectedLead((prev) => prev ? lds.find((l) => l.id === prev.id) || prev : prev);
       setSelectedDeal((prev) => prev ? dls.find((d) => d.id === prev.id) || prev : prev);
@@ -285,7 +290,7 @@ export default function App() {
             {page === 'lead-gen' && <LeadGen leads={leads} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} />}
             {page === 'lead-detail' && selectedLead && <LeadDetail lead={selectedLead} activities={activities} tasks={tasks} properties={properties} contacts={contacts} accounts={accounts} notes={notes} followUps={followUps} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onContactClick={openContact} onAccountClick={openAccount} onAddActivity={(leadId) => setModal({ type: 'add-activity', defaultLeadId: leadId })} onAddTask={(leadId) => setModal({ type: 'add-task', defaultLeadId: leadId })} onConverted={() => setPage('pipeline')} />}
             {page === 'pipeline' && <DealPipeline deals={deals} onRefresh={loadData} showToast={showToast} onDealClick={openDeal} />}
-            {page === 'deal-detail' && selectedDeal && <DealDetail deal={selectedDeal} activities={activities} tasks={tasks} properties={properties} contacts={contacts} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onAddActivity={(leadId, dealId) => setModal({ type: 'add-activity', defaultDealId: dealId })} onAddTask={(dealId) => setModal({ type: 'add-task', defaultDealId: dealId })} />}
+            {page === 'deal-detail' && selectedDeal && <DealDetail deal={selectedDeal} activities={activities} tasks={tasks} properties={properties} contacts={contacts} accounts={accounts} notes={notes} followUps={followUps} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onContactClick={openContact} onAccountClick={openAccount} onAddActivity={(leadId, dealId) => setModal({ type: 'add-activity', defaultDealId: dealId })} onAddTask={(dealId) => setModal({ type: 'add-task', defaultDealId: dealId })} />}
             {page === 'contacts' && <ContactsList contacts={contacts} onContactClick={openContact} />}
             {page === 'contact-detail' && selectedContact && <ContactDetail contact={selectedContact} activities={activities} tasks={tasks} deals={deals} properties={properties} onRefresh={loadData} showToast={showToast} onDealClick={openDeal} onPropertyClick={openProperty} onAddActivity={(a, b, c, contactId) => setModal({ type: 'add-activity', defaultContactId: contactId })} onAddTask={(a, b, c, contactId) => setModal({ type: 'add-task', defaultContactId: contactId })} />}
             {page === 'accounts' && <AccountsList accounts={accounts} onAccountClick={openAccount} />}
