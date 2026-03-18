@@ -26,7 +26,7 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
     finally { setSaving(false); }
   };
 
-  const linkedContacts = contacts.filter((c) => c.company === account.name);
+  const linkedContacts = contacts.filter((c) => c.account_id === account.id || c.company === account.name);
   const linkedDeals = deals.filter((d) => d.buyer === account.name || d.seller === account.name || d.tenant_name === account.name);
   const linkedProperties = properties.filter((p) => p.owner === account.name || p.tenant === account.name);
   const linkedActivities = activities.filter((a) => {

@@ -123,7 +123,7 @@ function inferDealTypes(p) {
   return [...new Set(types)];
 }
 
-export default function BuyerMatching({ property, accounts }) {
+export default function BuyerMatching({ property, accounts, onAccountClick }) {
   const [minScore, setMinScore] = useState(40);
   const [showAll, setShowAll] = useState(false);
 
@@ -202,7 +202,7 @@ export default function BuyerMatching({ property, accounts }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: 700 }}>{a.name}</span>
+                      <span onClick={() => onAccountClick?.(a)} style={{ fontSize: '15px', fontWeight: 700, cursor: onAccountClick ? 'pointer' : 'default', color: 'var(--text-primary)', borderBottom: onAccountClick ? '1px dashed var(--accent)' : 'none' }}>{a.name}</span>
                       <span style={{ fontSize: '15px', padding: '2px 8px', borderRadius: '4px', background: t.bg, color: t.color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                         {score}/100 ({t.label})
                       </span>

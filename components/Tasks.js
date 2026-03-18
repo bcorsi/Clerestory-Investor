@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { TASK_PRIORITIES } from '../lib/constants';
 import { updateRow, deleteRow } from '../lib/db';
 
-export default function Tasks({ tasks, leads, deals, properties, contacts, onRefresh, showToast, onAdd }) {
+export default function Tasks({ tasks, leads, deals, properties, contacts, onRefresh, showToast, onAdd, onTaskClick, onLeadClick, onDealClick, onPropertyClick, onContactClick }) {
   const [filter, setFilter] = useState('pending');
   const [filterPriority, setFilterPriority] = useState('');
 
@@ -51,19 +51,19 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
   const getLinkedRecord = (task) => {
     if (task.lead_id) {
       const l = leads.find(x => x.id === task.lead_id);
-      return l ? { label: l.lead_name, type: 'Lead' } : null;
+      return l ? { label: l.lead_name, type: 'Lead', record: l, onClick: () => onLeadClick?.(l) } : null;
     }
     if (task.deal_id) {
       const d = deals.find(x => x.id === task.deal_id);
-      return d ? { label: d.deal_name, type: 'Deal' } : null;
+      return d ? { label: d.deal_name, type: 'Deal', record: d, onClick: () => onDealClick?.(d) } : null;
     }
     if (task.property_id) {
       const p = properties.find(x => x.id === task.property_id);
-      return p ? { label: p.address, type: 'Property' } : null;
+      return p ? { label: p.address, type: 'Property', record: p, onClick: () => onPropertyClick?.(p) } : null;
     }
     if (task.contact_id) {
       const c = contacts.find(x => x.id === task.contact_id);
-      return c ? { label: c.name, type: 'Contact' } : null;
+      return c ? { label: c.name, type: 'Contact', record: c, onClick: () => onContactClick?.(c) } : null;
     }
     return null;
   };
@@ -140,7 +140,7 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none' }}>
+                  <span onClick={() => onTaskClick?.(task)} style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', cursor: onTaskClick ? 'pointer' : 'default', borderBottom: onTaskClick ? '1px dashed var(--accent)' : 'none' }}>
                     {task.title}
                   </span>
                   <span style={{ fontSize: '15px', padding: '1px 6px', borderRadius: '3px', background: priorityColor(task.priority) + '22', color: priorityColor(task.priority), fontWeight: 600 }}>
@@ -157,8 +157,8 @@ export default function Tasks({ tasks, leads, deals, properties, contacts, onRef
                     </span>
                   )}
                   {linked && (
-                    <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
-                      <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{linked.type}</span>: {linked.label}
+                    <span onClick={(e) => { e.stopPropagation(); linked.onClick?.(); }} style={{ fontSize: '15px', color: 'var(--text-muted)', cursor: linked.onClick ? 'pointer' : 'default' }}>
+                      <span style={{ color: 'var(--accent)', fontWeight: 500, borderBottom: '1px dashed var(--accent)' }}>{linked.type}</span>: {linked.label}
                     </span>
                   )}
                 </div>

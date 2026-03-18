@@ -7,6 +7,11 @@ export default function ContactsList({ contacts, onContactClick }) {
   const [filterType, setFilterType] = useState('');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(null);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+
+  const toggleSort = (key) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('asc'); } };
+  const sortInd = (key) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
   const filtered = useMemo(() => {
     let list = [...contacts];
@@ -17,8 +22,16 @@ export default function ContactsList({ contacts, onContactClick }) {
       );
     }
     if (filterType) list = list.filter((c) => c.contact_type === filterType);
+    if (sortKey) {
+      list.sort((a, b) => {
+        let va = a[sortKey], vb = b[sortKey];
+        if (va == null) return 1; if (vb == null) return -1;
+        va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+    }
     return list;
-  }, [contacts, filterType, search]);
+  }, [contacts, filterType, search, sortKey, sortDir]);
 
   const typeColor = (type) => {
     const map = { Owner: 'tag-amber', Buyer: 'tag-green', Tenant: 'tag-blue', Broker: 'tag-purple', Investor: 'tag-green', Lender: 'tag-ghost' };
@@ -72,7 +85,7 @@ export default function ContactsList({ contacts, onContactClick }) {
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Company</th><th>Type</th><th>Phone</th><th>Email</th><th>Notes</th>
+              <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>Name{sortInd('name')}</th><th onClick={() => toggleSort('company')} style={{ cursor: 'pointer' }}>Company{sortInd('company')}</th><th onClick={() => toggleSort('contact_type')} style={{ cursor: 'pointer' }}>Type{sortInd('contact_type')}</th><th onClick={() => toggleSort('phone')} style={{ cursor: 'pointer' }}>Phone{sortInd('phone')}</th><th onClick={() => toggleSort('email')} style={{ cursor: 'pointer' }}>Email{sortInd('email')}</th><th>Notes</th>
             </tr>
           </thead>
           <tbody>

@@ -14,7 +14,6 @@ create table properties (
   city text,
   zip text,
   submarket text,
-  market text,
   record_type text,
   prop_type text,
   building_sf integer,
@@ -23,7 +22,6 @@ create table properties (
   clear_height integer,
   dock_doors integer,
   grade_doors integer,
-  market text,
   owner text,
   owner_type text,
   last_transfer_date date,
@@ -31,11 +29,7 @@ create table properties (
   price_psf numeric(10,2),
   tenant text,
   vacancy_status text,
-  lease_type text,
   lease_expiration date,
-  in_place_rent numeric(8,2),
-  market_rent numeric(8,2),
-  office_pct integer,
   catalyst_tags text[],
   ai_score integer,
   probability integer,
@@ -80,21 +74,9 @@ create table leads (
   last_contact_date date,
   est_value numeric(15,2),
   building_sf integer,
-  city text,
-  zip text,
-  prop_type text,
-  record_type text,
-  land_acres numeric(10,2),
-  year_built integer,
-  clear_height integer,
-  dock_doors integer,
-  grade_doors integer,
-  vacancy_status text,
-  lease_type text,
-  lease_expiration date,
-  in_place_rent numeric(8,2),
   notes text,
   converted_deal_id uuid,
+  onedrive_url text,
   kill_reason text,
   killed_at timestamptz
 );
@@ -244,7 +226,8 @@ create table activities (
   property_id uuid references properties(id) on delete set null,
   lead_id uuid references leads(id) on delete set null,
   deal_id uuid references deals(id) on delete set null,
-  contact_id uuid references contacts(id) on delete set null
+  contact_id uuid references contacts(id) on delete set null,
+  account_id uuid references accounts(id) on delete set null
 );
 
 -- ─── LEASE COMPS ────────────────────────────────────────────
@@ -273,71 +256,6 @@ create table sale_comps (
   property_id uuid references properties(id) on delete set null,
   notes text
 );
-
--- ─── DEAL CONTACTS (junction) ───────────────────────────────
-create table deal_contacts (
-  id uuid default uuid_generate_v4() primary key,
-  created_at timestamptz default now(),
-  deal_id uuid not null references deals(id) on delete cascade,
-  contact_id uuid not null references contacts(id) on delete cascade,
-  role text default 'Participant',
-  unique(deal_id, contact_id)
-);
-create index idx_deal_contacts_deal on deal_contacts(deal_id);
-create index idx_deal_contacts_contact on deal_contacts(contact_id);
-
--- ─── BUYER OUTREACH LOG ────────────────────────────────────
-create table buyer_outreach (
-  id uuid default uuid_generate_v4() primary key,
-  created_at timestamptz default now(),
-  deal_id uuid not null references deals(id) on delete cascade,
-  account_id uuid references accounts(id) on delete set null,
-  contact_id uuid references contacts(id) on delete set null,
-  direction text default 'Outbound',
-  method text default 'Email',
-  outcome text,
-  notes text,
-  outreach_date date default current_date,
-  follow_up_date date
-);
-create index idx_outreach_deal on buyer_outreach(deal_id);
-create index idx_outreach_account on buyer_outreach(account_id);
-
--- ─── NOTES TIMELINE ────────────────────────────────────────
-create table notes (
-  id uuid default uuid_generate_v4() primary key,
-  created_at timestamptz default now(),
-  content text not null,
-  note_type text default 'Note',
-  deal_id uuid references deals(id) on delete cascade,
-  lead_id uuid references leads(id) on delete cascade,
-  property_id uuid references properties(id) on delete cascade,
-  account_id uuid references accounts(id) on delete cascade,
-  contact_id uuid references contacts(id) on delete cascade,
-  pinned boolean default false
-);
-create index idx_notes_deal on notes(deal_id);
-create index idx_notes_lead on notes(lead_id);
-create index idx_notes_property on notes(property_id);
-create index idx_notes_account on notes(account_id);
-
--- ─── FOLLOW-UPS ────────────────────────────────────────────
-create table follow_ups (
-  id uuid default uuid_generate_v4() primary key,
-  created_at timestamptz default now(),
-  due_date date not null,
-  reason text not null,
-  completed boolean default false,
-  completed_at timestamptz,
-  deal_id uuid references deals(id) on delete cascade,
-  lead_id uuid references leads(id) on delete cascade,
-  property_id uuid references properties(id) on delete cascade,
-  contact_id uuid references contacts(id) on delete cascade,
-  account_id uuid references accounts(id) on delete cascade
-);
-create index idx_followups_due on follow_ups(due_date) where not completed;
-create index idx_followups_deal on follow_ups(deal_id);
-create index idx_followups_lead on follow_ups(lead_id);
 
 -- ─── TIMESTAMPS ─────────────────────────────────────────────
 create or replace function update_updated_at()

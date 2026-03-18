@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { MARKETS, SUBMARKETS, RECORD_TYPES, PROP_TYPES, VACANCY_STATUS, OWNER_TYPES, LEASE_TYPES, CATALYST_TAGS } from '../lib/constants';
-import { updateRow, syncPropertyApns } from '../lib/db';
+import { updateRow } from '../lib/db';
 
 export default function EditPropertyModal({ property, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -28,42 +28,25 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
     lease_expiration: property.lease_expiration || '',
     in_place_rent: property.in_place_rent || '',
     market_rent: property.market_rent || '',
-    last_transfer_date: property.last_transfer_date || '',
-    last_sale_price: property.last_sale_price || '',
-    price_psf: property.price_psf || '',
     catalyst_tags: property.catalyst_tags || [],
     probability: property.probability ?? '',
     ai_score: property.ai_score ?? '',
     notes: property.notes || '',
     onedrive_url: property.onedrive_url || '',
   });
-
-  // Initialize APNs from property.apns array
-  const initialApns = (property.apns || []).map(a => ({
-    apn: a.apn || '', acres: a.acres != null ? String(a.acres) : '',
-  }));
-  const [apns, setApns] = useState(initialApns.length > 0 ? initialApns : [{ apn: '', acres: '' }]);
   const [saving, setSaving] = useState(false);
 
-  const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
+  const set = (field, val) => setForm((f) => ({ ...f, [field]: val }));
   const availableSubmarkets = form.market ? (SUBMARKETS[form.market] || []) : [];
 
   const toggleCatalyst = (tag) => {
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
       catalyst_tags: f.catalyst_tags.includes(tag)
-        ? f.catalyst_tags.filter(t => t !== tag)
+        ? f.catalyst_tags.filter((t) => t !== tag)
         : [...f.catalyst_tags, tag],
     }));
   };
-
-  const updateApn = (i, field, val) => {
-    const next = [...apns];
-    next[i] = { ...next[i], [field]: val };
-    setApns(next);
-  };
-  const addApnRow = () => setApns([...apns, { apn: '', acres: '' }]);
-  const removeApnRow = (i) => setApns(apns.filter((_, idx) => idx !== i));
 
   const handleSave = async () => {
     setSaving(true);
@@ -91,9 +74,6 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
         lease_expiration: form.lease_expiration || null,
         in_place_rent: form.in_place_rent ? parseFloat(form.in_place_rent) : null,
         market_rent: form.market_rent ? parseFloat(form.market_rent) : null,
-        last_transfer_date: form.last_transfer_date || null,
-        last_sale_price: form.last_sale_price ? parseFloat(form.last_sale_price) : null,
-        price_psf: form.price_psf ? parseFloat(form.price_psf) : null,
         catalyst_tags: form.catalyst_tags,
         probability: form.probability !== '' ? parseInt(form.probability) : null,
         ai_score: form.ai_score !== '' ? parseInt(form.ai_score) : null,
@@ -101,11 +81,6 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
         onedrive_url: form.onedrive_url || null,
       };
       await updateRow('properties', property.id, updates);
-
-      // Sync APNs — delete all, re-insert
-      const validApns = apns.filter(a => a.apn.trim());
-      await syncPropertyApns(property.id, validApns);
-
       onSave();
     } catch (err) {
       console.error('Save error:', err);
@@ -114,188 +89,160 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
     }
   };
 
-  const SectionLabel = ({ children }) => (
-    <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>{children}</div>
-  );
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Edit Property</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           {/* Location */}
-          <SectionLabel>Location</SectionLabel>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '10px' }}>Location</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Address</label>
-              <input className="input" value={form.address} onChange={e => set('address', e.target.value)} />
+              <input className="input" value={form.address} onChange={(e) => set('address', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">City</label>
-              <input className="input" value={form.city} onChange={e => set('city', e.target.value)} />
+              <input className="input" value={form.city} onChange={(e) => set('city', e.target.value)} />
             </div>
           </div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">ZIP</label>
-              <input className="input" value={form.zip} onChange={e => set('zip', e.target.value)} />
+              <input className="input" value={form.zip} onChange={(e) => set('zip', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Market</label>
-              <select className="select" value={form.market} onChange={e => { set('market', e.target.value); set('submarket', ''); }}>
+              <select className="select" value={form.market} onChange={(e) => { set('market', e.target.value); set('submarket', ''); }}>
                 <option value="">Select</option>
-                {MARKETS.map(m => <option key={m} value={m}>{m}</option>)}
+                {MARKETS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Submarket</label>
-              <select className="select" value={form.submarket} onChange={e => set('submarket', e.target.value)}>
+              <select className="select" value={form.submarket} onChange={(e) => set('submarket', e.target.value)}>
                 <option value="">Select</option>
-                {availableSubmarkets.map(s => <option key={s} value={s}>{s}</option>)}
+                {availableSubmarkets.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
 
-          {/* APNs */}
-          <SectionLabel>Parcels / APNs</SectionLabel>
-          {apns.map((a, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
-              <input className="input" placeholder="XXXX-XXX-XXX" value={a.apn} onChange={e => updateApn(i, 'apn', e.target.value)} style={{ flex: 2 }} />
-              <input className="input" placeholder="Acres" type="number" step="0.01" value={a.acres} onChange={e => updateApn(i, 'acres', e.target.value)} style={{ flex: 1 }} />
-              {apns.length > 1 && (
-                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)', flexShrink: 0 }} onClick={() => removeApnRow(i)}>×</button>
-              )}
-            </div>
-          ))}
-          <button className="btn btn-ghost btn-sm" onClick={addApnRow}>+ Add APN</button>
-
           {/* Physical */}
-          <SectionLabel>Physical</SectionLabel>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Physical</div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Record Type</label>
-              <select className="select" value={form.record_type} onChange={e => set('record_type', e.target.value)}>
-                {RECORD_TYPES.map(r => <option key={r} value={r}>{r}</option>)}
+              <select className="select" value={form.record_type} onChange={(e) => set('record_type', e.target.value)}>
+                {RECORD_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Property Type</label>
-              <select className="select" value={form.prop_type} onChange={e => set('prop_type', e.target.value)}>
+              <select className="select" value={form.prop_type} onChange={(e) => set('prop_type', e.target.value)}>
                 <option value="">Select</option>
-                {PROP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {PROP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Building SF</label>
-              <input className="input" type="number" value={form.building_sf} onChange={e => set('building_sf', e.target.value)} />
+              <input className="input" type="number" value={form.building_sf} onChange={(e) => set('building_sf', e.target.value)} />
             </div>
           </div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Land (acres)</label>
-              <input className="input" type="number" step="0.01" value={form.land_acres} onChange={e => set('land_acres', e.target.value)} />
+              <input className="input" type="number" step="0.01" value={form.land_acres} onChange={(e) => set('land_acres', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Clear Height (ft)</label>
-              <input className="input" type="number" value={form.clear_height} onChange={e => set('clear_height', e.target.value)} />
+              <input className="input" type="number" value={form.clear_height} onChange={(e) => set('clear_height', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Year Built</label>
-              <input className="input" type="number" value={form.year_built} onChange={e => set('year_built', e.target.value)} />
+              <input className="input" type="number" value={form.year_built} onChange={(e) => set('year_built', e.target.value)} />
             </div>
           </div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Dock Doors</label>
-              <input className="input" type="number" value={form.dock_doors} onChange={e => set('dock_doors', e.target.value)} />
+              <input className="input" type="number" value={form.dock_doors} onChange={(e) => set('dock_doors', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Grade Doors</label>
-              <input className="input" type="number" value={form.grade_doors} onChange={e => set('grade_doors', e.target.value)} />
+              <input className="input" type="number" value={form.grade_doors} onChange={(e) => set('grade_doors', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Office %</label>
-              <input className="input" type="number" value={form.office_pct} onChange={e => set('office_pct', e.target.value)} />
+              <input className="input" type="number" value={form.office_pct} onChange={(e) => set('office_pct', e.target.value)} />
             </div>
           </div>
 
           {/* Ownership & Tenancy */}
-          <SectionLabel>Ownership & Tenancy</SectionLabel>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Ownership & Tenancy</div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Owner</label>
-              <input className="input" value={form.owner} onChange={e => set('owner', e.target.value)} />
+              <input className="input" value={form.owner} onChange={(e) => set('owner', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Owner Type</label>
-              <select className="select" value={form.owner_type} onChange={e => set('owner_type', e.target.value)}>
+              <select className="select" value={form.owner_type} onChange={(e) => set('owner_type', e.target.value)}>
                 <option value="">Select</option>
-                {OWNER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {OWNER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
-            </div>
-          </div>
-          <div className="form-row-3">
-            <div className="form-group">
-              <label className="form-label">Last Transfer Date</label>
-              <input className="input" type="date" value={form.last_transfer_date} onChange={e => set('last_transfer_date', e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Last Sale Price</label>
-              <input className="input" type="number" value={form.last_sale_price} onChange={e => set('last_sale_price', e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Last Sale $/SF</label>
-              <input className="input" type="number" step="0.01" value={form.price_psf} onChange={e => set('price_psf', e.target.value)} />
             </div>
           </div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Vacancy Status</label>
-              <select className="select" value={form.vacancy_status} onChange={e => set('vacancy_status', e.target.value)}>
+              <select className="select" value={form.vacancy_status} onChange={(e) => set('vacancy_status', e.target.value)}>
                 <option value="">Select</option>
-                {VACANCY_STATUS.map(v => <option key={v} value={v}>{v}</option>)}
+                {VACANCY_STATUS.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Tenant</label>
-              <input className="input" value={form.tenant} onChange={e => set('tenant', e.target.value)} />
+              <input className="input" value={form.tenant} onChange={(e) => set('tenant', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Lease Type</label>
-              <select className="select" value={form.lease_type} onChange={e => set('lease_type', e.target.value)}>
+              <select className="select" value={form.lease_type} onChange={(e) => set('lease_type', e.target.value)}>
                 <option value="">Select</option>
-                {LEASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {LEASE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Lease Expiration</label>
-              <input className="input" type="date" value={form.lease_expiration} onChange={e => set('lease_expiration', e.target.value)} />
+              <input className="input" type="date" value={form.lease_expiration} onChange={(e) => set('lease_expiration', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">In-Place Rent ($/SF/Mo)</label>
-              <input className="input" type="number" step="0.01" value={form.in_place_rent} onChange={e => set('in_place_rent', e.target.value)} />
+              <input className="input" type="number" step="0.01" value={form.in_place_rent} onChange={(e) => set('in_place_rent', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Market Rent ($/SF/Mo)</label>
-              <input className="input" type="number" step="0.01" value={form.market_rent} onChange={e => set('market_rent', e.target.value)} />
+              <input className="input" type="number" step="0.01" value={form.market_rent} onChange={(e) => set('market_rent', e.target.value)} />
             </div>
           </div>
 
           {/* Intelligence */}
-          <SectionLabel>Intelligence</SectionLabel>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Intelligence</div>
           <div className="form-group">
             <label className="form-label">Catalyst Tags</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {CATALYST_TAGS.map(tag => (
-                <button key={tag} type="button"
+              {CATALYST_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
                   className={`tag ${form.catalyst_tags.includes(tag) ? 'tag-amber' : 'tag-ghost'}`}
-                  style={{ cursor: 'pointer', border: 'none', fontSize: '13px' }}
-                  onClick={() => toggleCatalyst(tag)}>
+                  style={{ cursor: 'pointer', border: 'none', fontSize: '15px' }}
+                  onClick={() => toggleCatalyst(tag)}
+                >
                   {tag}
                 </button>
               ))}
@@ -304,25 +251,25 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
           <div className="form-row-3">
             <div className="form-group">
               <label className="form-label">Probability %</label>
-              <input className="input" type="number" min="0" max="100" value={form.probability} onChange={e => set('probability', e.target.value)} />
+              <input className="input" type="number" min="0" max="100" value={form.probability} onChange={(e) => set('probability', e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">AI Score</label>
-              <input className="input" type="number" value={form.ai_score} onChange={e => set('ai_score', e.target.value)} />
+              <input className="input" type="number" value={form.ai_score} onChange={(e) => set('ai_score', e.target.value)} />
             </div>
             <div></div>
           </div>
 
           {/* Links */}
-          <SectionLabel>Links</SectionLabel>
+          <div style={{ fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '10px' }}>Links</div>
           <div className="form-group">
             <label className="form-label">OneDrive Folder Link</label>
-            <input className="input" placeholder="https://collaborateicg-my.sharepoint.com/..." value={form.onedrive_url} onChange={e => set('onedrive_url', e.target.value)} />
+            <input className="input" placeholder="https://collaborateicg-my.sharepoint.com/..." value={form.onedrive_url} onChange={(e) => set('onedrive_url', e.target.value)} />
           </div>
 
-          <div className="form-group" style={{ marginTop: '8px' }}>
+          <div className="form-group">
             <label className="form-label">Notes</label>
-            <textarea className="textarea" value={form.notes} onChange={e => set('notes', e.target.value)} />
+            <textarea className="textarea" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
           </div>
         </div>
         <div className="modal-footer">

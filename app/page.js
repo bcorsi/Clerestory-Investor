@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isConfigured, getSession, onAuthStateChange, signOut } from '../lib/supabase';
-import { fetchProperties, fetchAll, globalSearch, getTodayBrief, saveDailyBrief, fetchNotes, fetchFollowUps } from '../lib/db';
+import { fetchProperties, fetchAll, globalSearch, getTodayBrief, saveDailyBrief } from '../lib/db';
 import { DEAL_STAGES, STAGE_COLORS, fmt } from '../lib/constants';
 import AuthGate from '../components/AuthGate';
 import Sidebar from '../components/Sidebar';
@@ -19,6 +19,7 @@ import AccountsList from '../components/AccountsList';
 import AccountDetail from '../components/AccountDetail';
 import Activities from '../components/Activities';
 import Tasks from '../components/Tasks';
+import TaskDetail from '../components/TaskDetail';
 import LeaseComps from '../components/LeaseComps';
 import LeaseCompDetail from '../components/LeaseCompDetail';
 import SaleComps from '../components/SaleComps';
@@ -47,14 +48,13 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [leaseComps, setLeaseComps] = useState([]);
   const [saleComps, setSaleComps] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [followUps, setFollowUps] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [selectedLead, setSelectedLead] = useState(null);
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [selectedLeaseComp, setSelectedLeaseComp] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -77,7 +77,7 @@ export default function App() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [props, lds, dls, cts, accts, acts, tks, lcs, scs, nts, fus] = await Promise.all([
+      const [props, lds, dls, cts, accts, acts, tks, lcs, scs] = await Promise.all([
         fetchProperties(),
         fetchAll('leads', { order: 'created_at' }),
         fetchAll('deals', { order: 'created_at' }),
@@ -87,19 +87,17 @@ export default function App() {
         fetchAll('tasks', { order: 'created_at' }),
         fetchAll('lease_comps', { order: 'created_at' }),
         fetchAll('sale_comps', { order: 'created_at' }),
-        fetchNotes(),
-        fetchFollowUps(),
       ]);
       setProperties(props); setLeads(lds); setDeals(dls); setContacts(cts);
       setAccounts(accts); setActivities(acts); setTasks(tks);
       setLeaseComps(lcs); setSaleComps(scs);
-      setNotes(nts); setFollowUps(fus);
       setSelectedProperty((prev) => prev ? props.find((p) => p.id === prev.id) || prev : prev);
       setSelectedLead((prev) => prev ? lds.find((l) => l.id === prev.id) || prev : prev);
       setSelectedDeal((prev) => prev ? dls.find((d) => d.id === prev.id) || prev : prev);
       setSelectedContact((prev) => prev ? cts.find((c) => c.id === prev.id) || prev : prev);
       setSelectedAccount((prev) => prev ? accts.find((a) => a.id === prev.id) || prev : prev);
       setSelectedLeaseComp((prev) => prev ? lcs.find((c) => c.id === prev.id) || prev : prev);
+      setSelectedTask((prev) => prev ? tks.find((t) => t.id === prev.id) || prev : prev);
     } catch (err) { console.error('Load error:', err); }
     finally { setLoading(false); }
   }, []);
@@ -135,6 +133,7 @@ export default function App() {
   const openDeal = (deal) => { setSelectedDeal(deal); setPage('deal-detail'); };
   const openContact = (contact) => { setSelectedContact(contact); setPage('contact-detail'); };
   const openAccount = (account) => { setSelectedAccount(account); setPage('account-detail'); };
+  const openTask = (task) => { setSelectedTask(task); setPage('task-detail'); };
   const openLeaseComp = (comp) => { setSelectedLeaseComp(comp); setPage('lease-comp-detail'); };
 
   const goBack = () => {
@@ -194,7 +193,7 @@ export default function App() {
     pipeline: 'Deal Pipeline', 'deal-detail': selectedDeal?.deal_name || 'Deal',
     contacts: 'Contacts', 'contact-detail': selectedContact?.name || 'Contact',
     accounts: 'Accounts', 'account-detail': selectedAccount?.name || 'Account',
-    activities: 'Activities', tasks: 'Tasks',
+    activities: 'Activities', tasks: 'Tasks', 'task-detail': selectedTask?.title || 'Task',
     'lease-comps': 'Lease Comps', 'lease-comp-detail': selectedLeaseComp?.address || 'Lease Comp',
     'sale-comps': 'Sale Comps', settings: 'Settings',
   };
@@ -282,9 +281,9 @@ export default function App() {
           ) : (<>
             {page === 'dashboard' && <Dashboard properties={properties} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} tasks={tasks} activities={activities} onPropertyClick={openProperty} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} setPage={setPage} morningBrief={morningBrief} setMorningBrief={setMorningBrief} saveDailyBrief={saveDailyBrief} />}
             {page === 'properties' && <PropertiesList properties={properties} onPropertyClick={openProperty} />}
-            {page === 'property-detail' && selectedProperty && <PropertyDetail property={selectedProperty} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} activities={activities} tasks={tasks} notes={notes} followUps={followUps} onLeaseCompClick={openLeaseComp} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} onAddActivity={(propId) => setModal({ type: 'add-activity', defaultPropertyId: propId })} onAddTask={(propId) => setModal({ type: 'add-task', defaultPropertyId: propId })} accounts={accounts} showToast={showToast} onRefresh={loadData} />}
+            {page === 'property-detail' && selectedProperty && <PropertyDetail property={selectedProperty} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} activities={activities} tasks={tasks} notes={notes} followUps={followUps} onLeaseCompClick={openLeaseComp} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} onAccountClick={openAccount} onAddActivity={(propId) => setModal({ type: 'add-activity', defaultPropertyId: propId })} onAddTask={(propId) => setModal({ type: 'add-task', defaultPropertyId: propId })} accounts={accounts} showToast={showToast} onRefresh={loadData} />}
             {page === 'lead-gen' && <LeadGen leads={leads} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} />}
-            {page === 'lead-detail' && selectedLead && <LeadDetail lead={selectedLead} activities={activities} tasks={tasks} properties={properties} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onAddActivity={(leadId) => setModal({ type: 'add-activity', defaultLeadId: leadId })} onAddTask={(leadId) => setModal({ type: 'add-task', defaultLeadId: leadId })} onConverted={() => setPage('pipeline')} />}
+            {page === 'lead-detail' && selectedLead && <LeadDetail lead={selectedLead} activities={activities} tasks={tasks} properties={properties} contacts={contacts} accounts={accounts} notes={notes} followUps={followUps} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onContactClick={openContact} onAccountClick={openAccount} onAddActivity={(leadId) => setModal({ type: 'add-activity', defaultLeadId: leadId })} onAddTask={(leadId) => setModal({ type: 'add-task', defaultLeadId: leadId })} onConverted={() => setPage('pipeline')} />}
             {page === 'pipeline' && <DealPipeline deals={deals} onRefresh={loadData} showToast={showToast} onDealClick={openDeal} />}
             {page === 'deal-detail' && selectedDeal && <DealDetail deal={selectedDeal} activities={activities} tasks={tasks} properties={properties} contacts={contacts} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onAddActivity={(leadId, dealId) => setModal({ type: 'add-activity', defaultDealId: dealId })} onAddTask={(dealId) => setModal({ type: 'add-task', defaultDealId: dealId })} />}
             {page === 'contacts' && <ContactsList contacts={contacts} onContactClick={openContact} />}
@@ -292,7 +291,8 @@ export default function App() {
             {page === 'accounts' && <AccountsList accounts={accounts} onAccountClick={openAccount} />}
             {page === 'account-detail' && selectedAccount && <AccountDetail account={selectedAccount} contacts={contacts} deals={deals} properties={properties} activities={activities} tasks={tasks} onRefresh={loadData} showToast={showToast} onContactClick={openContact} onDealClick={openDeal} onPropertyClick={openProperty} />}
             {page === 'activities' && <Activities activities={activities} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-activity')} />}
-            {page === 'tasks' && <Tasks tasks={tasks} leads={leads} deals={deals} properties={properties} contacts={contacts} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-task')} />}
+            {page === 'tasks' && <Tasks tasks={tasks} leads={leads} deals={deals} properties={properties} contacts={contacts} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-task')} onTaskClick={openTask} onLeadClick={openLead} onDealClick={openDeal} onPropertyClick={openProperty} onContactClick={openContact} />}
+            {page === 'task-detail' && selectedTask && <TaskDetail task={selectedTask} leads={leads} deals={deals} properties={properties} contacts={contacts} accounts={accounts} activities={activities} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} onDealClick={openDeal} onPropertyClick={openProperty} onContactClick={openContact} onAccountClick={openAccount} onBack={() => setPage('tasks')} />}
             {page === 'lease-comps' && <LeaseComps comps={leaseComps} onCompClick={openLeaseComp} />}
             {page === 'lease-comp-detail' && selectedLeaseComp && <LeaseCompDetail comp={selectedLeaseComp} properties={properties} />}
             {page === 'sale-comps' && <SaleComps comps={saleComps} />}
