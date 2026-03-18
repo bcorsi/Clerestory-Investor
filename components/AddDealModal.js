@@ -6,7 +6,7 @@ import { insertRow } from '../lib/db';
 
 export default function AddDealModal({ onClose, onSave }) {
   const [form, setForm] = useState({
-    deal_name: '', stage: 'Offers/LOI', deal_type: '', strategy: '',
+    deal_name: '', stage: 'Lead', deal_type: '', strategy: '',
     address: '', submarket: '', buyer: '', seller: '',
     deal_value: '', commission_rate: '', probability: '',
     close_date: '', priority: 'Medium', notes: '', onedrive_url: '',
@@ -35,7 +35,9 @@ export default function AddDealModal({ onClose, onSave }) {
           ? parseFloat(form.deal_value) * parseFloat(form.commission_rate) / 100
           : null,
         probability: form.probability ? parseInt(form.probability) : null,
+        priority: form.priority || 'Medium',
         close_date: form.close_date || null,
+        onedrive_url: form.onedrive_url || null,
         notes: form.notes || null,
       };
       await insertRow('deals', data);

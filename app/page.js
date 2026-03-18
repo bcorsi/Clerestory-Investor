@@ -170,7 +170,7 @@ export default function App() {
   };
 
   const pageTitles = {
-    dashboard: 'Dashboard', properties: 'Properties',
+    dashboard: 'Command Center', properties: 'Properties',
     'property-detail': selectedProperty?.address || 'Property',
     'lead-gen': 'Lead Generation', 'lead-detail': selectedLead?.lead_name || 'Lead',
     pipeline: 'Deal Pipeline', 'deal-detail': selectedDeal?.deal_name || 'Deal',
@@ -262,7 +262,7 @@ export default function App() {
           {loading ? (
             <div className="empty-state"><div className="empty-state-icon">◌</div><div className="empty-state-title">Loading...</div></div>
           ) : (<>
-            {page === 'dashboard' && <Dashboard properties={properties} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} tasks={tasks} activities={activities} onPropertyClick={openProperty} onDealClick={() => setPage('pipeline')} onLeadClick={() => setPage('lead-gen')} setPage={setPage} />}
+            {page === 'dashboard' && <Dashboard properties={properties} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} tasks={tasks} activities={activities} onPropertyClick={openProperty} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} setPage={setPage} />}
             {page === 'properties' && <PropertiesList properties={properties} onPropertyClick={openProperty} />}
             {page === 'property-detail' && selectedProperty && <PropertyDetail property={selectedProperty} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} activities={activities} tasks={tasks} onLeaseCompClick={openLeaseComp} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} onAddActivity={(propId) => setModal({ type: 'add-activity', defaultPropertyId: propId })} onAddTask={(propId) => setModal({ type: 'add-task', defaultPropertyId: propId })} accounts={accounts} showToast={showToast} onRefresh={loadData} />}
             {page === 'lead-gen' && <LeadGen leads={leads} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} />}

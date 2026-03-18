@@ -177,17 +177,18 @@ export default function DealDetail({ deal, activities, tasks, properties, contac
       {/* Stage pipeline progress */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Pipeline Stage</h3>
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexWrap: 'wrap' }}>
           {DEAL_STAGES.filter(s => s !== 'Dead').map((s, i) => {
             const isActive = s === deal.stage;
             const isPast = DEAL_STAGES.indexOf(s) < DEAL_STAGES.indexOf(deal.stage);
             return (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                 <div style={{
-                  padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: isActive ? 700 : 500,
+                  padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: isActive ? 700 : 500,
                   background: isActive ? STAGE_COLORS[s] : isPast ? STAGE_COLORS[s] + '44' : 'var(--bg-input)',
                   color: isActive ? 'white' : isPast ? STAGE_COLORS[s] : 'var(--text-muted)',
                   border: `1px solid ${isActive ? STAGE_COLORS[s] : 'var(--border)'}`,
+                  whiteSpace: 'nowrap',
                 }}>
                   {s}
                 </div>

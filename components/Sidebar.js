@@ -3,7 +3,7 @@
 export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
   const nav = [
     { section: 'Overview', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: '◫', badge: null },
+      { id: 'dashboard', label: 'Command Center', icon: '◫', badge: null },
     ]},
     { section: 'CRM', items: [
       { id: 'properties', label: 'Properties', icon: '⌂', badge: counts.properties },
