@@ -104,13 +104,13 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
             <button className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
             {lead.stage !== 'Converted' && (
               <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>
-                {converting ? 'Converting...' : '⚡ Convert to Deal'}
+                {converting ? 'Converting...' : 'Convert to Deal'}
               </button>
-              {!linkedProperty && (
-                <button className="btn btn-ghost btn-sm" onClick={handleConvertToProperty} disabled={convertingProp}>
-                  {convertingProp ? 'Creating...' : '🏭 Create Property'}
-                </button>
-              )}
+            )}
+            {!linkedProperty && (
+              <button className="btn btn-ghost btn-sm" onClick={handleConvertToProperty} disabled={convertingProp}>
+                {convertingProp ? 'Creating...' : 'Create Property'}
+              </button>
             )}
           </div>
         </div>
