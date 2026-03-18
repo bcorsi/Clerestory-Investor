@@ -150,18 +150,19 @@ export default function LeadDetail({
 
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
-    const allText = [
-      ...linkedNotes.filter(n => n.note_type !== 'AI Synthesis').map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
-      ...linkedActivities.map(a => `[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`),
-    ].join('\n');
+    const parts = [];
+    if (lead.notes) parts.push(`[Original Intel] ${lead.notes}`);
+    linkedNotes.filter(n => n.note_type !== 'AI Synthesis').forEach(n => parts.push(`[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`));
+    linkedActivities.forEach(a => parts.push(`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`));
+    const allText = parts.join('\n');
     if (!allText.trim()) { setSynth('No notes or activities to synthesize yet.'); setSynthLoading(false); return; }
     try {
       const res = await fetch('/api/ai', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: AI_MODEL_OPUS, max_tokens: 600,
-          system: 'You are a CRE brokerage intelligence assistant. Synthesize all notes and activities into a concise lead status summary. Include: current status, owner/contact info, catalyst signals, outstanding issues, and the single most important next step. Be specific and actionable.',
-          messages: [{ role: 'user', content: `Lead: ${lead.lead_name}\nStage: ${lead.stage}\nTier: ${lead.tier || 'N/A'} | Score: ${lead.score || 'N/A'}\nOwner: ${lead.owner || 'Unknown'}\nAddress: ${lead.address || 'N/A'}\nCatalysts: ${(lead.catalyst_tags || []).join(', ') || 'None'}\n\nTimeline:\n${allText}\n\nSynthesize into a brief status report with the single most important next step.` }],
+          system: 'You are a CRE brokerage intelligence assistant. Synthesize all notes, intel, and activities into a concise lead status summary. Include: current status, owner/contact info, catalyst signals, outstanding issues, and the single most important next step. Be specific and actionable.',
+          messages: [{ role: 'user', content: `Lead: ${lead.lead_name}\nStage: ${lead.stage}\nTier: ${lead.tier || 'N/A'} | Score: ${lead.score || 'N/A'}\nOwner: ${lead.owner || 'Unknown'}\nAddress: ${lead.address || 'N/A'}\nCatalysts: ${(lead.catalyst_tags || []).join(', ') || 'None'}\n\nAll Intel & Timeline:\n${allText}\n\nSynthesize into a brief status report with the single most important next step.` }],
         }),
       });
       const data = await res.json();

@@ -152,18 +152,19 @@ export default function DealDetail({
 
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
-    const allText = [
-      ...linkedNotes.filter(n => n.note_type !== 'AI Synthesis').map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
-      ...linkedActivities.map(a => `[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`),
-    ].join('\n');
+    const parts = [];
+    if (deal.notes) parts.push(`[Original Intel] ${deal.notes}`);
+    linkedNotes.filter(n => n.note_type !== 'AI Synthesis').forEach(n => parts.push(`[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`));
+    linkedActivities.forEach(a => parts.push(`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`));
+    const allText = parts.join('\n');
     if (!allText.trim()) { setSynth('No notes or activities to synthesize yet.'); setSynthLoading(false); return; }
     try {
       const res = await fetch('/api/ai', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: AI_MODEL_OPUS, max_tokens: 600,
-          system: 'You are a CRE brokerage intelligence assistant. Synthesize all notes and activities into a concise deal status summary. Include: current status, key contacts, outstanding issues, and recommended next steps. Be specific and actionable. No fluff.',
-          messages: [{ role: 'user', content: `Deal: ${deal.deal_name}\nStage: ${deal.stage}\nValue: ${deal.deal_value ? fmt.price(deal.deal_value) : 'TBD'}\n\nTimeline:\n${allText}\n\nSynthesize into a brief status report with next steps.` }],
+          system: 'You are a CRE brokerage intelligence assistant. Synthesize all notes, intel, and activities into a concise deal status summary. Include: current status, key contacts, outstanding issues, and recommended next steps. Be specific and actionable. No fluff.',
+          messages: [{ role: 'user', content: `Deal: ${deal.deal_name}\nStage: ${deal.stage}\nValue: ${deal.deal_value ? fmt.price(deal.deal_value) : 'TBD'}\n\nAll Intel & Timeline:\n${allText}\n\nSynthesize into a brief status report with next steps.` }],
         }),
       });
       const data = await res.json();
