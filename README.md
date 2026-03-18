@@ -1,65 +1,59 @@
-# CLERESTORY v14 — Morning Command Center + 10-Stage Pipeline
+# Clerestory v17
 
-## What's New in v14
+## What's New in v17
 
-### Morning Command Center (replaces Dashboard)
-- **AI Morning Brief** — click one button, Claude analyzes your pipeline, leads, tasks, and gives you a 2-3 sentence action plan for the day
-- **5 stat cards** — Pipeline value, Commission (with weighted), Active Leads (hot count), Properties (total SF), Tasks Due (with overdue alerts in red)
-- **3-column layout:**
-  - **Today's Actions** — overdue tasks in red, today's tasks, this week preview + Catalyst Alerts (immediate/high urgency signals)
-  - **Pipeline Momentum** — full stage breakdown with deal counts + value per stage, closing-this-month callout + Lead Funnel (3-stage counts with hot lead indicators)
-  - **Hot Leads** — A+/A tier ranked by score, clickable to detail + Recent Activity feed + Market summary
-- **Time-aware greeting** — "Good morning" / "Good afternoon" / "Good evening"
+### Two-Tier Data Model — Buildings + Parcels
+- Property → Buildings → Parcels hierarchy
+- Each property can have multiple buildings (SF, clear height, docks, grade doors, year built, office %)
+- Rollup stats bar: Total SF (sum), Total Acres (sum), Max Clear Height, Total Doors (sum), Building Count, Parcel Count
+- Add/remove buildings inline on Property Detail
+- Auto-migration: existing properties get Building 1 created from current specs
+- SQL: 09_v17_buildings_two_tier.sql
 
-### 10-Stage Deal Pipeline (fixed from v13)
-- Full lifecycle: Lead → Owner Contacted → Meeting/Proposal → Listing/Marketing → Offers/LOI → LOI Accepted/PSA → Due Diligence → Closing → Closed → Dead
-- Narrower kanban columns (230px) with horizontal scroll to fit all 10 stages
-- Per-stage pipeline value in column headers
-- Weighted commission + total pipeline + total commission in header bar
-- Quick stage-move buttons in expanded card view
-- Lead Gen converts to Deal at "Listing/Marketing" stage (next logical step after Meeting/Proposal)
+### Deal Contacts with Roles
+- New Contacts tab on Deal Detail with junction table
+- Link contacts with roles: Seller, Buyer, Listing Broker, Attorney, Lender, Title/Escrow, etc.
 
-### Lead Gen (3-stage prospecting funnel — unchanged)
-- Lead → Owner Contacted → Meeting/Proposal
-- AI Next Step button, substep checklists, tier badges
-- Convert to Deal flows into Listing/Marketing stage
+### Buyer Outreach Log
+- New Outreach tab on Deal Detail
+- Log outreach to buyer accounts with method, outcome, notes
 
-### Also Includes (from prior versions)
-- 67 SoCal industrial buyer accounts with Buyer Matching Engine
-- 208 seeded leads (113 IE-West + 95 SGV)
-- 10 key contacts seeded
-- Properties (table + detail + APNs + edit + photos + OneDrive + Google Maps)
-- Contacts (expandable + detail page), Accounts (market pills, timing badges)
-- Lease Comps (table + full detail page), Sale Comps
-- Tasks + Activities
-- Auth / Login / Profile
-- Cmd+K global search, CSV import, PWA
-- Ice blue theme
+### AI Note Synthesis (Opus)
+- Synthesize button on Deal Detail timeline
+- Opus reads all notes + activities → generates status summary with next steps
 
----
+### Two-Tier AI Model
+- Morning brief upgraded to Opus
+- Quick actions stay on Sonnet
+- API route supports system prompt + tools (web search)
 
-## Deployment
+### WARN Intel Page
+- New sidebar tab under Intelligence
+- Upload EDD WARN CSV, auto-filter industrial + SGV/IE
+- Tenant matching against your properties
+- Research button (Opus + web search)
+- Convert to Lead button with WARN Notice catalyst
 
-### FRESH INSTALL (never deployed before)
+### Follow-Up Cadences
+- Cadence dropdown on Deal Detail (Weekly through Annually)
+- Auto-calculates next follow-up due date
 
-1. **Supabase** → Sign up → New project → SQL Editor → Paste `supabase/schema.sql` → Run
-2. **Supabase** → SQL Editor → New query → Paste `sql/02_accounts_67_buyers.sql` → Run
-3. **Supabase** → SQL Editor → New query → Paste `sql/03_contacts_seed.sql` → Run
-4. **Supabase** → SQL Editor → New query → Paste `sql/04_leads_seed.sql` → Run
-5. **Supabase** → Settings → API → Copy Project URL + anon key
-6. **GitHub** → New repo → Upload all files from this zip (contents at root, package.json at top level)
-7. **Vercel** → Import repo → Add env vars NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY → Deploy
+### Bug Fixes
+- Fixed crash on all detail pages (notes/followUps never fetched)
+- DealDetail missing props restored
+- Maps link pin emoji restored
+- Auto activity logging on deal stage changes
 
-### UPGRADE from v13
+## SQL Migrations (run in order)
 
-1. **Supabase** → SQL Editor → Paste `sql/05_deals_pipeline_upgrade.sql` → Run
-2. **GitHub** → Replace all files from this zip → Commit → Vercel auto-redeploys
+1. 07_v16_deal_contacts_outreach_notes.sql (if not already run)
+2. 08_v17_cadences_warn_twotier.sql
+3. 09_v17_buildings_two_tier.sql (auto-migrates existing properties)
 
-### UPGRADE from earlier versions (v12 or below)
+## Environment Variables
 
-1. **Supabase** → SQL Editor → Paste `sql/01_accounts_upgrade.sql` → Run
-2. **Supabase** → SQL Editor → Paste `sql/02_accounts_67_buyers.sql` → Run
-3. **Supabase** → SQL Editor → Paste `sql/03_contacts_seed.sql` → Run
-4. **Supabase** → SQL Editor → Paste `sql/04_leads_seed.sql` → Run
-5. **Supabase** → SQL Editor → Paste `sql/05_deals_pipeline_upgrade.sql` → Run
-6. **GitHub** → Replace all files → Commit → Vercel auto-redeploys
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, ANTHROPIC_API_KEY
+
+## Deploy
+
+npm install && vercel --prod

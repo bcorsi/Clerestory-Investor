@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { DEAL_STAGES, STAGE_COLORS, LEAD_STAGES, LEAD_STAGE_COLORS, CATALYST_URGENCY, fmt } from '../lib/constants';
+import { DEAL_STAGES, STAGE_COLORS, LEAD_STAGES, LEAD_STAGE_COLORS, CATALYST_URGENCY, AI_MODEL_OPUS, fmt } from '../lib/constants';
 
 async function getMorningBrief(context) {
   try {
@@ -9,8 +9,9 @@ async function getMorningBrief(context) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 300,
-        messages: [{ role: 'user', content: `You are a CRE brokerage intelligence assistant. It's ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}. Write a crisp 2-3 sentence morning brief for a broker based on this data. Be specific about what to do TODAY. No fluff, no greeting.
+        model: AI_MODEL_OPUS, max_tokens: 400,
+        system: 'You are a CRE brokerage intelligence assistant. Write crisp, actionable morning briefs. Be specific about what to do TODAY. No fluff, no greeting, no bullet points.',
+        messages: [{ role: 'user', content: `It's ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}. Write a 2-3 sentence morning brief based on this data.
 
 Active deals: ${context.activeDeals} (pipeline: ${context.pipelineValue})
 Weighted commission: ${context.weightedComm}

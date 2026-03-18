@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { fmt, CATALYST_URGENCY, STAGE_COLORS, LEAD_STAGE_COLORS } from '../lib/constants';
-import { updateRow, insertRow, addApn, removeApn } from '../lib/db';
+import { fmt, CATALYST_URGENCY, STAGE_COLORS, LEAD_STAGE_COLORS, AI_MODEL_OPUS } from '../lib/constants';
+import { updateRow, insertRow, addApn, removeApn, addBuilding, removeBuilding } from '../lib/db';
 import EditPropertyModal from './EditPropertyModal';
 import BuyerMatching from './BuyerMatching';
 
@@ -34,9 +34,14 @@ export default function PropertyDetail({
   const [newApn, setNewApn] = useState('');
   const [newApnAcres, setNewApnAcres] = useState('');
   const [savingApn, setSavingApn] = useState(false);
+  const [showBldgForm, setShowBldgForm] = useState(false);
+  const [bldgForm, setBldgForm] = useState({ building_name: '', building_sf: '', clear_height: '', dock_doors: '', grade_doors: '', year_built: '', office_pct: '', prop_type: '' });
+  const [savingBldg, setSavingBldg] = useState(false);
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [filterText, setFilterText] = useState('');
+  const [synth, setSynth] = useState(null);
+  const [synthLoading, setSynthLoading] = useState(false);
 
   const linkedLeads = (leads||[]).filter(l => l.property_id===p.id||l.address===p.address);
   const linkedDeals = (deals||[]).filter(d => d.property_id===p.id||d.address===p.address);
@@ -77,6 +82,10 @@ export default function PropertyDetail({
   const handleCompleteFu = async fu=>{try{await updateRow('follow_ups',fu.id,{completed:true,completed_at:new Date().toISOString()});onRefresh?.();}catch(e){console.error(e);}};
   const handleAddApn = async()=>{if(!newApn.trim())return;setSavingApn(true);try{await addApn(p.id,newApn.trim(),newApnAcres?parseFloat(newApnAcres):null);setNewApn('');setNewApnAcres('');setShowApnForm(false);onRefresh?.();showToast?.('APN added');}catch(e){console.error(e);}finally{setSavingApn(false);}};
   const handleRemoveApn = async a=>{if(!confirm(`Remove APN ${a.apn}?`))return;try{await removeApn(a.id);onRefresh?.();showToast?.('Removed');}catch(e){console.error(e);}};
+  const handleAddBldg = async()=>{if(!bldgForm.building_sf)return;setSavingBldg(true);try{await addBuilding(p.id,{building_name:bldgForm.building_name||`Building ${(p.buildings||[]).length+1}`,building_sf:parseInt(bldgForm.building_sf)||null,clear_height:parseInt(bldgForm.clear_height)||null,dock_doors:parseInt(bldgForm.dock_doors)||0,grade_doors:parseInt(bldgForm.grade_doors)||0,year_built:parseInt(bldgForm.year_built)||null,office_pct:parseInt(bldgForm.office_pct)||null,prop_type:bldgForm.prop_type||null});setBldgForm({building_name:'',building_sf:'',clear_height:'',dock_doors:'',grade_doors:'',year_built:'',office_pct:'',prop_type:''});setShowBldgForm(false);onRefresh?.();showToast?.('Building added');}catch(e){console.error(e);}finally{setSavingBldg(false);}};
+  const handleRemoveBldg = async b=>{if(!confirm(`Remove ${b.building_name||'this building'}?`))return;try{await removeBuilding(b.id);onRefresh?.();showToast?.('Building removed');}catch(e){console.error(e);}};
+
+  const handleSynthesize = async()=>{setSynthLoading(true);setSynth(null);const allText=[...linkedNotes.map(n=>`[${n.note_type||'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),...linkedActs.map(a=>`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes?': '+a.notes:''}${a.outcome?' → '+a.outcome:''}`)].join('\n');if(!allText.trim()){setSynth('No notes or activities to synthesize yet.');setSynthLoading(false);return;}try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_OPUS,max_tokens:600,system:'You are a CRE brokerage intelligence assistant. Synthesize all notes and activities into a concise property status summary. Include: current situation, key contacts/owners, outstanding issues, and recommended next steps. Be specific and actionable.',messages:[{role:'user',content:`Property: ${p.address}, ${p.city||p.submarket}\nOwner: ${p.owner||'Unknown'}\nTenant: ${p.tenant||'Vacant'}\nSF: ${p.building_sf?.toLocaleString()||'N/A'}\n\nTimeline:\n${allText}\n\nSynthesize into a brief status report with next steps.`}]})});const data=await res.json();setSynth(data.content?.[0]?.text||'Could not generate synthesis.');}catch{setSynth('Error connecting to AI.');}finally{setSynthLoading(false);}};
 
   const Field = ({label,value,mono,accent}) => value?(<div><div style={{fontSize:'11px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-muted)',marginBottom:'2px'}}>{label}</div><div style={{fontSize:'14px',color:accent?'var(--accent)':'var(--text-primary)',fontFamily:mono?'var(--font-mono)':'inherit',fontWeight:accent?600:400}}>{value}</div></div>):null;
   const SH = ({title,count,onAdd,addLabel}) => (<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}><div style={{display:'flex',alignItems:'center',gap:'8px'}}><h3 style={{fontSize:'14px',fontWeight:600,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{title}</h3>{count!=null&&<span style={{fontSize:'12px',fontFamily:'var(--font-mono)',color:'var(--text-muted)',background:'var(--bg-input)',padding:'1px 6px',borderRadius:'10px'}}>{count}</span>}</div>{onAdd&&<button className="btn btn-ghost btn-sm" style={{fontSize:'12px'}} onClick={onAdd}>{addLabel||'+ Add'}</button>}</div>);
@@ -104,7 +113,7 @@ export default function PropertyDetail({
               <span style={{fontSize:'14px',color:'var(--text-muted)'}}>{[p.city,p.submarket,p.zip].filter(Boolean).join(' · ')}</span>
               {p.prop_type&&<span className="tag tag-ghost" style={{fontSize:'12px'}}>{p.prop_type}</span>}
               {p.vacancy_status&&<span className={`tag ${p.vacancy_status==='Vacant'?'tag-red':p.vacancy_status==='Partial'?'tag-amber':'tag-blue'}`} style={{fontSize:'12px'}}>{p.vacancy_status}</span>}
-              {p.address&&<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address+', '+(p.city||'')+', CA')}`} target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'var(--accent)',textDecoration:'none',padding:'2px 8px',borderRadius:'4px',border:'1px solid var(--border)',background:'var(--bg-input)'}}>Maps ↗</a>}
+              {p.address&&<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address+', '+(p.city||'')+', CA')}`} target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'var(--accent)',textDecoration:'none',padding:'2px 8px',borderRadius:'4px',border:'1px solid var(--border)',background:'var(--bg-input)'}}>📍 Maps ↗</a>}
               {p.onedrive_url&&<a href={p.onedrive_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'12px',color:'var(--accent)',textDecoration:'none',padding:'2px 8px',borderRadius:'4px',border:'1px solid var(--border)',background:'var(--bg-input)'}}>📁 OneDrive ↗</a>}
             </div>
           </div>
@@ -161,19 +170,57 @@ export default function PropertyDetail({
         )}
       </div>
 
-      {/* PROPERTY DETAILS + OWNER/TENANT */}
+      {/* ROLLUP STATS BAR */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'10px',marginBottom:'16px'}}>
+        {[
+          ['Total SF',p.total_sf||p.building_sf?Number(p.total_sf||p.building_sf).toLocaleString():'—','var(--accent)'],
+          ['Total Acres',p.total_acres||p.land_acres?Number(p.total_acres||p.land_acres).toFixed(2):'—','var(--text-primary)'],
+          ['Max Clear',p.max_clear_height||p.clear_height?(p.max_clear_height||p.clear_height)+"'":'—','var(--text-primary)'],
+          ['Dock Doors',String(p.total_dock_doors??p.dock_doors??0),'var(--text-primary)'],
+          ['Buildings',String(p.building_count||(p.buildings||[]).length||1),'var(--accent)'],
+          ['Parcels',String(p.parcel_count||(p.apns||[]).length||0),'var(--text-primary)'],
+        ].map(([l,v,c])=>(<div key={l} className="card" style={{padding:'10px 14px',textAlign:'center'}}><div style={{fontSize:'11px',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'2px'}}>{l}</div><div style={{fontSize:'20px',fontWeight:700,color:c,fontFamily:'var(--font-mono)'}}>{v}</div></div>))}
+      </div>
+
+      {/* BUILDINGS + PARCELS + OWNER/TENANT */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'16px'}}>
         <div className="card">
-          <SH title="Property Details" />
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
-            <Field label="Record Type" value={p.record_type} /><Field label="Property Type" value={p.prop_type} />
-            <Field label="Building SF" value={p.building_sf?Number(p.building_sf).toLocaleString()+' SF':null} mono accent />
-            <Field label="Land" value={p.land_acres?p.land_acres+' acres':null} mono />
-            <Field label="Year Built" value={p.year_built} mono /><Field label="Clear Height" value={p.clear_height?p.clear_height+"'":null} mono />
-            <Field label="Dock Doors" value={p.dock_doors!=null&&p.dock_doors!==''?String(p.dock_doors):null} mono />
-            <Field label="Grade Doors" value={p.grade_doors!=null&&p.grade_doors!==''?String(p.grade_doors):null} mono />
-            <Field label="Market" value={p.market} /><Field label="Submarket" value={p.submarket} />
-          </div>
+          <SH title="Buildings" count={(p.buildings||[]).length} onAdd={()=>setShowBldgForm(!showBldgForm)} addLabel={showBldgForm?'Cancel':'+ Building'} />
+          {showBldgForm&&(<div style={{padding:'12px',background:'var(--bg-input)',borderRadius:'6px',marginBottom:'12px',border:'1px solid var(--border)'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',marginBottom:'8px'}}>
+              <input className="input" placeholder="Building name" value={bldgForm.building_name} onChange={e=>setBldgForm(f=>({...f,building_name:e.target.value}))} style={{gridColumn:'1/-1',fontSize:'13px'}} />
+              <input className="input" placeholder="SF *" type="number" value={bldgForm.building_sf} onChange={e=>setBldgForm(f=>({...f,building_sf:e.target.value}))} style={{fontSize:'13px'}} />
+              <input className="input" placeholder="Clear Height" type="number" value={bldgForm.clear_height} onChange={e=>setBldgForm(f=>({...f,clear_height:e.target.value}))} style={{fontSize:'13px'}} />
+              <input className="input" placeholder="Dock Doors" type="number" value={bldgForm.dock_doors} onChange={e=>setBldgForm(f=>({...f,dock_doors:e.target.value}))} style={{fontSize:'13px'}} />
+              <input className="input" placeholder="Grade Doors" type="number" value={bldgForm.grade_doors} onChange={e=>setBldgForm(f=>({...f,grade_doors:e.target.value}))} style={{fontSize:'13px'}} />
+              <input className="input" placeholder="Year Built" type="number" value={bldgForm.year_built} onChange={e=>setBldgForm(f=>({...f,year_built:e.target.value}))} style={{fontSize:'13px'}} />
+              <input className="input" placeholder="Office %" type="number" value={bldgForm.office_pct} onChange={e=>setBldgForm(f=>({...f,office_pct:e.target.value}))} style={{fontSize:'13px'}} />
+            </div>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:'6px'}}>
+              <button className="btn btn-ghost btn-sm" onClick={()=>setShowBldgForm(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleAddBldg} disabled={savingBldg||!bldgForm.building_sf}>{savingBldg?'...':'Add'}</button>
+            </div>
+          </div>)}
+          {(p.buildings||[]).length>0?(<div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+            {(p.buildings||[]).map((b,i)=>(<div key={b.id||i} style={{padding:'10px 12px',background:'var(--bg-input)',borderRadius:'6px',border:'1px solid var(--border-subtle)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
+                <span style={{fontSize:'14px',fontWeight:600}}>{b.building_name||`Building ${i+1}`}</span>
+                <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                  {b.prop_type&&<span className="tag tag-ghost" style={{fontSize:'11px'}}>{b.prop_type}</span>}
+                  {b.id&&<button onClick={()=>handleRemoveBldg(b)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',fontSize:'14px',padding:'0 2px'}}>×</button>}
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',fontSize:'13px'}}>
+                {b.building_sf&&<div><span style={{color:'var(--text-muted)',fontSize:'11px'}}>SF</span><div style={{fontFamily:'var(--font-mono)',fontWeight:600,color:'var(--accent)'}}>{Number(b.building_sf).toLocaleString()}</div></div>}
+                {b.clear_height&&<div><span style={{color:'var(--text-muted)',fontSize:'11px'}}>Clear</span><div style={{fontFamily:'var(--font-mono)'}}>{b.clear_height}'</div></div>}
+                {(b.dock_doors>0||b.grade_doors>0)&&<div><span style={{color:'var(--text-muted)',fontSize:'11px'}}>Doors</span><div style={{fontFamily:'var(--font-mono)'}}>{b.dock_doors||0}D / {b.grade_doors||0}GL</div></div>}
+                {b.year_built&&<div><span style={{color:'var(--text-muted)',fontSize:'11px'}}>Built</span><div style={{fontFamily:'var(--font-mono)'}}>{b.year_built}</div></div>}
+                {b.office_pct&&<div><span style={{color:'var(--text-muted)',fontSize:'11px'}}>Office</span><div style={{fontFamily:'var(--font-mono)'}}>{b.office_pct}%</div></div>}
+              </div>
+            </div>))}
+          </div>):!showBldgForm&&<div style={{fontSize:'13px',color:'var(--text-muted)'}}>No buildings — add one above</div>}
+
+          {/* APNs section below buildings */}
           <div style={{marginTop:'14px',paddingTop:'14px',borderTop:'1px solid var(--border-subtle)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
               <div style={{fontSize:'11px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-muted)'}}>APNs {p.apns?.length>0&&<span style={{fontFamily:'var(--font-mono)'}}>({p.apns.length})</span>}</div>

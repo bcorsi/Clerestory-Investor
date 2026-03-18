@@ -114,7 +114,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
                   {' '}{p.submarket}
                 </td>
                 <td style={{ fontFamily: 'var(--font-mono)' }}>
-                  {p.building_sf ? fmt.sf(p.building_sf) : p.land_acres ? fmt.acres(p.land_acres) : '—'}
+                  {(p.total_sf || p.building_sf) ? fmt.sf(p.total_sf || p.building_sf) : p.land_acres ? fmt.acres(p.land_acres) : '—'}
                 </td>
                 <td>{p.owner || '—'}</td>
                 <td>

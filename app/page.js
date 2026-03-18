@@ -34,6 +34,7 @@ import AddActivityModal from '../components/AddActivityModal';
 import AddTaskModal from '../components/AddTaskModal';
 import AddLeaseCompModal from '../components/AddLeaseCompModal';
 import AddSaleCompModal from '../components/AddSaleCompModal';
+import WarnIntel from '../components/WarnIntel';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -200,7 +201,7 @@ export default function App() {
     accounts: 'Accounts', 'account-detail': selectedAccount?.name || 'Account',
     activities: 'Activities', tasks: 'Tasks', 'task-detail': selectedTask?.title || 'Task',
     'lease-comps': 'Lease Comps', 'lease-comp-detail': selectedLeaseComp?.address || 'Lease Comp',
-    'sale-comps': 'Sale Comps', settings: 'Settings',
+    'sale-comps': 'Sale Comps', 'warn-intel': 'WARN Intel', settings: 'Settings',
   };
 
   const pageTitle = pageTitles[page] || 'Clerestory';
@@ -301,6 +302,7 @@ export default function App() {
             {page === 'lease-comps' && <LeaseComps comps={leaseComps} onCompClick={openLeaseComp} />}
             {page === 'lease-comp-detail' && selectedLeaseComp && <LeaseCompDetail comp={selectedLeaseComp} properties={properties} />}
             {page === 'sale-comps' && <SaleComps comps={saleComps} />}
+            {page === 'warn-intel' && <WarnIntel properties={properties} leads={leads} onRefresh={loadData} showToast={showToast} />}
             {page === 'settings' && <ProfileSettings user={session?.user} showToast={showToast} />}
           </>)}
         </div>

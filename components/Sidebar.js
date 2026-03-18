@@ -18,6 +18,9 @@ export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
       { id: 'lease-comps', label: 'Lease Comps', icon: '▤', badge: counts.leaseComps },
       { id: 'sale-comps', label: 'Sale Comps', icon: '◆', badge: counts.saleComps },
     ]},
+    { section: 'Intelligence', items: [
+      { id: 'warn-intel', label: 'WARN Intel', icon: '⚠', badge: counts.warnNew || null },
+    ]},
   ];
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';

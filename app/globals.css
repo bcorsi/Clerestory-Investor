@@ -893,3 +893,7 @@ td.text-primary { color: var(--text-primary); font-weight: 500; }
 .mb-4 { margin-bottom: 16px; }
 .mb-6 { margin-bottom: 24px; }
 .w-full { width: 100%; }
+
+
+/* v17 additions */
+.show-dd { display: block !important; }
