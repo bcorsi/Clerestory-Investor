@@ -1,8 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_TIERS, PRIORITIES, fmt } from '../lib/constants';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, fmt } from '../lib/constants';
 import { updateRow, convertLeadToDeal, convertLeadToProperty } from '../lib/db';
+
+const MODEL = 'claude-sonnet-4-20250514';
+async function getAINextStep(lead) {
+  const prompt = `You are a commercial real estate broker assistant. Based on this lead intel, give the single most important next action to take RIGHT NOW. Be specific and direct — max 15 words.\n\nLead: ${lead.lead_name}\nStage: ${lead.stage}\nScore: ${lead.score || 'N/A'} | Tier: ${lead.tier || 'N/A'}\nDecision Maker: ${lead.decision_maker || 'Unknown'}\nPhone: ${lead.phone || 'None'}\nAddress: ${lead.address || 'N/A'}\nCatalysts: ${(lead.catalyst_tags || []).join(', ') || 'None'}\nIntel: ${(lead.notes || '').slice(0, 500)}\n\nReply with ONLY the next action — no preamble.`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: MODEL, max_tokens: 80, messages: [{ role: 'user', content: prompt }] }),
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || 'Review lead intel and identify next contact';
+  } catch { return 'Review lead intel and identify next contact'; }
+}
 
 export default function LeadDetail({ lead, activities, tasks, properties, onRefresh, showToast, onPropertyClick, onAddActivity, onAddTask, onConverted }) {
   const [editing, setEditing] = useState(false);
@@ -10,6 +24,9 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertingProp, setConvertingProp] = useState(false);
+  const [substeps, setSubsteps] = useState({});
+  const [aiStep, setAiStep] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const set = (field, val) => setForm((f) => ({ ...f, [field]: val }));
 
@@ -60,6 +77,18 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
   const linkedTasks = (tasks || []).filter((t) => t.lead_id === lead.id);
   const pendingTasks = linkedTasks.filter((t) => !t.completed).length;
   const linkedProperty = properties.find((p) => p.address === lead.address || p.id === lead.property_id);
+  const subs = LEAD_SUBSTEPS[lead.stage] || [];
+  const toggleSub = (step) => setSubsteps((p) => ({ ...p, [step]: !p[step] }));
+  const subsDone = subs.filter((s) => substeps[s]).length;
+
+  const handleAI = async () => {
+    setAiLoading(true);
+    try { const s = await getAINextStep(lead); setAiStep(s); }
+    catch (err) { console.error(err); }
+    finally { setAiLoading(false); }
+  };
+
+  const mapsUrl = lead.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((lead.address || '') + ', ' + (lead.submarket || '') + ', CA')}` : null;
 
   const tierColor = (tier) => {
     const map = { 'A+': '#22c55e', 'A': '#3b82f6', 'B': '#f59e0b', 'C': '#6b7280' };
@@ -95,8 +124,15 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
                 <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Score: {lead.score}</span>
               )}
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              {lead.address}{lead.submarket ? ` · ${lead.submarket}` : ''}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                {lead.address}{lead.submarket ? ` · ${lead.submarket}` : ''}
+              </span>
+              {mapsUrl && (
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
+                  Google Maps ↗
+                </a>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -202,6 +238,61 @@ export default function LeadDetail({ lead, activities, tasks, properties, onRefr
           </div>
         </div>
       )}
+
+      {/* Substeps + AI Next Step */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Substeps — {lead.stage} ({subsDone}/{subs.length})
+            </h3>
+          </div>
+          {subs.length > 0 ? (
+            <>
+              <div style={{ height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
+                <div style={{ width: `${subs.length > 0 ? Math.round(subsDone / subs.length * 100) : 0}%`, height: '100%', background: 'var(--accent)', borderRadius: '2px', transition: 'width 0.3s' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {subs.map((step) => {
+                  const checked = substeps[step] || false;
+                  return (
+                    <div key={step} onClick={() => toggleSub(step)} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0', cursor: 'pointer' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: '2px solid', borderColor: checked ? 'var(--accent)' : 'var(--border)', background: checked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 700 }}>{checked ? '✓' : ''}</div>
+                      <span style={{ fontSize: '13px', color: checked ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: checked ? 'line-through' : 'none' }}>{step}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No substeps defined for this stage</div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>AI Next Step</h3>
+          <button className="btn btn-ghost" onClick={handleAI} disabled={aiLoading} style={{ width: '100%', marginBottom: '12px', color: 'var(--amber)', borderColor: 'var(--amber)' }}>
+            {aiLoading ? 'Thinking...' : 'Get AI Recommendation'}
+          </button>
+          {aiStep && (
+            <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: '8px', borderLeft: '3px solid var(--amber)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--amber)', marginBottom: '4px' }}>{aiStep}</div>
+            </div>
+          )}
+          {!aiStep && lead.next_action && (
+            <div style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Next Action</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{lead.next_action}</div>
+              {lead.next_action_date && <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>Due: {lead.next_action_date}</div>}
+            </div>
+          )}
+          {lead.phone && (
+            <a href={`tel:${lead.phone}`} style={{ display: 'block', textAlign: 'center', marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'var(--accent-soft)', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, fontSize: '14px', border: '1px solid var(--accent)' }}>
+              Call {lead.decision_maker || 'Contact'} — {lead.phone}
+            </a>
+          )}
+        </div>
+      </div>
 
       {/* Linked property */}
       {linkedProperty && (
