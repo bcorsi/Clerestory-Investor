@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
-import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow } from '../lib/db';
+import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability } from '../lib/db';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
@@ -46,6 +46,8 @@ export default function LeadDetail({
   const [savingFu, setSavingFu] = useState(false);
   const [synth, setSynth] = useState(null);
   const [synthLoading, setSynthLoading] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
 
   const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
   const availSubs = form.market ? (SUBMARKETS[form.market] || []) : [];
@@ -142,10 +144,14 @@ export default function LeadDetail({
     try { await updateRow('follow_ups', fu.id, { completed: true, completed_at: new Date().toISOString() }); onRefresh?.(); } catch (e) { console.error(e); }
   };
 
+  // Load latest synthesis on mount
+  const latestSynth = useMemo(() => linkedNotes.filter(n => n.note_type === 'AI Synthesis').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0], [linkedNotes]);
+  useEffect(() => { if (latestSynth && !synth) setSynth(latestSynth.content); }, [latestSynth]);
+
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
     const allText = [
-      ...linkedNotes.map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
+      ...linkedNotes.filter(n => n.note_type !== 'AI Synthesis').map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
       ...linkedActivities.map(a => `[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`),
     ].join('\n');
     if (!allText.trim()) { setSynth('No notes or activities to synthesize yet.'); setSynthLoading(false); return; }
@@ -159,15 +165,31 @@ export default function LeadDetail({
         }),
       });
       const data = await res.json();
-      setSynth(data.content?.[0]?.text || 'Could not generate synthesis.');
+      const text = data.content?.[0]?.text || 'Could not generate synthesis.';
+      setSynth(text);
+      await insertRow('notes', { content: text, note_type: 'AI Synthesis', lead_id: lead.id });
+      onRefresh?.();
     } catch { setSynth('Error connecting to AI.'); }
     finally { setSynthLoading(false); }
+  };
+
+  // Catalyst tag management
+  const addTag = async (tag) => { const current = lead.catalyst_tags || []; if (current.includes(tag)) return; const updated = [...current, tag]; try { const scores = calculateProbability({ ...lead, catalyst_tags: updated }); await updateRow('leads', lead.id, { catalyst_tags: updated, score: scores.rawScore }); onRefresh?.(); showToast?.(`Added: ${tag} (score: ${scores.rawScore})`); } catch (e) { console.error(e); } };
+  const removeTag = async (tag) => { const updated = (lead.catalyst_tags || []).filter(t => t !== tag); try { const scores = calculateProbability({ ...lead, catalyst_tags: updated }); await updateRow('leads', lead.id, { catalyst_tags: updated, score: scores.rawScore }); onRefresh?.(); showToast?.(`Removed: ${tag}`); } catch (e) { console.error(e); } };
+  const handleAutoTag = async () => {
+    setAutoTagLoading(true);
+    try {
+      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: AI_MODEL_SONNET, max_tokens: 200, system: `You are a CRE catalyst tag analyst. Given lead data and notes, suggest relevant catalyst tags from this exact list: ${CATALYST_TAGS.join(', ')}. Return ONLY a JSON array of tag strings.`, messages: [{ role: 'user', content: `Lead: ${lead.lead_name}\nOwner: ${lead.owner || 'Unknown'} (${lead.owner_type || 'Unknown'})\nCompany: ${lead.company || 'N/A'}\nAddress: ${lead.address || 'N/A'}\nTier: ${lead.tier || 'N/A'}\nNotes: ${(lead.notes || '').slice(0, 500)}\n\nExisting tags: ${(lead.catalyst_tags || []).join(', ') || 'None'}\n\nSuggest additional catalyst tags. Return JSON array only.` }] }) });
+      const data = await res.json(); const text = data.content?.[0]?.text || '[]'; const clean = text.replace(/```json|```/g, '').trim(); const suggested = JSON.parse(clean);
+      const newTags = suggested.filter(t => CATALYST_TAGS.includes(t) && !(lead.catalyst_tags || []).includes(t));
+      if (newTags.length === 0) { showToast?.('No new tags suggested'); } else { const updated = [...(lead.catalyst_tags || []), ...newTags]; await updateRow('leads', lead.id, { catalyst_tags: updated }); onRefresh?.(); showToast?.(`Added ${newTags.length} tags: ${newTags.join(', ')}`); }
+    } catch (e) { console.error(e); showToast?.('Error auto-suggesting tags'); } finally { setAutoTagLoading(false); }
   };
 
   const mapsUrl = lead.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address + ', ' + (lead.submarket || '') + ', CA')}` : null;
   const tierColor = t => ({ 'A+': '#22c55e', A: '#3b82f6', B: '#f59e0b', C: '#6b7280' }[t] || '#6b7280');
   const stageColor = LEAD_STAGE_COLORS[lead.stage] || '#6b7280';
-  const fmtAgo = d => { if (!d) return ''; const x = Math.floor((Date.now() - new Date(d)) / 86400000); if (x === 0) return 'Today'; if (x === 1) return 'Yesterday'; if (x < 7) return x + 'd ago'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  const fmtAgo = d => { if (!d) return ''; const dt = new Date(d); const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); const x = Math.floor((Date.now() - dt) / 86400000); if (x === 0) return 'Today ' + time; if (x === 1) return 'Yesterday ' + time; if (x < 7) return x + 'd ago ' + time; return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + time; };
   const closeAll = () => { setShowNoteForm(false); setShowLogForm(false); setShowFuForm(false); };
   const toggleCatalyst = tag => setForm(f => ({ ...f, catalyst_tags: (f.catalyst_tags || []).includes(tag) ? f.catalyst_tags.filter(t => t !== tag) : [...(f.catalyst_tags || []), tag] }));
 
@@ -202,11 +224,15 @@ export default function LeadDetail({
             {!linkedProperty && <button className="btn btn-ghost btn-sm" onClick={handleConvertToProperty} disabled={convertingProp}>{convertingProp ? '...' : 'Create Property'}</button>}
           </div>
         </div>
-        {lead.catalyst_tags?.length > 0 && (
-          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '10px' }}>
-            {lead.catalyst_tags.map(tag => <span key={tag} className={`tag ${catalystTagClass(tag)}`} style={{ fontSize: '12px', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>)}
+        {/* CATALYST TAGS — clickable + add/remove + auto-suggest */}
+        <div style={{ marginTop: '10px' }}>
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {(lead.catalyst_tags || []).map(tag => <span key={tag} className={`tag ${catalystTagClass(tag)}`} style={{ fontSize: '12px', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}<span onClick={e => { e.stopPropagation(); removeTag(tag); }} style={{ marginLeft: '4px', cursor: 'pointer', opacity: 0.6, fontSize: '11px' }}>×</span></span>)}
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={() => setShowTagPicker(!showTagPicker)}>{showTagPicker ? 'Done' : '+ Tag'}</button>
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px', color: '#8b5cf6', borderColor: '#8b5cf644' }} onClick={handleAutoTag} disabled={autoTagLoading}>{autoTagLoading ? '✦ Analyzing...' : '✦ Auto-Tag'}</button>
           </div>
-        )}
+          {showTagPicker && (<div style={{ marginTop: '8px', padding: '10px', background: 'var(--bg-input)', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>{CATALYST_TAGS.filter(t => !(lead.catalyst_tags || []).includes(t)).map(t => <button key={t} onClick={() => addTag(t)} className={`tag ${catalystTagClass(t)}`} style={{ fontSize: '11px', cursor: 'pointer', opacity: 0.7, border: '1px dashed var(--border)' }}>{t}</button>)}</div>)}
+        </div>
         {lead.next_action && (
           <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Next:</span>

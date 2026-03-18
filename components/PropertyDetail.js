@@ -1,7 +1,7 @@
 'use client';
-import { useState, useMemo } from 'react';
-import { fmt, CATALYST_URGENCY, STAGE_COLORS, LEAD_STAGE_COLORS, AI_MODEL_OPUS } from '../lib/constants';
-import { updateRow, insertRow, addApn, removeApn, addBuilding, removeBuilding } from '../lib/db';
+import { useState, useEffect, useMemo } from 'react';
+import { fmt, CATALYST_URGENCY, CATALYST_TAGS, STAGE_COLORS, LEAD_STAGE_COLORS, AI_MODEL_OPUS, AI_MODEL_SONNET } from '../lib/constants';
+import { updateRow, insertRow, addApn, removeApn, addBuilding, removeBuilding, calculateProbability } from '../lib/db';
 import EditPropertyModal from './EditPropertyModal';
 import BuyerMatching from './BuyerMatching';
 
@@ -42,6 +42,8 @@ export default function PropertyDetail({
   const [filterText, setFilterText] = useState('');
   const [synth, setSynth] = useState(null);
   const [synthLoading, setSynthLoading] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
 
   const linkedLeads = (leads||[]).filter(l => l.property_id===p.id||l.address===p.address);
   const linkedDeals = (deals||[]).filter(d => d.property_id===p.id||d.address===p.address);
@@ -73,7 +75,7 @@ export default function PropertyDetail({
 
   const urgBadge = tag => {const l=CATALYST_URGENCY?.[tag];if(l==='immediate')return'tag-red';if(l==='high')return'tag-amber';if(l==='medium')return'tag-blue';return'tag-ghost';};
   const probColor = v => v>=75?'#22c55e':v>=50?'#f59e0b':'#6b7280';
-  const fmtAgo = d => {if(!d)return'';const x=Math.floor((Date.now()-new Date(d))/86400000);if(x===0)return'Today';if(x===1)return'Yesterday';if(x<7)return x+'d ago';return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+  const fmtAgo = d => {if(!d)return'';const dt=new Date(d);const time=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});const x=Math.floor((Date.now()-dt)/86400000);if(x===0)return'Today '+time;if(x===1)return'Yesterday '+time;if(x<7)return x+'d ago '+time;return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+time;};
   const closeAll = () => {setShowNoteForm(false);setShowLogForm(false);setShowFuForm(false);};
 
   const handleAddNote = async()=>{if(!noteText.trim())return;setSavingNote(true);try{await insertRow('notes',{content:noteText.trim(),note_type:noteType,property_id:p.id});setNoteText('');setShowNoteForm(false);onRefresh?.();showToast?.('Note added');}catch(e){console.error(e);}finally{setSavingNote(false);}};
@@ -85,7 +87,16 @@ export default function PropertyDetail({
   const handleAddBldg = async()=>{if(!bldgForm.building_sf)return;setSavingBldg(true);try{await addBuilding(p.id,{building_name:bldgForm.building_name||`Building ${(p.buildings||[]).length+1}`,building_sf:parseInt(bldgForm.building_sf)||null,clear_height:parseInt(bldgForm.clear_height)||null,dock_doors:parseInt(bldgForm.dock_doors)||0,grade_doors:parseInt(bldgForm.grade_doors)||0,year_built:parseInt(bldgForm.year_built)||null,office_pct:parseInt(bldgForm.office_pct)||null,prop_type:bldgForm.prop_type||null});setBldgForm({building_name:'',building_sf:'',clear_height:'',dock_doors:'',grade_doors:'',year_built:'',office_pct:'',prop_type:''});setShowBldgForm(false);onRefresh?.();showToast?.('Building added');}catch(e){console.error(e);}finally{setSavingBldg(false);}};
   const handleRemoveBldg = async b=>{if(!confirm(`Remove ${b.building_name||'this building'}?`))return;try{await removeBuilding(b.id);onRefresh?.();showToast?.('Building removed');}catch(e){console.error(e);}};
 
-  const handleSynthesize = async()=>{setSynthLoading(true);setSynth(null);const allText=[...linkedNotes.map(n=>`[${n.note_type||'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),...linkedActs.map(a=>`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes?': '+a.notes:''}${a.outcome?' → '+a.outcome:''}`)].join('\n');if(!allText.trim()){setSynth('No notes or activities to synthesize yet.');setSynthLoading(false);return;}try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_OPUS,max_tokens:600,system:'You are a CRE brokerage intelligence assistant. Synthesize all notes and activities into a concise property status summary. Include: current situation, key contacts/owners, outstanding issues, and recommended next steps. Be specific and actionable.',messages:[{role:'user',content:`Property: ${p.address}, ${p.city||p.submarket}\nOwner: ${p.owner||'Unknown'}\nTenant: ${p.tenant||'Vacant'}\nSF: ${p.building_sf?.toLocaleString()||'N/A'}\n\nTimeline:\n${allText}\n\nSynthesize into a brief status report with next steps.`}]})});const data=await res.json();setSynth(data.content?.[0]?.text||'Could not generate synthesis.');}catch{setSynth('Error connecting to AI.');}finally{setSynthLoading(false);}};
+  // Load latest synthesis on mount
+  const latestSynth = useMemo(() => linkedNotes.filter(n => n.note_type === 'AI Synthesis').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0], [linkedNotes]);
+  useEffect(() => { if (latestSynth && !synth) setSynth(latestSynth.content); }, [latestSynth]);
+
+  const handleSynthesize = async()=>{setSynthLoading(true);setSynth(null);const allText=[...linkedNotes.filter(n=>n.note_type!=='AI Synthesis').map(n=>`[${n.note_type||'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),...linkedActs.map(a=>`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes?': '+a.notes:''}${a.outcome?' → '+a.outcome:''}`)].join('\n');if(!allText.trim()){setSynth('No notes or activities to synthesize yet.');setSynthLoading(false);return;}try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_OPUS,max_tokens:600,system:'You are a CRE brokerage intelligence assistant. Synthesize all notes and activities into a concise property status summary. Include: current situation, key contacts/owners, outstanding issues, and recommended next steps. Be specific and actionable.',messages:[{role:'user',content:`Property: ${p.address}, ${p.city||p.submarket}\nOwner: ${p.owner||'Unknown'}\nTenant: ${p.tenant||'Vacant'}\nSF: ${p.building_sf?.toLocaleString()||'N/A'}\n\nTimeline:\n${allText}\n\nSynthesize into a brief status report with next steps.`}]})});const data=await res.json();const text=data.content?.[0]?.text||'Could not generate synthesis.';setSynth(text);await insertRow('notes',{content:text,note_type:'AI Synthesis',property_id:p.id});onRefresh?.();}catch{setSynth('Error connecting to AI.');}finally{setSynthLoading(false);}};
+
+  // Catalyst tag management
+  const addTag = async(tag)=>{const current=p.catalyst_tags||[];if(current.includes(tag))return;const updated=[...current,tag];try{const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Added: ${tag} (score: ${scores.probability}%)`);}catch(e){console.error(e);}};
+  const removeTag = async(tag)=>{const updated=(p.catalyst_tags||[]).filter(t=>t!==tag);try{const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Removed: ${tag}`);}catch(e){console.error(e);}};
+  const handleAutoTag = async()=>{setAutoTagLoading(true);try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_SONNET,max_tokens:200,system:`You are a CRE catalyst tag analyst. Given property data and notes, suggest relevant catalyst tags from this exact list: ${CATALYST_TAGS.join(', ')}. Return ONLY a JSON array of tag strings, no explanation.`,messages:[{role:'user',content:`Property: ${p.address}\nOwner: ${p.owner||'Unknown'} (${p.owner_type||'Unknown'})\nTenant: ${p.tenant||'Vacant'}\nVacancy: ${p.vacancy_status||'Unknown'}\nLease Exp: ${p.lease_expiration||'N/A'}\nRent: ${p.in_place_rent||'N/A'}\nSF: ${p.building_sf||'N/A'}\nYear Built: ${p.year_built||'N/A'}\nClear: ${p.clear_height||'N/A'}\nNotes: ${(p.notes||'').slice(0,500)}\n\nExisting tags: ${(p.catalyst_tags||[]).join(', ')||'None'}\n\nSuggest additional catalyst tags. Return JSON array only.`}]})});const data=await res.json();const text=data.content?.[0]?.text||'[]';const clean=text.replace(/```json|```/g,'').trim();const suggested=JSON.parse(clean);const newTags=suggested.filter(t=>CATALYST_TAGS.includes(t)&&!(p.catalyst_tags||[]).includes(t));if(newTags.length===0){showToast?.('No new tags suggested');}else{const updated=[...(p.catalyst_tags||[]),...newTags];const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Added ${newTags.length} tags (score: ${scores.probability}%)`);}}catch(e){console.error(e);showToast?.('Error auto-suggesting tags');}finally{setAutoTagLoading(false);}};
 
   const Field = ({label,value,mono,accent}) => value?(<div><div style={{fontSize:'11px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--text-muted)',marginBottom:'2px'}}>{label}</div><div style={{fontSize:'14px',color:accent?'var(--accent)':'var(--text-primary)',fontFamily:mono?'var(--font-mono)':'inherit',fontWeight:accent?600:400}}>{value}</div></div>):null;
   const SH = ({title,count,onAdd,addLabel}) => (<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}><div style={{display:'flex',alignItems:'center',gap:'8px'}}><h3 style={{fontSize:'14px',fontWeight:600,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{title}</h3>{count!=null&&<span style={{fontSize:'12px',fontFamily:'var(--font-mono)',color:'var(--text-muted)',background:'var(--bg-input)',padding:'1px 6px',borderRadius:'10px'}}>{count}</span>}</div>{onAdd&&<button className="btn btn-ghost btn-sm" style={{fontSize:'12px'}} onClick={onAdd}>{addLabel||'+ Add'}</button>}</div>);
@@ -123,7 +134,15 @@ export default function PropertyDetail({
             <button className="btn btn-ghost btn-sm" onClick={()=>setEditing(true)}>Edit</button>
           </div>
         </div>
-        {p.catalyst_tags?.length>0&&(<div style={{display:'flex',gap:'5px',flexWrap:'wrap',marginTop:'10px'}}>{p.catalyst_tags.map(tag=><span key={tag} className={`tag ${urgBadge(tag)}`} style={{fontSize:'12px',cursor:'pointer'}} onClick={()=>onCatalystClick?.(tag)}>{tag}</span>)}</div>)}
+        {/* CATALYST TAGS — clickable + add/remove + auto-suggest */}
+        <div style={{marginTop:'10px'}}>
+          <div style={{display:'flex',gap:'5px',flexWrap:'wrap',alignItems:'center'}}>
+            {(p.catalyst_tags||[]).map(tag=><span key={tag} className={`tag ${urgBadge(tag)}`} style={{fontSize:'12px',cursor:'pointer',position:'relative'}} onClick={()=>onCatalystClick?.(tag)}>{tag}<span onClick={e=>{e.stopPropagation();removeTag(tag);}} style={{marginLeft:'4px',cursor:'pointer',opacity:0.6,fontSize:'11px'}}>×</span></span>)}
+            <button className="btn btn-ghost btn-sm" style={{fontSize:'11px',padding:'2px 8px'}} onClick={()=>setShowTagPicker(!showTagPicker)}>{showTagPicker?'Done':'+ Tag'}</button>
+            <button className="btn btn-ghost btn-sm" style={{fontSize:'11px',padding:'2px 8px',color:'#8b5cf6',borderColor:'#8b5cf644'}} onClick={handleAutoTag} disabled={autoTagLoading}>{autoTagLoading?'✦ Analyzing...':'✦ Auto-Tag'}</button>
+          </div>
+          {showTagPicker&&(<div style={{marginTop:'8px',padding:'10px',background:'var(--bg-input)',borderRadius:'6px',border:'1px solid var(--border)',display:'flex',gap:'4px',flexWrap:'wrap'}}>{CATALYST_TAGS.filter(t=>!(p.catalyst_tags||[]).includes(t)).map(t=><button key={t} onClick={()=>addTag(t)} className={`tag ${urgBadge(t)}`} style={{fontSize:'11px',cursor:'pointer',opacity:0.7,border:'1px dashed var(--border)'}}>{t}</button>)}</div>)}
+        </div>
         {(p.ai_score!=null||p.probability!=null||avgLR||avgSP)&&(
           <div style={{display:'flex',gap:'20px',marginTop:'10px',paddingTop:'10px',borderTop:'1px solid var(--border-subtle)',flexWrap:'wrap'}}>
             {p.ai_score!=null&&<div style={{display:'flex',alignItems:'center',gap:'6px'}}><span style={{fontSize:'12px',color:'var(--text-muted)'}}>AI Score</span><span style={{fontSize:'15px',fontWeight:700,color:'var(--accent)',fontFamily:'var(--font-mono)'}}>{p.ai_score}</span></div>}

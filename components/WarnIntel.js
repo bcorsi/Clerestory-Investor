@@ -216,7 +216,7 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
             <input type="file" accept=".csv,.tsv,.txt" onChange={handleUpload} style={{ display: 'none' }} />
           </label>
           <div style={{ display: 'flex', gap: '4px' }}>
-            {[['all', 'All'], ['industrial', 'Industrial'], ['sgv-ie', 'SGV/IE Industrial']].map(([v, l]) => (
+            {[['all', 'All'], ['industrial', 'Industrial'], ['sgv-ie', 'SoCal Industrial']].map(([v, l]) => (
               <button key={v} onClick={() => setFilter(v)} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid', fontSize: '12px', cursor: 'pointer', background: filter === v ? 'var(--accent-soft)' : 'transparent', borderColor: filter === v ? 'var(--accent)' : 'var(--border)', color: filter === v ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 500 }}>{l}</button>
             ))}
           </div>
@@ -226,6 +226,7 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
             ))}
           </div>
           <input className="input" style={{ flex: 1, minWidth: '180px', fontSize: '13px' }} placeholder="Search company or address..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          {rawData.length > 0 && <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', color: 'var(--red)' }} onClick={() => { if (confirm(`Delete all ${rawData.length} loaded WARN notices?`)) setRawData([]); }}>🗑 Clear All</button>}
         </div>
       </div>
 
@@ -265,6 +266,7 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
               <thead><tr>
                 <th style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>Date</th>
                 <th style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>Company</th>
+                <th style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>Industry</th>
                 <th style={{ textAlign: 'right', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>EEs</th>
                 <th style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>Event</th>
                 <th style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', color: 'var(--text-muted)' }}>County</th>
@@ -275,6 +277,8 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
                 {filtered.slice(0, 200).map(r => {
                   const isMatch = tenantNames.has(r.company.toLowerCase()) || [...tenantNames].some(t => r.company.toLowerCase().includes(t));
                   const isRecent = isNew(r, 14);
+                  const sicFirst = (r.sic || '').charAt(0);
+                  const bizType = SIC_LABELS[sicFirst] || (isIndustrial(r) ? 'Industrial (keyword)' : '—');
                   return (
                     <tr key={r.id} style={{ borderBottom: '1px solid var(--border-subtle)', background: isMatch ? 'var(--red-soft)' : isRecent ? 'var(--accent-soft)' : 'transparent' }}>
                       <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '13px', whiteSpace: 'nowrap' }}>
@@ -285,6 +289,7 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
                         {r.company}
                         {isMatch && <span style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: '#ef444422', color: '#ef4444', fontWeight: 700 }}>MATCH</span>}
                       </td>
+                      <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-muted)' }}>{bizType}</td>
                       <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, textAlign: 'right', color: r.employees >= 200 ? '#ef4444' : r.employees >= 50 ? '#f59e0b' : 'var(--text-primary)' }}>{r.employees.toLocaleString()}</td>
                       <td style={{ padding: '8px 10px', fontSize: '13px' }}>{r.eventType}</td>
                       <td style={{ padding: '8px 10px', fontSize: '13px', color: 'var(--text-muted)' }}>{r.county}</td>
@@ -292,7 +297,8 @@ export default function WarnIntel({ properties, leads, onRefresh, showToast }) {
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                           <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={() => handleResearch(r)} disabled={researching[r.id]}>{researching[r.id] ? '...' : '🔍'}</button>
-                          <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={() => handleConvertToLead(r)} disabled={converting[r.id]}>{converting[r.id] ? '...' : '→ Lead'}</button>
+                          <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={() => handleConvertToLead(r)} disabled={converting[r.id]}>{converting[r.id] ? '...' : '→'}</button>
+                          <button className="btn btn-ghost btn-sm" style={{ fontSize: '11px', padding: '2px 8px', color: 'var(--red)' }} onClick={() => setRawData(prev => prev.filter(x => x.id !== r.id))}>×</button>
                         </div>
                       </td>
                     </tr>

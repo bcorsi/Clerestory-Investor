@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DEAL_STAGES, STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUTREACH_METHODS, OUTREACH_OUTCOMES, DEAL_CONTACT_ROLES, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
 import { updateRow, insertRow, fetchDealContacts, addDealContact, removeDealContact, fetchBuyerOutreach, insertOutreach, setCadence } from '../lib/db';
 
@@ -102,7 +102,7 @@ export default function DealDetail({
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const stageColor = STAGE_COLORS[deal.stage] || '#6b7280';
-  const fmtAgo = d => { if (!d) return ''; const x = Math.floor((Date.now() - new Date(d)) / 86400000); if (x === 0) return 'Today'; if (x === 1) return 'Yesterday'; if (x < 7) return x + 'd ago'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  const fmtAgo = d => { if (!d) return ''; const dt = new Date(d); const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); const x = Math.floor((Date.now() - dt) / 86400000); if (x === 0) return 'Today ' + time; if (x === 1) return 'Yesterday ' + time; if (x < 7) return x + 'd ago ' + time; return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + time; };
   const closeAll = () => { setShowNoteForm(false); setShowLogForm(false); setShowFuForm(false); };
 
   const handleAddNote = async () => {
@@ -146,10 +146,14 @@ export default function DealDetail({
   };
 
   // AI Synthesis
+  // Load latest synthesis on mount
+  const latestSynth = useMemo(() => linkedNotes.filter(n => n.note_type === 'AI Synthesis').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0], [linkedNotes]);
+  useEffect(() => { if (latestSynth && !synth) setSynth(latestSynth.content); }, [latestSynth]);
+
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
     const allText = [
-      ...linkedNotes.map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
+      ...linkedNotes.filter(n => n.note_type !== 'AI Synthesis').map(n => `[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`),
       ...linkedActivities.map(a => `[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`),
     ].join('\n');
     if (!allText.trim()) { setSynth('No notes or activities to synthesize yet.'); setSynthLoading(false); return; }
@@ -163,7 +167,10 @@ export default function DealDetail({
         }),
       });
       const data = await res.json();
-      setSynth(data.content?.[0]?.text || 'Could not generate synthesis.');
+      const text = data.content?.[0]?.text || 'Could not generate synthesis.';
+      setSynth(text);
+      await insertRow('notes', { content: text, note_type: 'AI Synthesis', deal_id: deal.id });
+      onRefresh?.();
     } catch { setSynth('Error connecting to AI. Check API key.'); }
     finally { setSynthLoading(false); }
   };
