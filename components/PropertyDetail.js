@@ -6,7 +6,6 @@ import EditPropertyModal from './EditPropertyModal';
 import BuyerMatching from './BuyerMatching';
 import FilesLinks from './FilesLinks';
 import AerialThumbnail from './AerialThumbnail';
-import AerialThumbnail from './AerialThumbnail';
 
 const NOTE_TYPES = ['Note','Intel','Call Log','Meeting Note','Status Update'];
 const LOG_TYPES = ['Call','Email','Meeting'];
