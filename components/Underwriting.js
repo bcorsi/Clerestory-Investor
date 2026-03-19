@@ -74,26 +74,42 @@ export default function Underwriting({ deal, property, leaseComps, saleComps, on
     return { pp, sf, pricePsf, noi, goingInCap, exitCap, exitValue, loanAmt, equity, annualDS, dscr, cfBeforeDS, cfAfterDS, unleveredYield, cashOnCash, equityMultiple, unleveredIRR, leveredIRR, holdYrs };
   }, [inputs, property]);
 
-  // Pull relevant comps
+  // Pull relevant comps — broad matching
   const submarket = deal.submarket || property?.submarket || '';
+  const city = deal.address?.split(',')[1]?.trim() || property?.city || '';
+  const market = deal.market || property?.market || '';
   const sf = property?.total_sf || property?.building_sf || 0;
-  const sfRange = [sf * 0.5, sf * 1.5];
+  const sfRange = [sf * 0.3, sf * 2.5]; // wider range
+
+  const matchComp = (c) => {
+    // Match by submarket
+    if (submarket && c.submarket && c.submarket === submarket) return true;
+    // Match by city
+    if (city && c.city && c.city.toLowerCase() === city.toLowerCase()) return true;
+    // Match by address city portion
+    if (c.address && city && c.address.toLowerCase().includes(city.toLowerCase())) return true;
+    // Match by market
+    if (market && c.submarket && c.submarket.toLowerCase().includes(market.toLowerCase())) return true;
+    // If no geo filters set, show all comps
+    if (!submarket && !city && !market) return true;
+    return false;
+  };
 
   const relevantLeaseComps = useMemo(() =>
     (leaseComps || [])
-      .filter(c => c.submarket === submarket || (c.address && deal.address && c.address.includes(deal.address.split(' ')[0])))
+      .filter(matchComp)
       .filter(c => !sf || !c.rsf || (c.rsf >= sfRange[0] && c.rsf <= sfRange[1]))
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 8)
-  , [leaseComps, submarket, sf]);
+      .slice(0, 12)
+  , [leaseComps, submarket, city, market, sf]);
 
   const relevantSaleComps = useMemo(() =>
     (saleComps || [])
-      .filter(c => c.submarket === submarket || (c.address && deal.address && c.address.includes(deal.address.split(' ')[0])))
+      .filter(matchComp)
       .filter(c => !sf || !c.building_sf || (c.building_sf >= sfRange[0] && c.building_sf <= sfRange[1]))
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 8)
-  , [saleComps, submarket, sf]);
+      .slice(0, 12)
+  , [saleComps, submarket, city, market, sf]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -107,20 +123,43 @@ export default function Underwriting({ deal, property, leaseComps, saleComps, on
   const handleGenerateMemo = async () => {
     setMemoLoading(true);
     try {
-      const res = await fetch('/api/ai', {
+      const promptContent = `Deal: ${deal.deal_name}\nAddress: ${deal.address}\nSubmarket: ${submarket}\nProperty: ${computed.sf?.toLocaleString()} SF\n\nPurchase Price: $${computed.pp?.toLocaleString()}\nPrice/SF: $${computed.pricePsf}\nGoing-In Cap: ${computed.goingInCap?.toFixed(2)}%\nNOI: $${Math.round(computed.noi)?.toLocaleString()}\nExit Cap: ${computed.exitCap?.toFixed(2)}%\nDSCR: ${computed.dscr?.toFixed(2)}x\nUnlevered IRR: ${computed.unleveredIRR?.toFixed(1)}%\nLevered IRR: ${computed.leveredIRR?.toFixed(1)}%\nEquity Multiple: ${computed.equityMultiple?.toFixed(2)}x\nCash-on-Cash: ${computed.cashOnCash?.toFixed(1)}%\nHold: ${computed.holdYrs} years\n\nLease Comps: ${relevantLeaseComps.map(c => `${c.address} $${c.rate}/SF ${c.lease_type || ''}`).join(', ') || 'None'}\nSale Comps: ${relevantSaleComps.map(c => `${c.address} $${c.price_psf}/SF ${c.cap_rate ? c.cap_rate + '% cap' : ''}`).join(', ') || 'None'}\n\nDeal Notes: ${deal.notes || 'None'}\n\nGenerate the investment memo.`;
+      
+      // Try Opus first, fall back to Sonnet
+      let res = await fetch('/api/ai', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: AI_MODEL_OPUS, max_tokens: 800,
           system: 'You are a CRE investment analyst. Generate a concise 1-page investment memo for this deal. Include: deal summary, financial highlights (cap rate, IRR, DSCR, equity multiple), market context, comparable transactions, key risks, and investment recommendation. Professional tone, specific numbers. No fluff.',
-          messages: [{ role: 'user', content: `Deal: ${deal.deal_name}\nAddress: ${deal.address}\nSubmarket: ${submarket}\nProperty: ${computed.sf?.toLocaleString()} SF\n\nPurchase Price: $${computed.pp?.toLocaleString()}\nPrice/SF: $${computed.pricePsf}\nGoing-In Cap: ${computed.goingInCap?.toFixed(2)}%\nNOI: $${Math.round(computed.noi)?.toLocaleString()}\nExit Cap: ${computed.exitCap?.toFixed(2)}%\nDSCR: ${computed.dscr?.toFixed(2)}x\nUnlevered IRR: ${computed.unleveredIRR?.toFixed(1)}%\nLevered IRR: ${computed.leveredIRR?.toFixed(1)}%\nEquity Multiple: ${computed.equityMultiple?.toFixed(2)}x\nCash-on-Cash: ${computed.cashOnCash?.toFixed(1)}%\nHold: ${computed.holdYrs} years\n\nLease Comps: ${relevantLeaseComps.map(c => `${c.address} $${c.rate}/SF ${c.lease_type || ''}`).join(', ') || 'None'}\nSale Comps: ${relevantSaleComps.map(c => `${c.address} $${c.price_psf}/SF ${c.cap_rate ? c.cap_rate + '% cap' : ''}`).join(', ') || 'None'}\n\nDeal Notes: ${deal.notes || 'None'}\n\nGenerate the investment memo.` }],
+          messages: [{ role: 'user', content: promptContent }],
         }),
       });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || 'Could not generate memo.';
-      setMemoText(text);
-      await updateRow('deals', deal.id, { underwriting_memo: text, underwriting_inputs: inputs });
-      onRefresh?.();
-    } catch { setMemoText('Error generating memo.'); }
+      
+      let data = await res.json();
+      
+      // If Opus fails, try Sonnet
+      if (data.error) {
+        console.warn('Opus failed, trying Sonnet:', data.error);
+        res = await fetch('/api/ai', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514', max_tokens: 800,
+            system: 'You are a CRE investment analyst. Generate a concise 1-page investment memo for this deal. Include: deal summary, financial highlights (cap rate, IRR, DSCR, equity multiple), market context, comparable transactions, key risks, and investment recommendation. Professional tone, specific numbers. No fluff.',
+            messages: [{ role: 'user', content: promptContent }],
+          }),
+        });
+        data = await res.json();
+      }
+      
+      if (data.error) {
+        setMemoText(`Error: ${data.error}. Check that your Anthropic API key is valid and has credits.`);
+      } else {
+        const text = data.content?.[0]?.text || 'Could not generate memo.';
+        setMemoText(text);
+        await updateRow('deals', deal.id, { underwriting_memo: text, underwriting_inputs: inputs });
+        onRefresh?.();
+      }
+    } catch (e) { setMemoText(`Error: ${e.message || 'Network error. Check your connection and API key.'}`); }
     finally { setMemoLoading(false); }
   };
 

@@ -123,10 +123,10 @@ export default function EditPropertyModal({ property, onClose, onSave }) {
             </div>
             <div className="form-group">
               <label className="form-label">Submarket</label>
-              <select className="select" value={form.submarket} onChange={(e) => set('submarket', e.target.value)}>
-                <option value="">Select</option>
-                {availableSubmarkets.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <input className="input" list="submarkets-list" value={form.submarket} onChange={(e) => set('submarket', e.target.value)} placeholder="Type or select..." />
+              <datalist id="submarkets-list">
+                {availableSubmarkets.map((s) => <option key={s} value={s} />)}
+              </datalist>
             </div>
           </div>
 

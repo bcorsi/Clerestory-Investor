@@ -83,7 +83,7 @@ export default function DealDetail({
     if (newStage === deal.stage) return;
     try {
       await updateRow('deals', deal.id, { stage: newStage });
-      await insertRow('activities', { activity_type: 'Call', subject: `Stage changed: ${deal.stage} → ${newStage}`, deal_id: deal.id, activity_date: new Date().toISOString().split('T')[0] }).catch(() => {});
+      await insertRow('activities', { activity_type: 'To-Do', subject: `Stage changed: ${deal.stage} → ${newStage}`, notes: 'Auto-logged status update', deal_id: deal.id, activity_date: new Date().toISOString().split('T')[0], completed: true }).catch(() => {});
       onRefresh(); showToast(`Moved to ${newStage}`);
     } catch (err) { console.error(err); }
   };
