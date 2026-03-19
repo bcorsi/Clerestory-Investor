@@ -5,6 +5,7 @@ import { updateRow, insertRow, addApn, removeApn, addBuilding, removeBuilding, c
 import EditPropertyModal from './EditPropertyModal';
 import BuyerMatching from './BuyerMatching';
 import FilesLinks from './FilesLinks';
+import AerialImage from './AerialImage';
 
 const NOTE_TYPES = ['Note','Intel','Call Log','Meeting Note','Status Update'];
 const LOG_TYPES = ['Call','Email','Meeting'];
@@ -161,6 +162,9 @@ export default function PropertyDetail({
           </div>
         )}
       </div>
+
+      {/* AERIAL */}
+      <AerialImage address={p.address} city={p.city} style={{ marginBottom: '16px' }} />
 
       {/* TIMELINE */}
       <div className="card" style={{marginBottom:'16px'}}>

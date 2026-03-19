@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
 import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability, setCadence } from '../lib/db';
+import AerialImage from './AerialImage';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
@@ -243,6 +244,9 @@ export default function LeadDetail({
           </div>
         )}
       </div>
+
+      {/* AERIAL */}
+      <AerialImage address={lead.address} city={lead.city} style={{ marginBottom: '16px' }} />
 
       {/* TIMELINE */}
       <div className="card" style={{ marginBottom: '16px' }}>

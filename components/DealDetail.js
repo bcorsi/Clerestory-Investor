@@ -5,6 +5,7 @@ import { DEAL_STAGES, STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUT
 import { updateRow, insertRow, fetchDealContacts, addDealContact, removeDealContact, fetchBuyerOutreach, insertOutreach, setCadence } from '../lib/db';
 import Underwriting from './Underwriting';
 import FilesLinks from './FilesLinks';
+import AerialImage from './AerialImage';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
@@ -265,6 +266,9 @@ export default function DealDetail({
           <div onClick={() => handleStageChange('Dead')} style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer', background: deal.stage === 'Dead' ? '#374151' : 'transparent', color: deal.stage === 'Dead' ? 'white' : 'var(--text-muted)', border: '1px solid var(--border)', marginLeft: '8px' }}>Dead</div>
         </div>
       </div>
+
+      {/* AERIAL */}
+      <AerialImage address={deal.address} city={deal.submarket} style={{ marginBottom: '16px' }} />
 
       {/* TAB BAR */}
       <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '16px' }}>
