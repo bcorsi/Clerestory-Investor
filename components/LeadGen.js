@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_KILL_REASONS, catalystTagClass } from '../lib/constants';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_KILL_REASONS, PROP_TYPES, catalystTagClass } from '../lib/constants';
 import { updateRow, convertLeadToDeal, insertRow } from '../lib/db';
 
 const MODEL = 'claude-sonnet-4-20250514';
@@ -39,11 +39,30 @@ export default function LeadGen({ leads, onRefresh, showToast, onLeadClick }) {
   const [substeps, setSubsteps] = useState({});
   const [killing, setKilling] = useState(null); // lead id being killed
   const [showDead, setShowDead] = useState(false);
+  const [listSearch, setListSearch] = useState('');
+  const [listPropType, setListPropType] = useState('');
+  const [listSort, setListSort] = useState('score');
+  const [listSortDir, setListSortDir] = useState('desc');
 
   const active = leads.filter((l) => !['Converted', 'Dead'].includes(l.stage));
   const deadLeads = leads.filter((l) => l.stage === 'Dead');
   const byStage = LEAD_STAGES.reduce((acc, s) => { acc[s] = active.filter((l) => l.stage === s); return acc; }, {});
   const tierColor = (t) => ({ 'A+': '#22c55e', A: '#3b82f6', B: '#f59e0b', C: '#6b7280' }[t] || '#6b7280');
+
+  const filteredActive = (() => {
+    let rows = active;
+    if (listSearch) { const q = listSearch.toLowerCase(); rows = rows.filter(l => `${l.lead_name} ${l.address} ${l.owner} ${l.company} ${l.decision_maker}`.toLowerCase().includes(q)); }
+    if (listPropType) rows = rows.filter(l => l.prop_type === listPropType);
+    rows = [...rows].sort((a, b) => {
+      let va = a[listSort], vb = b[listSort];
+      if (va == null) return 1; if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return listSortDir === 'asc' ? va - vb : vb - va;
+      return listSortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+    return rows;
+  })();
+  const toggleListSort = (f) => { if (listSort === f) setListSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setListSort(f); setListSortDir('desc'); } };
+  const si = (f) => listSort === f ? (listSortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
   const handleConvert = async (lead, e) => {
     e.stopPropagation();
@@ -230,27 +249,52 @@ export default function LeadGen({ leads, onRefresh, showToast, onLeadClick }) {
       </div>
 
       {view === 'list' ? (
-        <div className="table-container" style={{ overflow: 'auto', maxHeight: 'calc(100vh - 220px)' }}>
+        <div>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input className="input" style={{ flex: 1, minWidth: '180px', fontSize: '13px' }} placeholder="Search leads..." value={listSearch} onChange={e => setListSearch(e.target.value)} />
+            <select className="select" style={{ fontSize: '13px', maxWidth: '180px' }} value={listPropType} onChange={e => setListPropType(e.target.value)}>
+              <option value="">All property types</option>
+              {PROP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{filteredActive.length} leads</span>
+          </div>
+          <div className="table-container" style={{ overflow: 'auto', maxHeight: 'calc(100vh - 270px)' }}>
           <table>
             <thead>
-              <tr><th>Lead</th><th>Stage</th><th>Tier</th><th>Score</th><th>Decision Maker</th><th>Phone</th><th>Next Action</th><th>Priority</th></tr>
+              <tr>
+                <th style={{cursor:'pointer'}} onClick={()=>toggleListSort('lead_name')}>Lead{si('lead_name')}</th>
+                <th>Stage</th>
+                <th style={{cursor:'pointer'}} onClick={()=>toggleListSort('tier')}>Tier{si('tier')}</th>
+                <th style={{cursor:'pointer'}} onClick={()=>toggleListSort('score')}>Score{si('score')}</th>
+                <th style={{cursor:'pointer'}} onClick={()=>toggleListSort('prop_type')}>Type{si('prop_type')}</th>
+                <th style={{textAlign:'right',cursor:'pointer'}} onClick={()=>toggleListSort('building_sf')}>SF{si('building_sf')}</th>
+                <th style={{textAlign:'right',cursor:'pointer'}} onClick={()=>toggleListSort('land_acres')}>Acres{si('land_acres')}</th>
+                <th>Decision Maker</th>
+                <th>Phone</th>
+                <th>Next Action</th>
+                <th style={{cursor:'pointer'}} onClick={()=>toggleListSort('priority')}>Priority{si('priority')}</th>
+              </tr>
             </thead>
             <tbody>
-              {active.map((lead) => (
+              {filteredActive.map((lead) => (
                 <tr key={lead.id} onClick={() => onLeadClick?.(lead)} style={{ cursor: 'pointer' }}>
-                  <td><div style={{ fontWeight: 500 }}>{lead.lead_name}</div>{lead.address && <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{lead.address}</div>}</td>
+                  <td><div style={{ fontWeight: 500 }}>{lead.lead_name}</div>{lead.address && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{lead.address}</div>}</td>
                   <td><span style={{ fontSize: '15px', padding: '2px 7px', borderRadius: '4px', background: (LEAD_STAGE_COLORS[lead.stage] || '#6b7280') + '22', color: LEAD_STAGE_COLORS[lead.stage] || '#6b7280', fontWeight: 600 }}>{lead.stage}</span></td>
                   <td>{lead.tier && <span style={{ fontWeight: 700, color: tierColor(lead.tier) }}>{lead.tier}</span>}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--accent)' }}>{lead.score ?? '—'}</td>
+                  <td style={{ fontSize: '13px' }}>{lead.prop_type || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', textAlign: 'right' }}>{lead.building_sf ? Number(lead.building_sf).toLocaleString() : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', textAlign: 'right' }}>{lead.land_acres || '—'}</td>
                   <td style={{ fontSize: '15px' }}>{lead.decision_maker || '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '15px' }}>{lead.phone || '—'}</td>
                   <td style={{ fontSize: '15px', color: 'var(--amber)' }}>{lead.next_action || '—'}</td>
                   <td>{lead.priority && <span className={`tag ${lead.priority === 'High' ? 'tag-amber' : 'tag-ghost'}`} style={{ fontSize: '15px' }}>{lead.priority}</span>}</td>
                 </tr>
               ))}
-              {active.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No active leads</td></tr>}
+              {filteredActive.length === 0 && <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No leads match filters</td></tr>}
             </tbody>
           </table>
+        </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${LEAD_STAGES.length}, 1fr)`, gap: '12px', alignItems: 'start' }}>

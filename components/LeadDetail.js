@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
-import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability } from '../lib/db';
+import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
+import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability, setCadence } from '../lib/db';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
@@ -144,15 +144,14 @@ export default function LeadDetail({
     try { await updateRow('follow_ups', fu.id, { completed: true, completed_at: new Date().toISOString() }); onRefresh?.(); } catch (e) { console.error(e); }
   };
 
-  // Load latest synthesis on mount
-  const latestSynth = useMemo(() => linkedNotes.filter(n => n.note_type === 'AI Synthesis').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0], [linkedNotes]);
-  useEffect(() => { if (latestSynth && !synth) setSynth(latestSynth.content); }, [latestSynth]);
+  // Load synthesis from record on mount
+  useEffect(() => { if (lead.ai_synthesis && !synth) setSynth(lead.ai_synthesis); }, [lead.ai_synthesis]);
 
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
     const parts = [];
     if (lead.notes) parts.push(`[Original Intel] ${lead.notes}`);
-    linkedNotes.filter(n => n.note_type !== 'AI Synthesis').forEach(n => parts.push(`[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`));
+    (allNotes || []).filter(n => n.lead_id === lead.id && n.note_type !== 'AI Synthesis').forEach(n => parts.push(`[${n.note_type || 'Note'} ${fmtAgo(n.created_at)}] ${n.content}`));
     linkedActivities.forEach(a => parts.push(`[${a.activity_type} ${fmtAgo(a.activity_date)}] ${a.subject}${a.notes ? ': ' + a.notes : ''}${a.outcome ? ' → ' + a.outcome : ''}`));
     const allText = parts.join('\n');
     if (!allText.trim()) { setSynth('No notes or activities to synthesize yet.'); setSynthLoading(false); return; }
@@ -168,7 +167,7 @@ export default function LeadDetail({
       const data = await res.json();
       const text = data.content?.[0]?.text || 'Could not generate synthesis.';
       setSynth(text);
-      await insertRow('notes', { content: text, note_type: 'AI Synthesis', lead_id: lead.id });
+      await updateRow('leads', lead.id, { ai_synthesis: text, ai_synthesis_at: new Date().toISOString() });
       onRefresh?.();
     } catch { setSynth('Error connecting to AI.'); }
     finally { setSynthLoading(false); }
@@ -194,12 +193,12 @@ export default function LeadDetail({
   const closeAll = () => { setShowNoteForm(false); setShowLogForm(false); setShowFuForm(false); };
   const toggleCatalyst = tag => setForm(f => ({ ...f, catalyst_tags: (f.catalyst_tags || []).includes(tag) ? f.catalyst_tags.filter(t => t !== tag) : [...(f.catalyst_tags || []), tag] }));
 
-  const Field = ({ label, value, mono, accent }) => value ? (
+  const Field = ({ label, value, mono, accent }) => (
     <div>
       <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '2px' }}>{label}</div>
-      <div style={{ fontSize: '14px', color: accent ? 'var(--accent)' : 'var(--text-primary)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: accent ? 600 : 400 }}>{value}</div>
+      <div style={{ fontSize: '14px', color: value ? (accent ? 'var(--accent)' : 'var(--text-primary)') : 'var(--text-muted)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontWeight: accent && value ? 600 : 400 }}>{value || '—'}</div>
     </div>
-  ) : null;
+  );
 
   return (
     <div style={{ maxWidth: '900px' }}>
@@ -212,6 +211,7 @@ export default function LeadDetail({
               {lead.tier && <span style={{ fontSize: '13px', fontWeight: 700, padding: '3px 8px', borderRadius: '5px', background: tierColor(lead.tier) + '22', color: tierColor(lead.tier) }}>{lead.tier}</span>}
               <span style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, background: stageColor + '22', color: stageColor }}>{lead.stage}</span>
               {lead.score != null && <span style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Score: {lead.score}</span>}
+              {lead.follow_up_cadence && <span className="tag tag-blue" style={{ fontSize: '11px' }}>🔄 {lead.follow_up_cadence}</span>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{[lead.address, lead.city, lead.submarket].filter(Boolean).join(' · ')}</span>
@@ -221,6 +221,12 @@ export default function LeadDetail({
           </div>
           <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
+            <div style={{position:'relative'}}>
+              <button className="btn btn-ghost btn-sm" onClick={()=>{const dd=document.getElementById('lead-cadence-dd');dd.style.display=dd.style.display==='block'?'none':'block';}}>🔄 Cadence</button>
+              <div id="lead-cadence-dd" style={{position:'absolute',right:0,top:'100%',marginTop:'4px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'8px',padding:'4px',zIndex:10,display:'none',minWidth:'140px',boxShadow:'0 4px 12px rgba(0,0,0,0.2)'}}>
+                {CADENCE_OPTIONS.map(c=><div key={c.label} onClick={async()=>{try{await setCadence('leads',lead.id,c.label,c.days);onRefresh?.();showToast?.(`${c.label} follow-up set`);}catch(e){console.error(e);}document.getElementById('lead-cadence-dd').style.display='none';}} style={{padding:'6px 12px',fontSize:'13px',cursor:'pointer',borderRadius:'4px',whiteSpace:'nowrap'}} onMouseEnter={e=>e.currentTarget.style.background='var(--bg-input)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>{c.label}</div>)}
+              </div>
+            </div>
             {lead.stage !== 'Converted' && <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>{converting ? '...' : '⚡ Convert to Deal'}</button>}
             {!linkedProperty && <button className="btn btn-ghost btn-sm" onClick={handleConvertToProperty} disabled={convertingProp}>{convertingProp ? '...' : 'Create Property'}</button>}
           </div>
@@ -257,7 +263,10 @@ export default function LeadDetail({
 
         {synth && (
           <div style={{ padding: '14px', background: '#8b5cf611', border: '1px solid #8b5cf633', borderRadius: '8px', marginBottom: '14px', fontSize: '14px', lineHeight: 1.7, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: '6px' }}>✦ AI Synthesis (Opus)</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase' }}>✦ AI Synthesis (Opus)</span>
+              {lead.ai_synthesis_at && <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{new Date(lead.ai_synthesis_at).toLocaleString()}</span>}
+            </div>
             {synth}
           </div>
         )}

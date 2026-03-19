@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DEAL_STAGES, STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUTREACH_METHODS, OUTREACH_OUTCOMES, DEAL_CONTACT_ROLES, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
+import { DEAL_STAGES, STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUTREACH_METHODS, OUTREACH_OUTCOMES, DEAL_CONTACT_ROLES, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, catalystTagClass, fmt } from '../lib/constants';
 import { updateRow, insertRow, fetchDealContacts, addDealContact, removeDealContact, fetchBuyerOutreach, insertOutreach, setCadence } from '../lib/db';
+import Underwriting from './Underwriting';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
 
 export default function DealDetail({
-  deal, activities, tasks, properties, contacts, accounts,
+  deal, activities, tasks, properties, contacts, accounts, leaseComps, saleComps,
   notes: allNotes, followUps: allFollowUps,
   onRefresh, showToast, onPropertyClick, onContactClick, onAccountClick, onCatalystClick, onAddTask
 }) {
@@ -146,9 +147,8 @@ export default function DealDetail({
   };
 
   // AI Synthesis
-  // Load latest synthesis on mount
-  const latestSynth = useMemo(() => linkedNotes.filter(n => n.note_type === 'AI Synthesis').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0], [linkedNotes]);
-  useEffect(() => { if (latestSynth && !synth) setSynth(latestSynth.content); }, [latestSynth]);
+  // Load synthesis from record on mount
+  useEffect(() => { if (deal.ai_synthesis && !synth) setSynth(deal.ai_synthesis); }, [deal.ai_synthesis]);
 
   const handleSynthesize = async () => {
     setSynthLoading(true); setSynth(null);
@@ -170,7 +170,7 @@ export default function DealDetail({
       const data = await res.json();
       const text = data.content?.[0]?.text || 'Could not generate synthesis.';
       setSynth(text);
-      await insertRow('notes', { content: text, note_type: 'AI Synthesis', deal_id: deal.id });
+      await updateRow('deals', deal.id, { ai_synthesis: text, ai_synthesis_at: new Date().toISOString() });
       onRefresh?.();
     } catch { setSynth('Error connecting to AI. Check API key.'); }
     finally { setSynthLoading(false); }
@@ -191,6 +191,7 @@ export default function DealDetail({
 
   const TABS = [
     { id: 'timeline', label: 'Timeline' },
+    { id: 'underwriting', label: 'Underwriting' },
     { id: 'contacts', label: `Contacts (${dealContacts.length})` },
     { id: 'outreach', label: `Outreach (${outreachLog.length})` },
     { id: 'tasks', label: `Tasks${pendingTasks ? ` (${pendingTasks})` : ''}` },
@@ -212,6 +213,12 @@ export default function DealDetail({
               <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{deal.address}{deal.submarket ? ` · ${deal.submarket}` : ''}</span>
               {deal.onedrive_url && <a href={deal.onedrive_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-input)' }}>📁 OneDrive ↗</a>}
             </div>
+            {/* Catalyst tags from linked property */}
+            {linkedProperty?.catalyst_tags?.length > 0 && (
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '6px' }}>
+                {linkedProperty.catalyst_tags.map(tag => <span key={tag} className={`tag ${catalystTagClass(tag)}`} style={{ fontSize: '12px', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>)}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative' }}>
@@ -278,7 +285,10 @@ export default function DealDetail({
           {/* AI Synthesis result */}
           {synth && (
             <div style={{ padding: '14px', background: '#8b5cf611', border: '1px solid #8b5cf633', borderRadius: '8px', marginBottom: '14px', fontSize: '14px', lineHeight: 1.7, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: '6px' }}>✦ AI Synthesis (Opus)</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase' }}>✦ AI Synthesis (Opus)</span>
+                {deal.ai_synthesis_at && <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{new Date(deal.ai_synthesis_at).toLocaleString()}</span>}
+              </div>
               {synth}
             </div>
           )}
@@ -362,6 +372,11 @@ export default function DealDetail({
             </div>
           )}
         </div>
+      )}
+
+      {/* UNDERWRITING TAB */}
+      {activeTab === 'underwriting' && (
+        <Underwriting deal={deal} property={linkedProperty} leaseComps={leaseComps} saleComps={saleComps} onRefresh={onRefresh} showToast={showToast} />
       )}
 
       {/* CONTACTS TAB — Deal Contacts with Roles */}
