@@ -314,11 +314,11 @@ export default function PropertyDetail({
 
       {/* AERIAL + QUICK INFO */}
       {p.address && (
-        <div style={{display:'grid',gridTemplateColumns:'280px 1fr',gap:'16px',marginBottom:'16px'}}>
-          <AerialThumbnail address={p.address} city={p.city} />
-          <div className="card" style={{padding:'16px',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',alignContent:'start'}}>
+        <div style={{display:'grid',gridTemplateColumns:'380px 1fr',gap:'16px',marginBottom:'16px'}}>
+          <AerialThumbnail address={p.address} city={p.city} size="600x400" zoom={17} />
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',alignContent:'start',padding:'4px 0'}}>
             {[['Total SF',(p.total_sf||p.building_sf)?Number(p.total_sf||p.building_sf).toLocaleString():'—'],['Acres',p.land_acres||p.total_acres||'—'],['Clear Height',p.clear_height||p.max_clear_height?`${p.clear_height||p.max_clear_height}'`:'—'],['Dock Doors',p.dock_doors??p.total_dock_doors??'—'],['Year Built',p.year_built||'—'],['Buildings',p.building_count||'1']].map(([label,val])=>(
-              <div key={label}><div style={{fontSize:'11px',color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:'2px'}}>{label}</div><div style={{fontSize:'16px',fontWeight:600,fontFamily:'var(--font-mono)'}}>{val}</div></div>
+              <div key={label}><div style={{fontSize:'11px',fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink3)',marginBottom:'6px'}}>{label}</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:'26px',fontWeight:700,color:'var(--ink)',lineHeight:1,letterSpacing:'-0.01em'}}>{val}</div></div>
             ))}
           </div>
         </div>

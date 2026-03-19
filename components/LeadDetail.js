@@ -514,7 +514,7 @@ export default function LeadDetail({
           </div>
 
           {/* AERIAL MAP */}
-          {lead.address && <AerialThumbnail address={lead.address} city={lead.city} />}
+          {lead.address && <AerialThumbnail address={lead.address} city={lead.city} size="500x300" zoom={17} />}
 
           {linkedProperty && (
             <div className="card" style={{ marginBottom: '16px' }}>
