@@ -739,3 +739,177 @@ tr.urgent td { background: #FFF8F6; }
 .flex { display: flex; }
 .items-center { align-items: center; }
 .gap-8 { gap: 8px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v34 READABILITY OVERHAUL
+   Bigger fonts, darker muted palette, balanced layout
+   Uses !important to override inline styles from React components
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Darken the muted palette globally ────────────────────── */
+:root {
+  --ink3: #5C5750 !important;   /* was #7A746C — readable secondary */
+  --ink4: #847E76 !important;   /* was #B0A89E — readable muted */
+}
+
+/* ── Body base ────────────────────────────────────────────── */
+body { font-size: 15.5px !important; }
+
+/* ── Three-column dashboard grid: balanced ────────────────── */
+.three-col { grid-template-columns: 1fr 1fr 1fr !important; }
+.body-grid { grid-template-columns: 1fr 1fr 1fr !important; }
+
+/* ── Hot leads: remove thumbnails, increase readability ───── */
+.hl-thumb { display: none !important; }
+.hl-name { font-size: 15px !important; font-weight: 600 !important; color: var(--ink2) !important; line-height: 1.4 !important; }
+.hot-lead.top .hl-name { color: var(--blue) !important; }
+.hl-sub { font-size: 14px !important; font-weight: 500 !important; color: var(--ink3) !important; margin-top: 5px !important; }
+.hl-score { font-size: 36px !important; }
+.hot-lead { padding: 16px 20px !important; gap: 14px !important; }
+
+/* ── Greeting ─────────────────────────────────────────────── */
+.greeting h1 { font-size: 46px !important; }
+.greeting h1 em { font-size: 56px !important; }
+.greeting-date { font-size: 18px !important; }
+
+/* ── AI strip ─────────────────────────────────────────────── */
+.ai-tag { font-size: 22px !important; }
+.ai-text { font-size: 16.5px !important; line-height: 1.7 !important; }
+
+/* ── Metrics bar ──────────────────────────────────────────── */
+.metric-label, .m-label, .sum-label, .stat-label { font-size: 13px !important; color: var(--ink3) !important; }
+.metric-val, .m-val { font-size: 48px !important; }
+.metric-sub, .m-sub, .sum-sub, .stat-sub { font-size: 14px !important; color: var(--ink3) !important; }
+.sum-val { font-size: 34px !important; }
+.stat-val { font-size: 28px !important; }
+
+/* ── Column headers ───────────────────────────────────────── */
+.col-title { font-size: 16px !important; }
+.col-link { font-size: 16px !important; }
+.col-head { padding: 18px 24px !important; }
+
+/* ── Tasks ─────────────────────────────────────────────────── */
+.task-item { padding: 18px 24px !important; }
+.t-name { font-size: 15.5px !important; line-height: 1.5 !important; }
+.t-over { font-size: 12px !important; }
+.t-meta { font-size: 14px !important; }
+.t-pri { font-size: 12px !important; }
+
+/* ── Pipeline rows ────────────────────────────────────────── */
+.pipe-stage { font-size: 15px !important; }
+.pipe-num { font-size: 28px !important; }
+.pipe-val { font-size: 13px !important; }
+.pipe-row { padding: 14px 22px !important; }
+
+/* ── Deal cards ───────────────────────────────────────────── */
+.dc-type { font-size: 12px !important; }
+.dc-name { font-size: 15px !important; }
+.dc-address { font-size: 14px !important; color: var(--ink3) !important; }
+.dc-val { font-size: 24px !important; }
+.dc-sf { font-size: 14px !important; }
+.dc-prob { font-size: 12px !important; }
+.deal-card { padding: 16px 18px !important; }
+
+/* ── Stage headers (kanban) ───────────────────────────────── */
+.stage-name { font-size: 13px !important; }
+.stage-count { font-size: 22px !important; }
+.stage-val { font-size: 12px !important; }
+
+/* ── Page header ──────────────────────────────────────────── */
+.main-header h1 { font-size: 28px !important; }
+.main-header { height: 68px !important; }
+.ph-title { font-size: 38px !important; }
+.ph-sub { font-size: 14px !important; }
+.ph-edge { font-size: 17px !important; }
+
+/* ── Tables ───────────────────────────────────────────────── */
+th { font-size: 12.5px !important; padding: 14px 16px !important; color: var(--ink3) !important; }
+td { font-size: 15px !important; padding: 14px 16px !important; color: var(--ink2) !important; }
+.td-name { font-size: 15px !important; }
+.td-addr { font-size: 14px !important; color: var(--ink3) !important; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn { padding: 10px 20px !important; font-size: 14px !important; }
+.btn-sm { padding: 7px 14px !important; font-size: 13px !important; }
+.ai-btn { font-size: 14px !important; padding: 11px 22px !important; }
+
+/* ── Forms ─────────────────────────────────────────────────── */
+.input, .select, .textarea { font-size: 15px !important; padding: 11px 16px !important; }
+.form-label { font-size: 12.5px !important; color: var(--ink3) !important; }
+
+/* ── Tags ──────────────────────────────────────────────────── */
+.tag { font-size: 12px !important; padding: 4px 11px !important; }
+.badge { font-size: 12px !important; padding: 4px 11px !important; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.info-card-head, .side-head { font-size: 15px !important; padding: 16px 20px !important; }
+.i-label { font-size: 12.5px !important; color: var(--ink3) !important; }
+.i-val { font-size: 15px !important; }
+.info-cell { padding: 14px 18px !important; }
+
+/* ── Property detail ──────────────────────────────────────── */
+.hero-address h1 { font-size: 38px !important; }
+.hero-badge { font-size: 12px !important; }
+.sub-tab { font-size: 14px !important; padding: 16px 18px !important; }
+.score-label { font-size: 14px !important; }
+.score-num { font-size: 30px !important; }
+.bld-name { font-size: 22px !important; }
+.bld-stat-label { font-size: 12px !important; }
+.bld-stat-val { font-size: 24px !important; }
+.lease-val { font-size: 30px !important; }
+.lease-note { font-size: 14px !important; }
+.sec-head { font-size: 14px !important; }
+.opp-head { font-size: 13px !important; }
+.opp-body { font-size: 15px !important; line-height: 1.7 !important; }
+
+/* ── Timeline ─────────────────────────────────────────────── */
+.tl-title { font-size: 15px !important; }
+.tl-btn { font-size: 12px !important; }
+.entry-date { font-size: 12px !important; }
+.entry-text { font-size: 15px !important; line-height: 1.7 !important; }
+
+/* ── Lead detail ──────────────────────────────────────────── */
+.lead-id { font-size: 34px !important; }
+.next-action { font-size: 15px !important; }
+.next-label { font-size: 14px !important; }
+
+/* ── WARN intel ───────────────────────────────────────────── */
+.sig-tag { font-size: 17px !important; }
+.sig-text { font-size: 16px !important; }
+.fh-title { font-size: 15px !important; }
+.fh-count { font-size: 24px !important; }
+.fh-chip { font-size: 13px !important; }
+.wi-co { font-size: 16px !important; }
+.wi-loc { font-size: 14px !important; }
+.wi-flag { font-size: 11px !important; }
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.nav-left { font-size: 14.5px !important; }
+.nav-badge { font-size: 12px !important; }
+.nav-label { font-size: 14px !important; }
+.f-name { font-size: 14px !important; }
+.logo-name { font-size: 20px !important; }
+
+/* ── Search bar ───────────────────────────────────────────── */
+.search-bar input, .search-box input { font-size: 14px !important; }
+.search-kbd, .search-hint { font-size: 12px !important; }
+
+/* ── Modals ────────────────────────────────────────────────── */
+.modal-header h2 { font-size: 20px !important; }
+
+/* ── Empty states ─────────────────────────────────────────── */
+.empty-state-title { font-size: 17px !important; color: var(--ink3) !important; }
+.empty-state-sub { font-size: 14px !important; color: var(--ink3) !important; }
+.empty-state-icon { font-size: 36px !important; }
+
+/* ── Catalyst card on dashboard ───────────────────────────── */
+.card h3 { font-size: 15px !important; }
+
+/* ── Global inline style overrides ────────────────────────── */
+/* These catch the hardcoded fontSize values in React inline styles */
+.main-content [style*="font-size: 11px"],
+.main-content [style*="fontSize:"] { }
+/* Force minimum legibility on muted text */
+.main-content [style*="color: var(--ink4)"] { color: var(--ink3) !important; }
+.main-content [style*="color: var(--text-muted)"] { color: var(--ink3) !important; }
+.main-content [style*="color:var(--ink4)"] { color: var(--ink3) !important; }
