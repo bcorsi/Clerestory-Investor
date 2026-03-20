@@ -302,7 +302,6 @@ export default function Dashboard({
                 ))}
               </div>
             )}
-          </div>
 
           {/* Catalyst Alerts */}
           {urgentCatalysts.length > 0 && (
@@ -359,15 +358,16 @@ export default function Dashboard({
               );
             })}
           </div>
+        </div>
 
         {/* ── COLUMN 3: Hot Leads ───────────── */}
         <div className="col-card">
           <div className="col-head">
-            <div className="col-title" style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rust)', fontFamily: 'var(--font-body)' }}>▲ Hot Leads</div>
+            <div className="col-title" style={{ fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rust)', fontFamily: 'var(--font-body)' }}>▲ Hot Leads</div>
           </div>
 
           {hotLeads.length === 0 ? (
-            <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--ink4)', fontSize: '13px' }}>No A+/A tier leads yet</div>
+            <div style={{ padding: '24px 20px', textAlign: 'center', color: 'var(--ink3)' }}>No A+/A tier leads yet</div>
           ) : (
             <div>
               {hotLeads.slice(0, 7).map((lead, i) => (
