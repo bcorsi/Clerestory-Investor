@@ -243,7 +243,7 @@ export default function LeadGen({ leads, onRefresh, showToast, onLeadClick }) {
           {deadLeads.length > 0 && (
             <button onClick={() => setShowDead(!showDead)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: var(--ink3) }} />
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ink3)' }} />
               <span>Dead</span>
               <span style={{ fontFamily: 'var(--font-mono)', color: showDead ? 'var(--red)' : 'var(--text-muted)', fontWeight: 600 }}>{deadLeads.length}</span>
             </button>
