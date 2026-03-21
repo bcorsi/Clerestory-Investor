@@ -88,6 +88,7 @@ export default function PropertyDetail({
   const linkedNotes = (allNotes||[]).filter(n => n.property_id===p.id);
   const linkedFU = (allFollowUps||[]).filter(f => f.property_id===p.id);
   const avgLR = displayLC.length ? (displayLC.reduce((s,c)=>s+(c.rate||0),0)/displayLC.length).toFixed(2) : null;
+  const heroSrc = p.aerial_url || p.hero_image || null;
   const avgSP = displaySC.filter(c=>c.price_psf).length ? Math.round(displaySC.filter(c=>c.price_psf).reduce((s,c)=>s+c.price_psf,0)/displaySC.filter(c=>c.price_psf).length) : null;
   const pendingTasks = linkedTasks.filter(t=>!t.completed).length;
 

@@ -98,6 +98,8 @@ export default function DealDetail({
   const linkedAccounts = (accounts || []).filter(a => a.id === deal.buyer_account_id || a.id === deal.seller_account_id);
   const pendingTasks = linkedTasks.filter(t => !t.completed).length;
   const linkedProperty = (properties || []).find(p => p.id === deal.property_id || p.address === deal.address);
+  const linkedLC = (leaseComps || []).filter(c => c.property_id === deal.property_id || c.address === deal.address);
+  const linkedSC = (saleComps || []).filter(c => c.property_id === deal.property_id || c.address === deal.address);
 
   const timeline = [
     ...linkedActivities.map(a => ({ kind: 'activity', id: a.id, date: a.activity_date || a.created_at, icon: a.activity_type === 'Call' ? '📞' : a.activity_type === 'Email' ? '✉️' : '🤝', label: a.activity_type, subject: a.subject, detail: a.notes, outcome: a.outcome })),
@@ -320,7 +322,7 @@ export default function DealDetail({
             )}
 
             {/* Follow-ups */}
-            {linkedFU.filter(f => !f.completed).map(fu => {
+            {linkedFollowUps.filter(f => !f.completed).map(fu => {
               const od = new Date(fu.due_date) < new Date(new Date().toDateString());
               return (
                 <div key={fu.id} style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--line2)' }}>
