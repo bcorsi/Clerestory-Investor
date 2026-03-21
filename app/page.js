@@ -86,15 +86,15 @@ export default function App() {
     try {
       setLoading(true);
       const [props, lds, dls, cts, accts, acts, tks, lcs, scs, nts, fus] = await Promise.all([
-        fetchProperties(),
-        fetchAll('leads', { order: 'created_at' }),
-        fetchAll('deals', { order: 'created_at' }),
-        fetchAll('contacts', { order: 'created_at' }),
-        fetchAll('accounts', { order: 'created_at' }),
-        fetchAll('activities', { order: 'created_at' }),
-        fetchAll('tasks', { order: 'created_at' }),
-        fetchAll('lease_comps', { order: 'created_at' }),
-        fetchAll('sale_comps', { order: 'created_at' }),
+        fetchProperties().catch(() => []),
+        fetchAll('leads', { order: 'created_at' }).catch(() => []),
+        fetchAll('deals', { order: 'created_at' }).catch(() => []),
+        fetchAll('contacts', { order: 'created_at' }).catch(() => []),
+        fetchAll('accounts', { order: 'created_at' }).catch(() => []),
+        fetchAll('activities', { order: 'created_at' }).catch(() => []),
+        fetchAll('tasks', { order: 'created_at' }).catch(() => []),
+        fetchAll('lease_comps', { order: 'created_at' }).catch(() => []),
+        fetchAll('sale_comps', { order: 'created_at' }).catch(() => []),
         fetchAll('notes', { order: 'created_at' }).catch(() => []),
         fetchAll('follow_ups', { order: 'created_at' }).catch(() => []),
       ]);
@@ -318,7 +318,7 @@ export default function App() {
           {loading ? (
             <div className="empty-state"><div className="empty-state-icon">◌</div><div className="empty-state-title">Loading...</div></div>
           ) : (<>
-            {page === 'dashboard' && <Dashboard properties={properties} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} tasks={tasks} activities={activities} onPropertyClick={openProperty} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} setPage={setPage} morningBrief={morningBrief} setMorningBrief={setMorningBrief} saveDailyBrief={saveDailyBrief} />}
+            {page === 'dashboard' && <Dashboard properties={properties} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} tasks={tasks} activities={activities} onPropertyClick={openProperty} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} onTaskClick={openTask} setPage={setPage} morningBrief={morningBrief} setMorningBrief={setMorningBrief} saveDailyBrief={saveDailyBrief} />}
             {page === 'properties' && <PropertiesList properties={properties} onPropertyClick={openProperty} />}
             {page === 'property-detail' && selectedProperty && <PropertyDetail property={selectedProperty} deals={deals} leads={leads} contacts={contacts} leaseComps={leaseComps} saleComps={saleComps} activities={activities} tasks={tasks} notes={notes} followUps={followUps} onLeaseCompClick={openLeaseComp} onDealClick={openDeal} onLeadClick={openLead} onContactClick={openContact} onAccountClick={openAccount} onCatalystClick={openCatalyst} onAddActivity={(propId) => setModal({ type: 'add-activity', defaultPropertyId: propId })} onAddTask={(propId) => setModal({ type: 'add-task', defaultPropertyId: propId })} accounts={accounts} showToast={showToast} onRefresh={loadData} />}
             {page === 'lead-gen' && <LeadGen leads={leads} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} />}
@@ -329,7 +329,7 @@ export default function App() {
             {page === 'contact-detail' && selectedContact && <ContactDetail contact={selectedContact} activities={activities} tasks={tasks} deals={deals} properties={properties} onRefresh={loadData} showToast={showToast} onDealClick={openDeal} onPropertyClick={openProperty} onAddActivity={(a, b, c, contactId) => setModal({ type: 'add-activity', defaultContactId: contactId })} onAddTask={(a, b, c, contactId) => setModal({ type: 'add-task', defaultContactId: contactId })} />}
             {page === 'accounts' && <AccountsList accounts={accounts} onAccountClick={openAccount} />}
             {page === 'account-detail' && selectedAccount && <AccountDetail account={selectedAccount} contacts={contacts} deals={deals} properties={properties} activities={activities} tasks={tasks} onRefresh={loadData} showToast={showToast} onContactClick={openContact} onDealClick={openDeal} onPropertyClick={openProperty} />}
-            {page === 'activities' && <Activities activities={activities} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-activity')} />}
+            {page === 'activities' && <Activities activities={activities} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-activity')} properties={properties} leads={leads} deals={deals} onPropertyClick={openProperty} onLeadClick={openLead} onDealClick={openDeal} />}
             {page === 'tasks' && <Tasks tasks={tasks} leads={leads} deals={deals} properties={properties} contacts={contacts} onRefresh={loadData} showToast={showToast} onAdd={() => setModal('add-task')} onTaskClick={openTask} onLeadClick={openLead} onDealClick={openDeal} onPropertyClick={openProperty} onContactClick={openContact} />}
             {page === 'task-detail' && selectedTask && <TaskDetail task={selectedTask} leads={leads} deals={deals} properties={properties} contacts={contacts} accounts={accounts} activities={activities} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} onDealClick={openDeal} onPropertyClick={openProperty} onContactClick={openContact} onAccountClick={openAccount} onBack={() => setPage('tasks')} />}
             {page === 'lease-comps' && <LeaseComps comps={leaseComps} onCompClick={openLeaseComp} />}
