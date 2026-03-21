@@ -44,7 +44,7 @@ function DayOfWeek() {
 export default function Dashboard({
   properties, deals, leads, contacts, leaseComps, saleComps,
   tasks, activities,
-  onPropertyClick, onDealClick, onLeadClick, onContactClick, setPage,
+  onPropertyClick, onDealClick, onLeadClick, onContactClick, onTaskClick, setPage,
   morningBrief, setMorningBrief, saveDailyBrief
 }) {
   const [briefLoading, setBriefLoading] = useState(false);
@@ -279,7 +279,7 @@ export default function Dashboard({
             ) : (
               <div>
                 {[...overdueTasks.map(t => ({...t, _overdue: true})), ...todayTasks].slice(0, 8).map(task => (
-                  <div key={task.id} className={`task-item ${task._overdue ? 'overdue' : ''}`}>
+                  <div key={task.id} className={`task-item ${task._overdue ? 'overdue' : ''}`} onClick={() => onTaskClick?.(task)} style={{ cursor: 'pointer' }}>
                     <div className="t-dot" style={{ background: task._overdue ? 'var(--rust)' : priorityColor(task.priority) }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="t-name">{task.title}</div>

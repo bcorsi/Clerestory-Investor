@@ -386,7 +386,7 @@ export default function LeadDetail({
             )}
 
             {/* Follow-ups */}
-            {linkedFU.filter(f => !f.completed).map(fu => {
+            {linkedFollowUps.filter(f => !f.completed).map(fu => {
               const od = new Date(fu.due_date) < new Date(new Date().toDateString());
               return (
                 <div key={fu.id} style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--line2)' }}>

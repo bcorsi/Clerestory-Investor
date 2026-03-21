@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { ACTIVITY_TYPES, ACTIVITY_OUTCOMES } from '../lib/constants';
 import { updateRow, deleteRow } from '../lib/db';
 
-export default function Activities({ activities, onRefresh, showToast, onAdd }) {
+export default function Activities({ activities, onRefresh, showToast, onAdd, properties, leads, deals, onPropertyClick, onLeadClick, onDealClick }) {
   const [filter, setFilter] = useState('all'); // all | pending | completed
   const [filterType, setFilterType] = useState('');
 
@@ -127,11 +127,19 @@ export default function Activities({ activities, onRefresh, showToast, onAdd }) 
               </div>
 
               {/* Linked record */}
-              {(activity.address || activity.lead_name) && (
-                <div style={{  color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  {activity.address || ''}
-                </div>
-              )}
+              {(activity.address || activity.lead_name || activity.property_id || activity.lead_id || activity.deal_id) && (() => {
+                const linkedProp = activity.property_id && (properties||[]).find(p => p.id === activity.property_id);
+                const linkedLead = activity.lead_id && (leads||[]).find(l => l.id === activity.lead_id);
+                const linkedDeal = activity.deal_id && (deals||[]).find(d => d.id === activity.deal_id);
+                return (
+                  <div style={{  color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {linkedProp && <span onClick={() => onPropertyClick?.(linkedProp)} style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}>📍 {linkedProp.address}</span>}
+                    {linkedLead && <span onClick={() => onLeadClick?.(linkedLead)} style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}>🎯 {linkedLead.lead_name || linkedLead.address}</span>}
+                    {linkedDeal && <span onClick={() => onDealClick?.(linkedDeal)} style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}>💰 {linkedDeal.name || linkedDeal.address}</span>}
+                    {!linkedProp && !linkedLead && !linkedDeal && (activity.address || activity.lead_name) && <span>{activity.address || activity.lead_name}</span>}
+                  </div>
+                );
+              })()}
 
               {/* Notes */}
               {activity.notes && (

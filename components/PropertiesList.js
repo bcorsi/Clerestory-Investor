@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MARKETS, SUBMARKETS, RECORD_TYPES, VACANCY_STATUS, CATALYST_TAGS, catalystTagClass, fmt } from '../lib/constants';
 
 export default function PropertiesList({ properties, onPropertyClick }) {
@@ -11,12 +11,12 @@ export default function PropertiesList({ properties, onPropertyClick }) {
   const [sortBy, setSortBy] = useState('probability');
   const [sortAsc, setSortAsc] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
+  const [expanded, setExpanded] = useState(null);
 
   const availableSubmarkets = filterMarket ? (SUBMARKETS[filterMarket] || []) : [];
 
   const filtered = useMemo(() => {
     let list = [...properties];
-
     if (localSearch) {
       const q = localSearch.toLowerCase();
       list = list.filter((p) =>
@@ -27,7 +27,6 @@ export default function PropertiesList({ properties, onPropertyClick }) {
     if (filterSubmarket) list = list.filter((p) => p.submarket === filterSubmarket);
     if (filterCatalyst) list = list.filter((p) => (p.catalyst_tags || []).includes(filterCatalyst));
     if (filterVacancy) list = list.filter((p) => p.vacancy_status === filterVacancy);
-
     list.sort((a, b) => {
       let va = a[sortBy], vb = b[sortBy];
       if (va == null) va = sortAsc ? Infinity : -Infinity;
@@ -35,7 +34,6 @@ export default function PropertiesList({ properties, onPropertyClick }) {
       if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
       return sortAsc ? va - vb : vb - va;
     });
-
     return list;
   }, [properties, filterMarket, filterSubmarket, filterCatalyst, filterVacancy, sortBy, sortAsc, localSearch]);
 
@@ -43,12 +41,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
     if (sortBy === col) setSortAsc(!sortAsc);
     else { setSortBy(col); setSortAsc(false); }
   };
-
-  const sortIndicator = (col) => {
-    if (sortBy !== col) return '';
-    return sortAsc ? ' ↑' : ' ↓';
-  };
-
+  const sortIndicator = (col) => sortBy !== col ? '' : sortAsc ? ' ↑' : ' ↓';
   const urgencyColor = (prob) => {
     if (prob >= 80) return 'var(--red)';
     if (prob >= 60) return 'var(--amber)';
@@ -60,13 +53,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
     <div>
       {/* Filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          className="input"
-          placeholder="Filter by address, owner, tenant..."
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-          style={{ maxWidth: '260px' }}
-        />
+        <input className="input" placeholder="Filter by address, owner, tenant..." value={localSearch} onChange={(e) => setLocalSearch(e.target.value)} style={{ maxWidth: '260px' }} />
         <select className="select" value={filterMarket} onChange={(e) => { setFilterMarket(e.target.value); setFilterSubmarket(''); }} style={{ maxWidth: '120px' }}>
           <option value="">All Markets</option>
           {MARKETS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -85,10 +72,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
           <option value="">All Catalysts</option>
           {CATALYST_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-
-        <span className="fc-count">
-          {filtered.length} results
-        </span>
+        <span className="fc-count">{filtered.length} results</span>
       </div>
 
       {/* Table */}
@@ -96,6 +80,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
         <table>
           <thead>
             <tr>
+              <th style={{ width: '28px' }}></th>
               <th onClick={() => toggleSort('address')} style={{ cursor: 'pointer' }}>Address{sortIndicator('address')}</th>
               <th onClick={() => toggleSort('submarket')} style={{ cursor: 'pointer' }}>Submarket{sortIndicator('submarket')}</th>
               <th onClick={() => toggleSort('building_sf')} style={{ cursor: 'pointer' }}>Size{sortIndicator('building_sf')}</th>
@@ -107,48 +92,76 @@ export default function PropertiesList({ properties, onPropertyClick }) {
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <tr key={p.id} onClick={() => onPropertyClick(p)}>
-                <td className="text-primary">{p.address}</td>
-                <td>
-                  <span className="tag tag-ghost">{p.market}</span>
-                  {' '}{p.submarket}
-                </td>
-                <td style={{ fontFamily: 'var(--font-mono)' }}>
-                  {(p.total_sf || p.building_sf) ? fmt.sf(p.total_sf || p.building_sf) : p.land_acres ? fmt.acres(p.land_acres) : '—'}
-                </td>
-                <td>{p.owner || '—'}</td>
-                <td>
-                  {p.vacancy_status && (
-                    <span className={`tag ${p.vacancy_status === 'Vacant' ? 'tag-red' : p.vacancy_status === 'Partial' ? 'tag-amber' : 'tag-green'}`}>
-                      {p.vacancy_status}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {(p.catalyst_tags || []).slice(0, 3).map((tag) => (
-                      <span key={tag} className={`tag ${catalystTagClass(tag)}`}>{tag}</span>
-                    ))}
-                    {(p.catalyst_tags || []).length > 3 && (
-                      <span className="tag tag-ghost">+{p.catalyst_tags.length - 3}</span>
+              <React.Fragment key={p.id}>
+                <tr
+                  onClick={() => setExpanded(expanded === p.id ? null : p.id)}
+                  style={{ cursor: 'pointer', background: expanded === p.id ? 'var(--bg)' : undefined }}
+                >
+                  <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>{expanded === p.id ? '▼' : '▶'}</td>
+                  <td className="text-primary" style={{ fontWeight: 600 }}>{p.address}</td>
+                  <td>
+                    <span className="tag tag-ghost">{p.market}</span>
+                    {' '}{p.submarket}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>
+                    {(p.total_sf || p.building_sf) ? fmt.sf(p.total_sf || p.building_sf) : p.land_acres ? fmt.acres(p.land_acres) : '—'}
+                  </td>
+                  <td>{p.owner || '—'}</td>
+                  <td>
+                    {p.vacancy_status && (
+                      <span className={`tag ${p.vacancy_status === 'Vacant' ? 'tag-red' : p.vacancy_status === 'Partial' ? 'tag-amber' : 'tag-green'}`}>
+                        {p.vacancy_status}
+                      </span>
                     )}
-                  </div>
-                </td>
-                <td>
-                  {p.probability != null && (
-                    <div className="prob-bar">
-                      <div className="prob-bar-track">
-                        <div className="prob-bar-fill" style={{ width: `${p.probability}%`, background: urgencyColor(p.probability) }} />
-                      </div>
-                      <span className="prob-bar-label" style={{ color: urgencyColor(p.probability) }}>{p.probability}%</span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {(p.catalyst_tags || []).slice(0, 3).map((tag) => (
+                        <span key={tag} className={`tag ${catalystTagClass(tag)}`}>{tag}</span>
+                      ))}
+                      {(p.catalyst_tags || []).length > 3 && (
+                        <span className="tag tag-ghost">+{p.catalyst_tags.length - 3}</span>
+                      )}
                     </div>
-                  )}
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    {p.probability != null && (
+                      <div className="prob-bar">
+                        <div className="prob-bar-track">
+                          <div className="prob-bar-fill" style={{ width: `${p.probability}%`, background: urgencyColor(p.probability) }} />
+                        </div>
+                        <span className="prob-bar-label" style={{ color: urgencyColor(p.probability) }}>{p.probability}%</span>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                {expanded === p.id && (
+                  <tr>
+                    <td colSpan={8} style={{ padding: 0, border: 'none' }}>
+                      <div style={{ background: 'var(--bg)', borderBottom: '2px solid var(--border)', padding: '16px 20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</span><div style={{ fontWeight: 500 }}>{p.city || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</span><div style={{ fontWeight: 500 }}>{p.record_type || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tenant</span><div style={{ fontWeight: 500 }}>{p.tenant || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Zoning</span><div style={{ fontWeight: 500 }}>{p.zoning || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Land Acres</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.land_acres ? fmt.acres(p.land_acres) : '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clear Height</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.clear_height ? `${p.clear_height}'` : '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Year Built</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.year_built || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>APN</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.apn || '—'}</div></div>
+                        </div>
+                        {p.notes && <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>{p.notes}</div>}
+                        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onPropertyClick(p); }}>
+                          Open Full Detail →
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                   No properties match your filters
                 </td>
               </tr>
