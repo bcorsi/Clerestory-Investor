@@ -504,22 +504,22 @@ export default function DealDetail({
             </div>
             <div className="modal-body">
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Deal Name</label><input className="input" value={editForm.deal_name || ''} onChange={e => setEditForm({...editForm, deal_name: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">Deal Type</label><select className="select" value={editForm.deal_type || ''} onChange={e => setEditForm({...editForm, deal_type: e.target.value})}><option value="">—</option>{DEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                <div className="form-group"><label className="form-label">Deal Name</label><input className="input" value={form.deal_name || ''} onChange={e => setForm({...form, deal_name: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Deal Type</label><select className="select" value={form.deal_type || ''} onChange={e => setForm({...form, deal_type: e.target.value})}><option value="">—</option>{DEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
               </div>
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Deal Value</label><input className="input" type="number" value={editForm.deal_value || ''} onChange={e => setEditForm({...editForm, deal_value: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">Commission Est.</label><input className="input" type="number" value={editForm.commission_est || ''} onChange={e => setEditForm({...editForm, commission_est: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Deal Value</label><input className="input" type="number" value={form.deal_value || ''} onChange={e => setForm({...form, deal_value: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Commission Est.</label><input className="input" type="number" value={form.commission_est || ''} onChange={e => setForm({...form, commission_est: e.target.value})} /></div>
               </div>
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Probability %</label><input className="input" type="number" value={editForm.probability || ''} onChange={e => setEditForm({...editForm, probability: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">Close Date</label><input className="input" type="date" value={editForm.close_date || ''} onChange={e => setEditForm({...editForm, close_date: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Probability %</label><input className="input" type="number" value={form.probability || ''} onChange={e => setForm({...form, probability: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Close Date</label><input className="input" type="date" value={form.close_date || ''} onChange={e => setForm({...form, close_date: e.target.value})} /></div>
               </div>
               <div className="form-row">
-                <div className="form-group"><label className="form-label">Strategy</label><select className="select" value={editForm.strategy || ''} onChange={e => setEditForm({...editForm, strategy: e.target.value})}><option value="">—</option>{STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                <div className="form-group"><label className="form-label">Building SF</label><input className="input" type="number" value={editForm.building_sf || ''} onChange={e => setEditForm({...editForm, building_sf: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Strategy</label><select className="select" value={form.strategy || ''} onChange={e => setForm({...form, strategy: e.target.value})}><option value="">—</option>{STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                <div className="form-group"><label className="form-label">Building SF</label><input className="input" type="number" value={form.building_sf || ''} onChange={e => setForm({...form, building_sf: e.target.value})} /></div>
               </div>
-              <div className="form-group" style={{ marginBottom: '12px' }}><label className="form-label">Notes</label><textarea className="textarea" value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} rows={3} /></div>
+              <div className="form-group" style={{ marginBottom: '12px' }}><label className="form-label">Notes</label><textarea className="textarea" value={form.notes || ''} onChange={e => setForm({...form, notes: e.target.value})} rows={3} /></div>
             </div>
             <div className="modal-footer">
               <button className="btn" onClick={() => setEditing(false)}>Cancel</button>

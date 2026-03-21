@@ -15,6 +15,7 @@ const NAV_ICONS = {
   'sale-comps': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="7" cy="7" r="5"/><path d="M7 3v8M3 7h8"/></svg>',
   'comp-dashboard': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 11V5M5 11V3M8 11V7M11 11V2"/></svg>',
   'owner-search': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6" cy="6" r="4"/><path d="M9.5 9.5L13 13"/></svg>',
+  underwriting: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 12V6l5-4 5 4v6"/><path d="M5 12V8h4v4"/></svg>',
   'warn-intel': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M7 1L1 4v4c0 3 2.5 4.5 6 4.5s6-1.5 6-4.5V4z"/></svg>',
   'map-view': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="7" cy="7" r="2"/><circle cx="7" cy="7" r="5"/></svg>',
   settings: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="7" cy="7" r="2.5"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8l-1.4 1.4M4.2 9.8l-1.4 1.4"/></svg>',
@@ -40,6 +41,7 @@ export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
       { id: 'comp-dashboard', label: 'Comp Analytics' },
     ]},
     { section: 'Intelligence', items: [
+      { id: 'underwriting', label: 'Underwriting' },
       { id: 'owner-search', label: 'Owner Search' },
       { id: 'warn-intel', label: 'WARN Intel', badge: counts.warnNew || null },
       { id: 'map-view', label: 'Map View' },
