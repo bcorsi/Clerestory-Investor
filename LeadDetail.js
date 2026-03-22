@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import AerialThumbnail from './AerialThumbnail';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
 import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability, setCadence, autoResearch } from '../lib/db';
-import AerialThumbnail from './AerialThumbnail';
 
 const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'];
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];

@@ -1,281 +1,368 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { AI_MODEL_OPUS, fmt } from '../lib/constants';
-import { updateRow } from '../lib/db';
 
-export default function Underwriting({ deal, property, leaseComps, saleComps, onRefresh, showToast, onLeaseCompClick, onSaleCompClick }) {
-  const defaults = {
-    purchase_price: deal.deal_value || '',
-    going_in_cap: '',
-    noi: '',
-    rent_psf: property?.in_place_rent || property?.market_rent || '',
-    vacancy_pct: 5,
-    opex_psf: 0.15,
-    exit_cap: '',
-    hold_years: 5,
-    rent_growth: 3,
-    ltv: 65,
-    rate: 6.5,
-    amort: 30,
-    ...((deal.underwriting_inputs) || {}),
-  };
-  const [draft, setDraft] = useState(defaults);
-  const [inputs, setInputs] = useState(defaults);
-  const [saving, setSaving] = useState(false);
-  const [memoText, setMemoText] = useState(deal.underwriting_memo || '');
-  const [memoLoading, setMemoLoading] = useState(false);
+function xirr(cashflows) {
+  if (!cashflows || cashflows.length < 2) return null;
+  if (!cashflows.some(c => c.amount > 0) || !cashflows.some(c => c.amount < 0)) return null;
+  const d0 = cashflows[0].date;
+  const days = cashflows.map(c => (c.date - d0) / 86400000);
+  const npv = r => cashflows.reduce((s, c, i) => s + c.amount / Math.pow(1 + r, days[i] / 365), 0);
+  const dnpv = r => cashflows.reduce((s, c, i) => s + (-days[i] / 365) * c.amount / Math.pow(1 + r, days[i] / 365 + 1), 0);
+  let g = 0.1;
+  for (let i = 0; i < 100; i++) {
+    const n = npv(g), dn = dnpv(g);
+    if (Math.abs(dn) < 1e-12) break;
+    const next = g - n / dn;
+    if (Math.abs(next - g) < 1e-8) return next;
+    g = next;
+    if (g < -0.99) g = -0.5;
+    if (g > 10) g = 5;
+  }
+  return isFinite(g) ? g : null;
+}
 
-  const setDraftField = (k, v) => setDraft(prev => ({ ...prev, [k]: v }));
-  const commitField = (k) => setInputs(prev => ({ ...prev, [k]: draft[k] }));
-  const commitAll = () => setInputs({ ...draft });
+const $ = n => { if (n == null || isNaN(n)) return '—'; const a = Math.abs(n), s = n < 0 ? '-' : ''; return a >= 1e6 ? s+'$'+(a/1e6).toFixed(1)+'M' : a >= 1e3 ? s+'$'+(a/1e3).toFixed(0)+'K' : s+'$'+Math.round(a); };
+const pct = n => n != null && !isNaN(n) ? n.toFixed(1)+'%' : '—';
 
-  // Computed metrics
-  const computed = useMemo(() => {
-    const pp = parseFloat(inputs.purchase_price) || 0;
-    const sf = property?.total_sf || property?.building_sf || 0;
-    const pricePsf = pp && sf ? Math.round(pp / sf) : 0;
-    const rentPsf = parseFloat(inputs.rent_psf) || 0;
-    const vacPct = parseFloat(inputs.vacancy_pct) || 0;
-    const opex = parseFloat(inputs.opex_psf) || 0;
-    const grossRev = rentPsf * sf * 12;
-    const effGross = grossRev * (1 - vacPct / 100);
-    const totalOpex = opex * sf * 12;
-    const noi = inputs.noi ? parseFloat(inputs.noi) : effGross - totalOpex;
-    const goingInCap = inputs.going_in_cap ? parseFloat(inputs.going_in_cap) : (pp > 0 ? ((noi / pp) * 100) : 0);
-    const exitCap = parseFloat(inputs.exit_cap) || (goingInCap + 0.5);
-    const holdYrs = parseInt(inputs.hold_years) || 5;
-    const rentGrowth = parseFloat(inputs.rent_growth) || 0;
+const Sl = ({ label, value, onChange, min, max, step, display, unit }) => (
+  <div style={{ display:'flex', alignItems:'center', gap:'12px', margin:'10px 0' }}>
+    <label style={{ fontSize:'13px', color:'var(--ink3)', width:'200px', flexShrink:0 }}>{label}</label>
+    <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(parseFloat(e.target.value))} style={{ flex:1, height:'6px', accentColor:'var(--accent)' }}/>
+    <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'14px', fontWeight:600, minWidth:'70px', textAlign:'right' }}>{display||value}{unit||''}</span>
+  </div>
+);
 
-    // Exit value
-    const exitNoi = noi * Math.pow(1 + rentGrowth / 100, holdYrs);
-    const exitValue = exitCap > 0 ? exitNoi / (exitCap / 100) : 0;
+const MC = ({ label, value, color, small }) => (
+  <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:small?'10px 14px':'16px 18px' }}>
+    <div style={{ fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--ink4)', marginBottom:'6px' }}>{label}</div>
+    <div style={{ fontFamily:"'Playfair Display',serif", fontSize:small?'18px':'26px', fontWeight:700, color:color||'var(--ink)', lineHeight:1 }}>{value}</div>
+  </div>
+);
 
-    // Debt
-    const ltv = parseFloat(inputs.ltv) || 0;
-    const loanAmt = pp * (ltv / 100);
-    const equity = pp - loanAmt;
-    const rate = parseFloat(inputs.rate) || 0;
-    const amort = parseInt(inputs.amort) || 30;
-    const monthlyRate = rate / 100 / 12;
-    const numPayments = amort * 12;
-    const monthlyPayment = monthlyRate > 0 ? loanAmt * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1) : 0;
-    const annualDS = monthlyPayment * 12;
-    const dscr = annualDS > 0 ? noi / annualDS : 0;
+const Row = ({ label, value, color, bold, bg }) => (
+  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:bold?'14px 20px':'10px 20px', borderBottom:bold?'none':'1px solid var(--line3)', background:bg||'transparent' }}>
+    <span style={{ fontSize:'13px', color:bold?(color||'var(--blue)'):'var(--ink3)', fontWeight:bold?600:400 }}>{label}</span>
+    <span style={{ fontFamily:"'DM Mono',monospace", fontSize:bold?'15px':'13px', fontWeight:bold?700:500, color:color||'var(--ink2)' }}>{value}</span>
+  </div>
+);
 
-    // Returns
-    const cfBeforeDS = noi;
-    const cfAfterDS = noi - annualDS;
-    const unleveredYield = pp > 0 ? (noi / pp * 100) : 0;
-    const cashOnCash = equity > 0 ? (cfAfterDS / equity * 100) : 0;
+export default function Underwriting({ deal, property, leaseComps, saleComps, properties, deals, standalone }) {
+  const [selectedPropId, setSelectedPropId] = useState(null);
+  const [selectedDealId, setSelectedDealId] = useState(null);
+  const p = standalone ? (properties||[]).find(pr=>pr.id===selectedPropId)||{} : (property||{});
+  const d = standalone ? (deals||[]).find(dl=>dl.id===selectedDealId)||{} : (deal||{});
 
-    // Simple IRR approximation (unlevered)
-    const totalProfit = exitValue - pp + (noi * holdYrs);
-    const equityMultiple = equity > 0 ? (exitValue - loanAmt + (cfAfterDS * holdYrs)) / equity : 0;
-    const unleveredIRR = pp > 0 ? (Math.pow((exitValue + noi * holdYrs) / pp, 1 / holdYrs) - 1) * 100 : 0;
-    const leveredIRR = equity > 0 ? (Math.pow((exitValue - loanAmt + cfAfterDS * holdYrs) / equity, 1 / holdYrs) - 1) * 100 : 0;
+  const defSf = d.building_sf||p.building_sf||p.total_sf||0;
+  const defPrice = d.deal_value||d.purchase_price||0;
+  const defRent = p.in_place_rent||p.market_rent||d.market_rent||1.25;
 
-    return { pp, sf, pricePsf, noi, goingInCap, exitCap, exitValue, loanAmt, equity, annualDS, dscr, cfBeforeDS, cfAfterDS, unleveredYield, cashOnCash, equityMultiple, unleveredIRR, leveredIRR, holdYrs };
-  }, [inputs, property]);
+  const [sf, setSf] = useState(defSf||50000);
+  const [purchasePrice, setPP] = useState(defPrice||5000000);
+  const [marketRent, setMR] = useState(Math.round(defRent*100));
+  const [vacancy, setVac] = useState(5);
+  const [expRatio, setExpR] = useState(8);
+  const [mgmtFee, setMgmt] = useState(4);
+  const [reserves, setRes] = useState(8);
+  const [rentGrowth, setRG] = useState(3);
+  const [expGrowth, setEG] = useState(2);
+  const [holdYrs, setHold] = useState(5);
+  const [exitCap, setEC] = useState(550);
+  const [closCost, setCC] = useState(2);
+  const [sellCost, setSC] = useState(2);
+  const [vacMo, setVM] = useState(3);
+  const [tiSf, setTI] = useState(10);
+  const [capexSf, setCX] = useState(5);
+  const [useLev, setUseLev] = useState(true);
+  const [ltv, setLTV] = useState(65);
+  const [intRate, setIR] = useState(625);
+  const [amortYrs, setAmort] = useState(30);
+  const [ioPer, setIO] = useState(2);
 
-  // Pull relevant comps — broad matching
-  const submarket = deal.submarket || property?.submarket || '';
-  const city = deal.address?.split(',')[1]?.trim() || property?.city || '';
-  const market = deal.market || property?.market || '';
-  const sf = property?.total_sf || property?.building_sf || 0;
-  const sfRange = [sf * 0.3, sf * 2.5]; // wider range
+  useMemo(() => { if(defSf>0) setSf(defSf); if(defPrice>0) setPP(defPrice); if(defRent>0) setMR(Math.round(defRent*100)); }, [defSf,defPrice,defRent]);
 
-  const matchComp = (c) => {
-    // Match by submarket
-    if (submarket && c.submarket && c.submarket === submarket) return true;
-    // Match by city
-    if (city && c.city && c.city.toLowerCase() === city.toLowerCase()) return true;
-    // Match by address city portion
-    if (c.address && city && c.address.toLowerCase().includes(city.toLowerCase())) return true;
-    // Match by market
-    if (market && c.submarket && c.submarket.toLowerCase().includes(market.toLowerCase())) return true;
-    // If no geo filters set, show all comps
-    if (!submarket && !city && !market) return true;
-    return false;
-  };
+  const avgLR = (leaseComps||[]).filter(c=>c.rate>0);
+  const avgLeaseRate = avgLR.length ? avgLR.reduce((s,c)=>s+c.rate,0)/avgLR.length : null;
+  const avgSR = (saleComps||[]).filter(c=>c.price_psf>0);
+  const avgSalePsf = avgSR.length ? Math.round(avgSR.reduce((s,c)=>s+c.price_psf,0)/avgSR.length) : null;
+  const avgCR = (saleComps||[]).filter(c=>c.cap_rate>0);
+  const avgCapRate = avgCR.length ? avgCR.reduce((s,c)=>s+parseFloat(c.cap_rate),0)/avgCR.length : null;
 
-  const relevantLeaseComps = useMemo(() =>
-    (leaseComps || [])
-      .filter(matchComp)
-      .filter(c => !sf || !c.rsf || (c.rsf >= sfRange[0] && c.rsf <= sfRange[1]))
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 12)
-  , [leaseComps, submarket, city, market, sf]);
+  const rent = marketRent/100;
+  const ppsf = sf>0 ? purchasePrice/sf : 0;
+  const acqCosts = purchasePrice*(closCost/100);
+  const repoVac = sf*rent*vacMo;
+  const repoTI = sf*tiSf;
+  const repoCX = sf*capexSf;
+  const totalRepo = repoVac+repoTI+repoCX;
+  const totalBasis = purchasePrice+acqCosts+totalRepo;
+  const basisPsf = sf>0 ? totalBasis/sf : 0;
+  const loanAmt = useLev ? purchasePrice*(ltv/100) : 0;
+  const totalEquity = totalBasis - loanAmt;
 
-  const relevantSaleComps = useMemo(() =>
-    (saleComps || [])
-      .filter(matchComp)
-      .filter(c => !sf || !c.building_sf || (c.building_sf >= sfRange[0] && c.building_sf <= sfRange[1]))
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 12)
-  , [saleComps, submarket, city, market, sf]);
+  const years = useMemo(() => {
+    const arr = [];
+    for (let yr=1; yr<=holdYrs; yr++) {
+      const gm = Math.pow(1+rentGrowth/100,yr-1);
+      const em = Math.pow(1+expGrowth/100,yr-1);
+      const annR = sf*rent*12*gm;
+      const vLoss = annR*(vacancy/100);
+      const egi = annR-vLoss;
+      const opex = egi*(expRatio/100)*em;
+      const mgmt = egi*(mgmtFee/100);
+      const res = sf*(reserves/100)*12*em;
+      const noi = egi-opex-mgmt-res;
+      let ds=0;
+      if (useLev && loanAmt>0) {
+        const mr = (intRate/10000)/12;
+        if (yr<=ioPer) { ds = loanAmt*(intRate/10000); }
+        else { const tp=amortYrs*12; ds = mr>0 ? loanAmt*(mr*Math.pow(1+mr,tp))/(Math.pow(1+mr,tp)-1)*12 : 0; }
+      }
+      const btcf = noi-ds;
+      const dscr = ds>0 ? noi/ds : null;
+      arr.push({ yr,annR,vLoss,egi,opex,mgmt,res,noi,ds,btcf,dscr });
+    }
+    return arr;
+  }, [sf,rent,vacancy,expRatio,mgmtFee,reserves,rentGrowth,expGrowth,holdYrs,useLev,loanAmt,intRate,amortYrs,ioPer]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    setInputs({ ...draft }); // commit draft to inputs for metrics
-    try {
-      await updateRow('deals', deal.id, { underwriting_inputs: draft, underwriting_memo: memoText || null });
-      onRefresh?.(); showToast?.('Underwriting saved');
-    } catch (e) { console.error(e); showToast?.('Error saving — check that migration has been run'); }
-    finally { setSaving(false); }
-  };
+  const y1 = years[0]||{};
+  const y1Noi = y1.noi||0;
+  const goingInCap = totalBasis>0 ? (y1Noi/totalBasis)*100 : 0;
+  const exitNoi = years.length>0 ? years[years.length-1].noi : 0;
+  const ecPct = exitCap/100;
+  const exitVal = ecPct>0 ? exitNoi/(ecPct/100) : 0;
+  const netSale = exitVal - exitVal*(sellCost/100);
+  const netEquity = netSale - loanAmt;
+  const eqMult = totalEquity>0 ? (netEquity+years.reduce((s,y)=>s+y.btcf,0))/totalEquity : 0;
 
-  const handleGenerateMemo = async () => {
-    setMemoLoading(true);
-    try {
-      const res = await fetch('/api/ai', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: AI_MODEL_OPUS, max_tokens: 800,
-          system: 'You are a CRE investment analyst. Generate a concise 1-page investment memo for this deal. Include: deal summary, financial highlights (cap rate, IRR, DSCR, equity multiple), market context, comparable transactions, key risks, and investment recommendation. Professional tone, specific numbers. No fluff.',
-          messages: [{ role: 'user', content: `Deal: ${deal.deal_name}\nAddress: ${deal.address}\nSubmarket: ${submarket}\nProperty: ${computed.sf?.toLocaleString()} SF\n\nPurchase Price: $${computed.pp?.toLocaleString()}\nPrice/SF: $${computed.pricePsf}\nGoing-In Cap: ${computed.goingInCap?.toFixed(2)}%\nNOI: $${Math.round(computed.noi)?.toLocaleString()}\nExit Cap: ${computed.exitCap?.toFixed(2)}%\nDSCR: ${computed.dscr?.toFixed(2)}x\nUnlevered IRR: ${computed.unleveredIRR?.toFixed(1)}%\nLevered IRR: ${computed.leveredIRR?.toFixed(1)}%\nEquity Multiple: ${computed.equityMultiple?.toFixed(2)}x\nCash-on-Cash: ${computed.cashOnCash?.toFixed(1)}%\nHold: ${computed.holdYrs} years\n\nLease Comps: ${relevantLeaseComps.map(c => `${c.address} $${c.rate}/SF ${c.lease_type || ''}`).join(', ') || 'None'}\nSale Comps: ${relevantSaleComps.map(c => `${c.address} $${c.price_psf}/SF ${c.cap_rate ? c.cap_rate + '% cap' : ''}`).join(', ') || 'None'}\n\nDeal Notes: ${deal.notes || 'None'}\n\nGenerate the investment memo.` }],
-        }),
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || 'Could not generate memo.';
-      setMemoText(text);
-      await updateRow('deals', deal.id, { underwriting_memo: text, underwriting_inputs: inputs });
-      onRefresh?.();
-    } catch { setMemoText('Error generating memo.'); }
-    finally { setMemoLoading(false); }
-  };
+  const levIRR = useMemo(() => {
+    const t = new Date();
+    const cfs = [{date:t,amount:-totalEquity}];
+    years.forEach((y,i)=>{ const dt=new Date(t); dt.setFullYear(dt.getFullYear()+y.yr); cfs.push({date:dt,amount:y.btcf+(i===years.length-1?netEquity:0)}); });
+    return xirr(cfs);
+  }, [totalEquity,years,netEquity]);
 
-  const Metric = ({ label, value, color, sub }) => (
-    <div style={{ padding: '12px 14px', background: 'var(--bg-input)', borderRadius: '6px' }}>
-      <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
-      <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: color || 'var(--text-primary)' }}>{value}</div>
-      {sub && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{sub}</div>}
-    </div>
-  );
+  const unlevIRR = useMemo(() => {
+    const t = new Date();
+    const cfs = [{date:t,amount:-totalBasis}];
+    years.forEach((y,i)=>{ const dt=new Date(t); dt.setFullYear(dt.getFullYear()+y.yr); cfs.push({date:dt,amount:y.noi+(i===years.length-1?netSale:0)}); });
+    return xirr(cfs);
+  }, [totalBasis,years,netSale]);
 
-  const Input = ({ label, field, type, step, prefix, suffix, width }) => (
-    <div className="form-group" style={{ flex: width || 1 }}>
-      <label className="form-label">{label}</label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        {prefix && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{prefix}</span>}
-        <input className="input" type={type || 'number'} step={step || 'any'} value={draft[field] ?? ''} onChange={e => setDraftField(field, e.target.value)} onBlur={() => setInputs({ ...draft })} style={{ fontSize: '14px' }} />
-        {suffix && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{suffix}</span>}
-      </div>
-    </div>
-  );
+  const sensEC = [exitCap-100,exitCap-50,exitCap,exitCap+50,exitCap+100].map(c=>c/100);
+  const sensRG = [rentGrowth-2,rentGrowth-1,rentGrowth,rentGrowth+1,rentGrowth+2];
+
+  const sensGrid = useMemo(() => sensRG.map(rg => sensEC.map(ec => {
+    const yrs = [];
+    for (let yr=1;yr<=holdYrs;yr++) {
+      const gm=Math.pow(1+rg/100,yr-1), em=Math.pow(1+expGrowth/100,yr-1);
+      const ar=sf*rent*12*gm, vl=ar*(vacancy/100), egi=ar-vl;
+      const noi=egi-egi*(expRatio/100)*em-egi*(mgmtFee/100)-sf*(reserves/100)*12*em;
+      let ds=0;
+      if(useLev&&loanAmt>0){ const mr=(intRate/10000)/12; ds=yr<=ioPer?loanAmt*(intRate/10000):mr>0?loanAmt*(mr*Math.pow(1+mr,amortYrs*12))/(Math.pow(1+mr,amortYrs*12)-1)*12:0; }
+      yrs.push({noi,btcf:noi-ds});
+    }
+    const ln=yrs[yrs.length-1].noi, ev=ec>0?ln/(ec/100):0, ns=ev-ev*(sellCost/100), ne=ns-loanAmt;
+    const t=new Date(), cfs=[{date:t,amount:-totalEquity}];
+    yrs.forEach((y,i)=>{ const dt=new Date(t); dt.setFullYear(dt.getFullYear()+i+1); cfs.push({date:dt,amount:y.btcf+(i===yrs.length-1?ne:0)}); });
+    return xirr(cfs);
+  })), [sensEC,sensRG,holdYrs,sf,rent,vacancy,expRatio,mgmtFee,reserves,expGrowth,useLev,loanAmt,intRate,amortYrs,ioPer,sellCost,totalEquity]);
+
+  const ic = v => { if(v==null) return 'var(--ink4)'; if(v>=0.15) return 'var(--green)'; if(v>=0.10) return '#2E8B57'; if(v>=0.07) return 'var(--amber)'; return 'var(--rust)'; };
 
   return (
     <div>
-      {/* METRICS DASHBOARD */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
-        <Metric label="Purchase Price" value={computed.pp ? '$' + computed.pp.toLocaleString() : '—'} color="var(--accent)" />
-        <Metric label="Price / SF" value={computed.pricePsf ? '$' + computed.pricePsf.toLocaleString() : '—'} sub={computed.sf ? computed.sf.toLocaleString() + ' SF' : ''} />
-        <Metric label="Going-In Cap" value={computed.goingInCap ? computed.goingInCap.toFixed(2) + '%' : '—'} color={computed.goingInCap >= 5 ? '#22c55e' : '#f59e0b'} />
-        <Metric label="NOI" value={computed.noi ? '$' + Math.round(computed.noi).toLocaleString() : '—'} color="#22c55e" />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
-        <Metric label="DSCR" value={computed.dscr ? computed.dscr.toFixed(2) + 'x' : '—'} color={computed.dscr >= 1.25 ? '#22c55e' : '#ef4444'} />
-        <Metric label="Unlevered IRR" value={computed.unleveredIRR ? computed.unleveredIRR.toFixed(1) + '%' : '—'} color="var(--accent)" />
-        <Metric label="Levered IRR" value={computed.leveredIRR ? computed.leveredIRR.toFixed(1) + '%' : '—'} color={computed.leveredIRR >= 15 ? '#22c55e' : '#f59e0b'} />
-        <Metric label="Equity Multiple" value={computed.equityMultiple ? computed.equityMultiple.toFixed(2) + 'x' : '—'} sub={computed.equity ? 'Equity: $' + Math.round(computed.equity).toLocaleString() : ''} />
-      </div>
-
-      {/* INPUTS */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assumptions</h3>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Save'}</button>
-            <button className="btn btn-ghost btn-sm" style={{ color: '#8b5cf6', borderColor: '#8b5cf644' }} onClick={handleGenerateMemo} disabled={memoLoading}>{memoLoading ? '✦ Generating...' : '✦ Generate Memo'}</button>
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-          <Input label="Purchase Price" field="purchase_price" prefix="$" />
-          <Input label="Rent ($/SF/Mo)" field="rent_psf" prefix="$" step="0.01" />
-          <Input label="Vacancy %" field="vacancy_pct" suffix="%" />
-          <Input label="OpEx ($/SF/Mo)" field="opex_psf" prefix="$" step="0.01" />
-          <Input label="NOI (override)" field="noi" prefix="$" />
-          <Input label="Going-In Cap (override)" field="going_in_cap" suffix="%" step="0.01" />
-          <Input label="Exit Cap" field="exit_cap" suffix="%" step="0.01" />
-          <Input label="Hold (years)" field="hold_years" />
-          <Input label="Rent Growth" field="rent_growth" suffix="%" step="0.1" />
-          <Input label="LTV" field="ltv" suffix="%" />
-          <Input label="Interest Rate" field="rate" suffix="%" step="0.01" />
-          <Input label="Amortization" field="amort" suffix="yr" />
-        </div>
-      </div>
-
-      {/* AI MEMO */}
-      {memoText && (
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>✦ Investment Memo (Opus)</h3>
-          </div>
-          <div style={{ fontSize: '14px', lineHeight: 1.7, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{memoText}</div>
+      {standalone && (
+        <div style={{ padding:'20px 36px', borderBottom:'1px solid var(--line)', display:'flex', gap:'16px', alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ fontSize:'13px', color:'var(--ink3)', fontWeight:600 }}>Load from:</div>
+          <select className="select" style={{ maxWidth:'300px' }} value={selectedPropId||''} onChange={e=>setSelectedPropId(e.target.value||null)}>
+            <option value="">— Select property —</option>
+            {(properties||[]).map(pr=><option key={pr.id} value={pr.id}>{pr.address}, {pr.city} ({pr.building_sf?Number(pr.building_sf).toLocaleString()+' SF':'—'})</option>)}
+          </select>
+          <select className="select" style={{ maxWidth:'300px' }} value={selectedDealId||''} onChange={e=>setSelectedDealId(e.target.value||null)}>
+            <option value="">— Select deal —</option>
+            {(deals||[]).map(dl=><option key={dl.id} value={dl.id}>{dl.deal_name} ({dl.deal_value?$(dl.deal_value):'—'})</option>)}
+          </select>
+          <div style={{ fontSize:'12px', color:'var(--ink4)' }}>or adjust inputs below</div>
         </div>
       )}
 
-      {/* COMPS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div className="card">
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Lease Comps ({relevantLeaseComps.length})</h3>
-          {relevantLeaseComps.length === 0 ? <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No comps in {submarket || 'this submarket'}</div> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>
-                  <th style={{ textAlign: 'left', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Address</th>
-                  <th style={{ textAlign: 'right', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>SF</th>
-                  <th style={{ textAlign: 'right', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Rate</th>
-                  <th style={{ fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Type</th>
-                </tr></thead>
-                <tbody>{relevantLeaseComps.map(c => (
-                  <tr key={c.id} onClick={() => onLeaseCompClick?.(c)} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: onLeaseCompClick ? 'pointer' : 'default' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '6px 8px', fontSize: '13px', fontWeight: 500 }}>{c.address}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{c.rsf ? c.rsf.toLocaleString() : '—'}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px', fontFamily: 'var(--font-mono)', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>${c.rate}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px' }}>{c.lease_type || '—'}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Sale Comps ({relevantSaleComps.length})</h3>
-          {relevantSaleComps.length === 0 ? <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No comps in {submarket || 'this submarket'}</div> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>
-                  <th style={{ textAlign: 'left', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Address</th>
-                  <th style={{ textAlign: 'right', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>$/SF</th>
-                  <th style={{ textAlign: 'right', fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Cap</th>
-                  <th style={{ fontSize: '11px', padding: '6px 8px', color: 'var(--text-muted)' }}>Buyer</th>
-                </tr></thead>
-                <tbody>{relevantSaleComps.map(c => (
-                  <tr key={c.id} onClick={() => onSaleCompClick?.(c)} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: onSaleCompClick ? 'pointer' : 'default' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-input)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '6px 8px', fontSize: '13px', fontWeight: 500 }}>{c.address}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px', fontFamily: 'var(--font-mono)', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>{c.price_psf ? '$' + Math.round(c.price_psf) : '—'}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{c.cap_rate ? parseFloat(c.cap_rate).toFixed(2) + '%' : '—'}</td>
-                    <td style={{ padding: '6px 8px', fontSize: '12px' }}>{c.buyer || '—'}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      <div className="metrics-bar" style={{ gridTemplateColumns:'repeat(6,1fr)' }}>
+        <MC label="Purchase Price" value={$(purchasePrice)} />
+        <MC label="Price / SF" value={ppsf>0?'$'+Math.round(ppsf):'—'} color="var(--accent)" />
+        <MC label="All-In Basis / SF" value={basisPsf>0?'$'+Math.round(basisPsf):'—'} />
+        <MC label="Going-In Cap" value={pct(goingInCap)} color={goingInCap>=5.5?'var(--green)':goingInCap>=4.5?'var(--amber)':'var(--ink3)'} />
+        <MC label={`Levered IRR (${holdYrs}yr)`} value={levIRR!=null?pct(levIRR*100):'—'} color={ic(levIRR)} />
+        <MC label="Equity Multiple" value={eqMult>0?eqMult.toFixed(2)+'x':'—'} color="var(--blue)" />
       </div>
 
-      {/* EXCEL UPLOAD */}
-      <div className="card" style={{ marginTop: '16px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Model Upload</h3>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-          Upload your full Excel acquisition model or link to OneDrive for the detailed underwriting.
+      <div style={{ padding:'28px 36px 48px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'28px' }}>
+        <div>
+          <div className="sec-head">Property & Acquisition</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'20px', marginBottom:'20px' }}>
+            <Sl label="Building SF" value={sf} onChange={v=>setSf(Math.round(v))} min={5000} max={500000} step={1000} display={Number(sf).toLocaleString()} unit=" SF"/>
+            <Sl label="Purchase Price" value={purchasePrice} onChange={v=>setPP(Math.round(v))} min={500000} max={50000000} step={100000} display={$(purchasePrice)}/>
+            <Sl label="Market Rent (NNN)" value={marketRent} onChange={setMR} min={40} max={250} step={1} display={'$'+(marketRent/100).toFixed(2)} unit="/SF/mo"/>
+            <Sl label="Vacancy %" value={vacancy} onChange={setVac} min={0} max={30} step={1} display={vacancy} unit="%"/>
+            <Sl label="Closing Costs" value={closCost} onChange={setCC} min={0} max={5} step={0.5} display={closCost} unit="%"/>
+          </div>
+
+          <div className="sec-head">Growth & Hold</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'20px', marginBottom:'20px' }}>
+            <Sl label="Rent Growth / year" value={rentGrowth} onChange={setRG} min={-3} max={8} step={0.5} display={rentGrowth} unit="%"/>
+            <Sl label="Expense Growth / year" value={expGrowth} onChange={setEG} min={0} max={6} step={0.5} display={expGrowth} unit="%"/>
+            <Sl label="Hold Period" value={holdYrs} onChange={v=>setHold(Math.round(v))} min={1} max={10} step={1} display={holdYrs} unit=" years"/>
+            <Sl label="Exit Cap Rate" value={exitCap} onChange={setEC} min={350} max={800} step={5} display={(exitCap/100).toFixed(2)} unit="%"/>
+            <Sl label="Selling Costs" value={sellCost} onChange={setSC} min={0} max={5} step={0.5} display={sellCost} unit="%"/>
+          </div>
+
+          <div className="sec-head">Repositioning Costs</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'20px', marginBottom:'20px' }}>
+            <Sl label="Vacancy Period" value={vacMo} onChange={v=>setVM(Math.round(v))} min={0} max={24} step={1} display={vacMo} unit=" mo"/>
+            <Sl label="TI / Leasing" value={tiSf} onChange={setTI} min={0} max={40} step={1} display={'$'+tiSf} unit="/SF"/>
+            <Sl label="CapEx" value={capexSf} onChange={setCX} min={0} max={30} step={1} display={'$'+capexSf} unit="/SF"/>
+            <div style={{ marginTop:'10px', padding:'10px 14px', background:'var(--bg)', borderRadius:'8px', display:'flex', justifyContent:'space-between' }}>
+              <span style={{ fontSize:'13px', fontWeight:600, color:'var(--ink3)' }}>Total Repositioning</span>
+              <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'14px', fontWeight:700, color:'var(--rust)' }}>{$(totalRepo)}</span>
+            </div>
+          </div>
+
+          <div className="sec-head" style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            Debt Structure
+            <label style={{ fontSize:'12px', display:'flex', alignItems:'center', gap:'4px', cursor:'pointer', color:'var(--ink3)' }}>
+              <input type="checkbox" checked={useLev} onChange={e=>setUseLev(e.target.checked)}/> Use leverage
+            </label>
+          </div>
+          {useLev && (
+            <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'20px', marginBottom:'20px' }}>
+              <Sl label="LTV" value={ltv} onChange={setLTV} min={0} max={80} step={5} display={ltv} unit="%"/>
+              <Sl label="Interest Rate" value={intRate} onChange={setIR} min={400} max={1000} step={5} display={(intRate/100).toFixed(2)} unit="%"/>
+              <Sl label="Amortization" value={amortYrs} onChange={v=>setAmort(Math.round(v))} min={15} max={30} step={5} display={amortYrs} unit=" yr"/>
+              <Sl label="IO Period" value={ioPer} onChange={v=>setIO(Math.round(v))} min={0} max={5} step={1} display={ioPer} unit=" yr"/>
+              <div style={{ marginTop:'10px', padding:'10px 14px', background:'var(--bg)', borderRadius:'8px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                  <span style={{ fontSize:'12px', color:'var(--ink4)' }}>Loan Amount</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'13px', fontWeight:600 }}>{$(loanAmt)}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
+                  <span style={{ fontSize:'12px', color:'var(--ink4)' }}>Equity Required</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'13px', fontWeight:600 }}>{$(totalEquity)}</span>
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <span style={{ fontSize:'12px', color:'var(--ink4)' }}>Year 1 DSCR</span>
+                  <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'13px', fontWeight:600, color:(y1.dscr||0)>=1.25?'var(--green)':'var(--rust)' }}>{y1.dscr?y1.dscr.toFixed(2)+'x':'—'}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        {deal.onedrive_url ? (
-          <a href={deal.onedrive_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: '6px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, border: '1px solid var(--accent)' }}>📁 Open Excel Model in OneDrive ↗</a>
-        ) : (
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No OneDrive link set — add one in Deal Details → Edit → OneDrive Link</div>
-        )}
+
+        <div>
+          <div className="sec-head">Year 1 NOI Waterfall</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', overflow:'hidden', marginBottom:'20px' }}>
+            <Row label={`Gross rent (${Number(sf).toLocaleString()} SF × $${rent.toFixed(2)} × 12)`} value={$(y1.annR)} color="var(--blue)"/>
+            <Row label={`Less: vacancy (${vacancy}%)`} value={'('+$(y1.vLoss)+')'} color="var(--rust)"/>
+            <Row label="Effective gross income" value={$(y1.egi)}/>
+            <Row label={`Less: OpEx (${expRatio}% EGI)`} value={'('+$(y1.opex)+')'} color="var(--rust)"/>
+            <Row label={`Less: management (${mgmtFee}%)`} value={'('+$(y1.mgmt)+')'} color="var(--rust)"/>
+            <Row label={`Less: reserves ($${(reserves/100).toFixed(2)}/SF/mo)`} value={'('+$(y1.res)+')'} color="var(--rust)"/>
+            <Row label="Stabilized NOI" value={$(y1Noi)} color="var(--blue)" bold bg="var(--blue-bg)"/>
+          </div>
+
+          <div className="sec-head">Return Summary</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px', marginBottom:'20px' }}>
+            <MC label="Unlevered IRR" value={unlevIRR!=null?pct(unlevIRR*100):'—'} color={ic(unlevIRR)} small/>
+            <MC label="Levered IRR" value={levIRR!=null?pct(levIRR*100):'—'} color={ic(levIRR)} small/>
+            <MC label="Equity Multiple" value={eqMult>0?eqMult.toFixed(2)+'x':'—'} color="var(--blue)" small/>
+            <MC label="Yield on Cost" value={pct(goingInCap)} color={goingInCap>=5.5?'var(--green)':'var(--amber)'} small/>
+            <MC label="Exit Value" value={$(exitVal)} small/>
+            <MC label="Net Profit" value={$(netSale-totalBasis)} color={(netSale-totalBasis)>=0?'var(--green)':'var(--rust)'} small/>
+          </div>
+
+          <div className="sec-head">Multi-Year Pro Forma</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', overflow:'auto', marginBottom:'20px' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+              <thead><tr style={{ borderBottom:'2px solid var(--line)' }}>
+                <th style={{ padding:'10px 12px', textAlign:'left', fontWeight:700, color:'var(--ink3)', fontSize:'11px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Year</th>
+                {years.map(y=><th key={y.yr} style={{ padding:'10px 8px', textAlign:'right', fontWeight:700, color:'var(--ink3)', fontSize:'11px' }}>{y.yr}</th>)}
+              </tr></thead>
+              <tbody>
+                {[['Revenue',y=>$(y.annR),null],['Vacancy',y=>'('+$(y.vLoss)+')','var(--rust)'],['EGI',y=>$(y.egi),null],['Expenses',y=>'('+$(y.opex+y.mgmt+y.res)+')','var(--rust)'],['NOI',y=>$(y.noi),'var(--blue)'],...(useLev?[['Debt Service',y=>'('+$(y.ds)+')','var(--rust)']]:[] ),['Cash Flow',y=>$(y.btcf),y=>y.btcf>=0?'var(--green)':'var(--rust)'],...(useLev?[['DSCR',y=>y.dscr?y.dscr.toFixed(2)+'x':'—',y=>(y.dscr||0)>=1.25?'var(--green)':'var(--rust)']]:[] )].map(([label,getter,cfn])=>(
+                  <tr key={label} style={{ borderBottom:'1px solid var(--line3)',...(label==='NOI'||label==='Cash Flow'?{fontWeight:600}:{}) }}>
+                    <td style={{ padding:'8px 12px', color:'var(--ink3)' }}>{label}</td>
+                    {years.map(y=><td key={y.yr} style={{ padding:'8px', textAlign:'right', fontFamily:"'DM Mono',monospace", color:typeof cfn==='function'?cfn(y):(cfn||'var(--ink2)') }}>{getter(y)}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="sec-head">IRR Sensitivity (Levered)</div>
+          <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', overflow:'auto', marginBottom:'20px' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+              <thead><tr>
+                <th style={{ padding:'10px', textAlign:'center', fontSize:'10px', color:'var(--ink4)', fontWeight:700 }}>Rent ↓ / Exit Cap →</th>
+                {sensEC.map(ec=><th key={ec} style={{ padding:'10px 6px', textAlign:'center', fontWeight:600, fontSize:'11px', color:ec===exitCap/100?'var(--accent)':'var(--ink3)' }}>{ec.toFixed(1)}%</th>)}
+              </tr></thead>
+              <tbody>
+                {sensGrid.map((row,ri)=>(
+                  <tr key={ri} style={{ borderTop:'1px solid var(--line3)' }}>
+                    <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:600, fontSize:'11px', color:sensRG[ri]===rentGrowth?'var(--accent)':'var(--ink3)' }}>{sensRG[ri]}%</td>
+                    {row.map((irr,ci)=>{ const base=sensRG[ri]===rentGrowth&&sensEC[ci]===exitCap/100; return (
+                      <td key={ci} style={{ padding:'8px 6px', textAlign:'center', fontFamily:"'DM Mono',monospace", fontWeight:base?700:500, fontSize:'12px', color:ic(irr), background:base?'rgba(107,131,166,0.1)':'transparent', border:base?'2px solid var(--accent)':'none', borderRadius:base?'4px':0 }}>
+                        {irr!=null?(irr*100).toFixed(1)+'%':'—'}
+                      </td>
+                    ); })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {(avgSalePsf||avgLeaseRate||avgCapRate) && (<>
+            <div className="sec-head">Comp Benchmarks</div>
+            <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'16px 20px', marginBottom:'20px' }}>
+              {ppsf>0&&avgSalePsf&&<div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'8px 0' }}>
+                <span style={{ fontSize:'12px', color:'var(--ink3)', width:'120px', textAlign:'right' }}>Subject $/SF</span>
+                <div style={{ flex:1, height:'10px', background:'var(--bg3)', borderRadius:'5px', overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.min(ppsf/(avgSalePsf*1.3)*100,100)}%`, background:ppsf<avgSalePsf?'var(--green)':'var(--amber)', borderRadius:'5px' }}/></div>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'12px', fontWeight:600, width:'70px' }}>${Math.round(ppsf)}/SF</span>
+              </div>}
+              {avgSalePsf&&<div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'8px 0' }}>
+                <span style={{ fontSize:'12px', color:'var(--ink3)', width:'120px', textAlign:'right' }}>Market Avg</span>
+                <div style={{ flex:1, height:'10px', background:'var(--bg3)', borderRadius:'5px', overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.min(avgSalePsf/(avgSalePsf*1.3)*100,100)}%`, background:'var(--amber)', borderRadius:'5px' }}/></div>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'12px', fontWeight:600, width:'70px' }}>${avgSalePsf}/SF</span>
+              </div>}
+              {avgLeaseRate&&<div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'1px solid var(--line3)', marginTop:'8px' }}>
+                <span style={{ fontSize:'12px', color:'var(--ink3)' }}>Avg Lease Comp Rate</span>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'12px', fontWeight:600 }}>${avgLeaseRate.toFixed(2)}/SF NNN</span>
+              </div>}
+              {avgCapRate&&<div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'1px solid var(--line3)' }}>
+                <span style={{ fontSize:'12px', color:'var(--ink3)' }}>Avg Sale Comp Cap Rate</span>
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:'12px', fontWeight:600 }}>{avgCapRate.toFixed(2)}%</span>
+              </div>}
+            </div>
+          </>)}
+
+          <div className="sec-head">Risk / Reward</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:'var(--green)', marginBottom:'8px' }}>Strengths</div>
+              {[ppsf>0&&avgSalePsf&&ppsf<avgSalePsf*0.9&&['Below-market basis','Strong'],goingInCap>=5.5&&['Strong yield','Strong'],(levIRR||0)>=0.12&&['Double-digit IRR','Strong'],(y1.dscr||0)>=1.5&&['Healthy DSCR','Good'],eqMult>=2&&['2x+ equity multiple','Strong'],rent>0&&avgLeaseRate&&rent<avgLeaseRate*0.95&&['Mark-to-market upside','Good']].filter(Boolean).map(([l,lv])=>(
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--line3)', fontSize:'12px' }}>
+                  <span style={{ color:'var(--ink3)' }}>{l}</span><span className="badge badge-green" style={{ fontSize:'10px' }}>{lv}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background:'var(--card)', border:'1px solid var(--line)', borderRadius:'10px', padding:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:'var(--rust)', marginBottom:'8px' }}>Risks</div>
+              {[goingInCap<4.5&&goingInCap>0&&['Low yield on cost','High'],(y1.dscr||99)<1.25&&useLev&&['Tight DSCR','High'],(levIRR||0)<0.08&&levIRR!=null&&['Below-threshold IRR','Medium'],vacMo>9&&['Extended vacancy','High'],ecPct>6.5&&['Aggressive exit cap','Medium'],p.year_built&&p.year_built<1990&&[`Vintage (${p.year_built})`,'Medium'],p.clear_height&&parseInt(p.clear_height)<28&&[`Low clear (${p.clear_height}')`,'Medium']].filter(Boolean).map(([l,lv])=>(
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--line3)', fontSize:'12px' }}>
+                  <span style={{ color:'var(--ink3)' }}>{l}</span><span className={`badge ${lv==='High'?'badge-warn':'badge-amber'}`} style={{ fontSize:'10px' }}>{lv}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

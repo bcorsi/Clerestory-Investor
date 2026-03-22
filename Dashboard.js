@@ -45,7 +45,7 @@ function DayOfWeek() {
 export default function Dashboard({
   properties, deals, leads, contacts, leaseComps, saleComps,
   tasks, activities,
-  onPropertyClick, onDealClick, onLeadClick, onContactClick, setPage,
+  onPropertyClick, onDealClick, onLeadClick, onContactClick, onTaskClick, setPage,
   morningBrief, setMorningBrief, saveDailyBrief
 }) {
   const [briefLoading, setBriefLoading] = useState(false);
@@ -304,9 +304,9 @@ export default function Dashboard({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[...overdueTasks.map(t => ({...t, _overdue: true})), ...todayTasks].slice(0, 8).map(task => (
-                  <div key={task.id} style={{
+                  <div key={task.id} onClick={() => onTaskClick?.(task)} style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 10px', borderRadius: '6px',
+                    padding: '8px 10px', borderRadius: '6px', cursor: 'pointer',
                     background: task._overdue ? 'var(--red-soft)' : 'transparent',
                     border: task._overdue ? '1px solid rgba(220,38,38,0.15)' : '1px solid transparent',
                   }}>
