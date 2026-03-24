@@ -53,8 +53,9 @@ export default function MapView({ properties, leads, deals, onPropertyClick, onL
         if (!p.address) return;
         if (catalystFilter && !(p.catalyst_tags || []).includes(catalystFilter)) return;
         if (q && !`${p.address} ${p.city} ${p.owner} ${p.tenant}`.toLowerCase().includes(q)) return;
-        const [lat, lng] = guessCoords(p.address, p.city);
-        all.push({ type: 'property', id: p.id, label: p.address, sub: `${p.city || p.submarket || ''} · ${(p.total_sf || p.building_sf) ? Number(p.total_sf || p.building_sf).toLocaleString() + ' SF' : ''} · ${p.owner || ''}`, record: p, lat, lng, apns: p.apns || [] });
+        const hasGeo = p.latitude && p.longitude;
+        const [lat, lng] = hasGeo ? [parseFloat(p.latitude), parseFloat(p.longitude)] : guessCoords(p.address, p.city);
+        all.push({ type: 'property', id: p.id, label: p.address, sub: `${p.city || p.submarket || ''} · ${(p.total_sf || p.building_sf) ? Number(p.total_sf || p.building_sf).toLocaleString() + ' SF' : ''} · ${p.owner || ''}`, record: p, lat, lng, apns: p.apns || [], parcelGeometry: p.parcel_geometry || null });
       });
     }
     if (showLayer.lead) {
@@ -114,15 +115,23 @@ ${markerJs}
 ${pins.length > 1 && !selected ? `map.fitBounds([${pins.map(p => `[${p.lat},${p.lng}]`).join(',')}],{padding:[30,30]});` : ''}
 
 ${selected && apnList.length > 0 ? `
-// Query ArcGIS for parcel polygons
+// Query ArcGIS for parcel polygons (or use stored geometry)
 (function(){
+  ${selected.parcelGeometry?.features?.length > 0 ? `
+  // ── STORED GEOMETRY (instant) ──
+  var data = ${JSON.stringify(selected.parcelGeometry)};
+  var group = L.geoJSON(data, {style:{color:'${PARCEL_COLOR}',weight:4,fillColor:'${PARCEL_COLOR}',fillOpacity:0.15}}).addTo(map);
+  map.fitBounds(group.getBounds(), {padding:[40,40], maxZoom:18});
+  var info = document.getElementById('parcel-info');
+  if(info) info.textContent = data.features.length + ' parcel' + (data.features.length>1?'s':'') + ' \\u00B7 ' + '${selected?.label?.replace(/'/g, "\\'") || ''}';
+  ` : `
+  // ── LIVE QUERY ──
   var apnWhere = "${apnQuery}";
   var url = 'https://arcgis.lacounty.gov/arcgis/rest/services/LACounty_Cache/LACounty_Parcel/MapServer/0/query?where=' + encodeURIComponent(apnWhere) + '&outFields=APN,AIN&returnGeometry=true&f=geojson&outSR=4326';
   
   fetch(url).then(function(r){return r.json()}).then(function(data){
     var info = document.getElementById('parcel-info');
     if(!data.features || data.features.length===0){
-      // Try SB County
       var sbUrl = 'https://gis.sbcounty.gov/arcgis/rest/services/Parcels/MapServer/0/query?where=' + encodeURIComponent(apnWhere) + '&outFields=APN&returnGeometry=true&f=geojson&outSR=4326';
       return fetch(sbUrl).then(function(r){return r.json()});
     }
@@ -133,24 +142,15 @@ ${selected && apnList.length > 0 ? `
       if(info) info.textContent = 'No parcels found for APNs';
       return;
     }
-    // Merge all parcel polygons into one group and draw
-    var allCoords = [];
-    var bounds = [];
-    data.features.forEach(function(f){
-      var style = {color:'${PARCEL_COLOR}',weight:3,fillColor:'${PARCEL_COLOR}',fillOpacity:0.2,dashArray:null};
-      var layer = L.geoJSON(f, {style: style}).addTo(map);
-      var b = layer.getBounds();
-      bounds.push(b);
-    });
-    // Draw a thick outer boundary around ALL parcels combined
     var group = L.geoJSON(data, {style:{color:'${PARCEL_COLOR}',weight:4,fillColor:'${PARCEL_COLOR}',fillOpacity:0.15}}).addTo(map);
     map.fitBounds(group.getBounds(), {padding:[40,40], maxZoom:18});
-    if(info) info.textContent = data.features.length + ' parcel' + (data.features.length>1?'s':'') + ' · ' + '${selected?.label || ''}';
+    if(info) info.textContent = data.features.length + ' parcel' + (data.features.length>1?'s':'') + ' \\u00B7 ' + '${selected?.label?.replace(/'/g, "\\'") || ''}';
   }).catch(function(e){
     var info = document.getElementById('parcel-info');
     if(info) info.textContent = 'Parcel query error';
     console.error(e);
   });
+  `}
 })();
 ` : ''}
 

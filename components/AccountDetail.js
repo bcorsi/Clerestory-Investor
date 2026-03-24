@@ -115,34 +115,57 @@ export default function AccountDetail({ account, contacts, deals, properties, ac
           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>{editing ? 'Cancel' : 'Edit'}</button>
         </div>
         {isBuyer && (
-          <div style={{ display: 'flex', gap: '20px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '20px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            {account.preferred_markets?.length > 0 && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>Markets</div><div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>{account.preferred_markets.map(m => <span key={m} className="tag tag-blue" style={{ fontSize: '11px' }}>{m}</span>)}</div></div>}
+            {account.deal_type_preference?.length > 0 && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>Deal Types</div><div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>{account.deal_type_preference.map(d => <span key={d} className="tag tag-amber" style={{ fontSize: '11px' }}>{d}</span>)}</div></div>}
             {account.min_sf && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>SF Range</div><div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{(account.min_sf/1000).toFixed(0)}K–{account.max_sf ? (account.max_sf/1000).toFixed(0) + 'K' : '∞'}</div></div>}
             {account.min_price_psf && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>$/SF Range</div><div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>${Math.round(account.min_price_psf)}–${account.max_price_psf ? Math.round(account.max_price_psf) : '∞'}</div></div>}
             {account.min_clear_height && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Min Clear</div><div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{account.min_clear_height}'</div></div>}
+            {account.product_preference?.length > 0 && <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '3px' }}>Products</div><div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>{account.product_preference.map(p => <span key={p} className="tag tag-ghost" style={{ fontSize: '11px' }}>{p}</span>)}</div></div>}
             <div><div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Matches</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--accent)' }}>{matches.length}</div></div>
           </div>
         )}
       </div>
 
-      {/* EDIT FORM — shows above tabs when editing */}
+      {/* EDIT FORM */}
       {editing && (
         <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>Edit Account & Buyer Criteria</h3>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>Edit Account</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
             {[['name','Company Name'],['city','City'],['phone','Phone'],['email','Email'],['website','Website']].map(([f, l]) => (
               <div key={f} className="form-group"><label className="form-label">{l}</label><input className="input" value={form[f] || ''} onChange={e => set(f, e.target.value)} /></div>
             ))}
             <div className="form-group"><label className="form-label">Type</label><select className="select" value={form.account_type || ''} onChange={e => set('account_type', e.target.value)}><option value="">Select</option>{ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div className="form-group"><label className="form-label">Market</label><select className="select" value={form.market || ''} onChange={e => set('market', e.target.value)}><option value="">Select</option>{MARKETS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-            <div className="form-group"><label className="form-label">Timing</label><select className="select" value={form.acquisition_timing || ''} onChange={e => set('acquisition_timing', e.target.value)}><option value="">Select</option>{['Actively Buying Now','Active','Passive','On Hold','Not Buying'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Timing</label><select className="select" value={form.acquisition_timing || ''} onChange={e => set('acquisition_timing', e.target.value)}><option value="">Select</option>{['Actively Buying Now','Buying Selectively','Paused','Not Buying'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
           </div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '12px', marginBottom: '8px' }}>Buyer Criteria</div>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '16px', marginBottom: '8px' }}>Buyer Criteria</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
             <div className="form-group"><label className="form-label">Min SF</label><input className="input" type="number" value={form.min_sf || ''} onChange={e => set('min_sf', e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Max SF</label><input className="input" type="number" value={form.max_sf || ''} onChange={e => set('max_sf', e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Min $/SF</label><input className="input" type="number" value={form.min_price_psf || ''} onChange={e => set('min_price_psf', e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Max $/SF</label><input className="input" type="number" value={form.max_price_psf || ''} onChange={e => set('max_price_psf', e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Min Clear Height</label><input className="input" type="number" value={form.min_clear_height || ''} onChange={e => set('min_clear_height', e.target.value)} /></div>
+          </div>
+          {/* Preferred Markets toggle chips */}
+          <div className="form-group" style={{ marginTop: '12px' }}>
+            <label className="form-label">Preferred Markets</label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {MARKETS.map(m => {
+                const active = (form.preferred_markets || []).includes(m);
+                return <button key={m} type="button" onClick={() => set('preferred_markets', active ? (form.preferred_markets || []).filter(x => x !== m) : [...(form.preferred_markets || []), m])} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '4px', border: '1px solid', cursor: 'pointer', background: active ? 'var(--accent)' : 'transparent', borderColor: active ? 'var(--accent)' : 'var(--border)', color: active ? 'white' : 'var(--text-muted)' }}>{m}</button>;
+              })}
+            </div>
+          </div>
+          {/* Deal Type Preference toggle chips */}
+          <div className="form-group" style={{ marginTop: '10px' }}>
+            <label className="form-label">Deal Type Preference</label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {['Core', 'Value-Add', 'SLB', 'Distress', 'Owner-User', 'Development'].map(d => {
+                const active = (form.deal_type_preference || []).includes(d);
+                return <button key={d} type="button" onClick={() => set('deal_type_preference', active ? (form.deal_type_preference || []).filter(x => x !== d) : [...(form.deal_type_preference || []), d])} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '4px', border: '1px solid', cursor: 'pointer', background: active ? 'var(--amber)' : 'transparent', borderColor: active ? 'var(--amber)' : 'var(--border)', color: active ? 'white' : 'var(--text-muted)' }}>{d}</button>;
+              })}
+            </div>
           </div>
           <div className="form-group" style={{ marginTop: '12px' }}><label className="form-label">Notes</label><textarea className="textarea" rows={3} value={form.notes || ''} onChange={e => set('notes', e.target.value)} /></div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}><button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button><button className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button></div>

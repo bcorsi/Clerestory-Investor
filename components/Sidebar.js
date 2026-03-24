@@ -17,6 +17,8 @@ const NAV_ICONS = {
   'owner-search': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="6" cy="6" r="4"/><path d="M9.5 9.5L13 13"/></svg>',
   underwriting: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 12V6l5-4 5 4v6"/><path d="M5 12V8h4v4"/></svg>',
   'warn-intel': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M7 1L1 4v4c0 3 2.5 4.5 6 4.5s6-1.5 6-4.5V4z"/></svg>',
+  'news-feed': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 2h10v10H2z"/><path d="M4 5h6M4 7.5h4M4 10h2"/></svg>',
+  'campaigns': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 2l5 3-5 3zM9 2l3 3-3 3"/></svg>',
   'map-view': '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="7" cy="7" r="2"/><circle cx="7" cy="7" r="5"/></svg>',
   settings: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="7" cy="7" r="2.5"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8l-1.4 1.4M4.2 9.8l-1.4 1.4"/></svg>',
 };
@@ -41,9 +43,13 @@ export default function Sidebar({ page, setPage, counts, user, onSignOut }) {
       { id: 'comp-dashboard', label: 'Comp Analytics' },
     ]},
     { section: 'Intelligence', items: [
-      { id: 'underwriting', label: 'Underwriting' },
-      { id: 'owner-search', label: 'Owner Search' },
+      { id: 'news-feed', label: 'News Feed', badge: counts.unreadNews || null, alert: counts.unreadNews > 0 },
+      { id: 'campaigns', label: 'Research Campaigns', badge: counts.activeCampaigns || null },
       { id: 'warn-intel', label: 'WARN Intel', badge: counts.warnNew || null },
+      { id: 'owner-search', label: 'Owner Search' },
+    ]},
+    { section: 'Analysis', items: [
+      { id: 'underwriting', label: 'Underwriting' },
       { id: 'map-view', label: 'Map View' },
     ]},
   ];

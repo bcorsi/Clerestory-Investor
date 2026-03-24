@@ -438,7 +438,7 @@ export default function PropertyDetail({
             {/* Aerial with parcel overlay */}
             {p.address && (
               <div style={{ marginBottom: '14px' }}>
-                <AerialThumbnail address={p.address} city={p.city} apns={p.apns} height={220} />
+                <AerialThumbnail address={p.address} city={p.city} apns={p.apns} parcelGeometry={p.parcel_geometry} latitude={p.latitude} longitude={p.longitude} height={220} />
               </div>
             )}
 
