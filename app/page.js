@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isConfigured, getSession, onAuthStateChange, signOut } from '../lib/supabase';
-import { fetchProperties, fetchAll, globalSearch, getTodayBrief, saveDailyBrief } from '../lib/db';
+import { fetchProperties, fetchAll, globalSearch, getTodayBrief, saveDailyBrief, fetchNewsArticles } from '../lib/db';
 import { DEAL_STAGES, STAGE_COLORS, fmt } from '../lib/constants';
 import AuthGate from '../components/AuthGate';
 import Sidebar from '../components/Sidebar';
@@ -27,6 +27,8 @@ import SaleCompDetail from '../components/SaleCompDetail';
 import CompDashboard from '../components/CompDashboard';
 import OwnerSearch from '../components/OwnerSearch';
 import Underwriting from '../components/Underwriting';
+import ResearchCampaigns from '../components/ResearchCampaigns';
+import NewsFeed from '../components/NewsFeed';
 import ProfileSettings from '../components/ProfileSettings';
 import CsvUpload from '../components/CsvUpload';
 import AddPropertyModal from '../components/AddPropertyModal';
@@ -73,6 +75,9 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [morningBrief, setMorningBrief] = useState(null);
   const [catalystFilter, setCatalystFilter] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [newsArticles, setNewsArticles] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
 
   useEffect(() => {
     getSession().then((s) => { setSession(s); setAuthLoading(false); });
@@ -88,7 +93,7 @@ export default function App() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [props, lds, dls, cts, accts, acts, tks, lcs, scs, nts, fus] = await Promise.all([
+      const [props, lds, dls, cts, accts, acts, tks, lcs, scs, nts, fus, camps, nwsArts] = await Promise.all([
         fetchProperties().catch(() => []),
         fetchAll('leads', { order: 'created_at' }).catch(() => []),
         fetchAll('deals', { order: 'created_at' }).catch(() => []),
@@ -100,11 +105,14 @@ export default function App() {
         fetchAll('sale_comps', { order: 'created_at' }).catch(() => []),
         fetchAll('notes', { order: 'created_at' }).catch(() => []),
         fetchAll('follow_ups', { order: 'created_at' }).catch(() => []),
+        fetchAll('research_campaigns', { order: 'created_at' }).catch(() => []),
+        fetchNewsArticles(100).catch(() => []),
       ]);
       setProperties(props); setLeads(lds); setDeals(dls); setContacts(cts);
       setAccounts(accts); setActivities(acts); setTasks(tks);
       setLeaseComps(lcs); setSaleComps(scs);
       setNotes(nts); setFollowUps(fus);
+      setCampaigns(camps); setNewsArticles(nwsArts);
       setSelectedProperty((prev) => prev ? props.find((p) => p.id === prev.id) || prev : prev);
       setSelectedLead((prev) => prev ? lds.find((l) => l.id === prev.id) || prev : prev);
       setSelectedDeal((prev) => prev ? dls.find((d) => d.id === prev.id) || prev : prev);
@@ -153,6 +161,7 @@ export default function App() {
   const openSaleComp = (comp) => { setSelectedSaleComp(comp); setPage('sale-comp-detail'); };
   const openCatalyst = (tag) => { setCatalystFilter(tag); setPage('catalyst-view'); };
   const openMap = () => { setPage('map-view'); };
+  const openCampaign = (campaign) => { setSelectedCampaign(campaign); if (campaign) setPage('campaigns'); };
 
   const goBack = () => {
     const backMap = {
@@ -171,6 +180,7 @@ export default function App() {
     setSelectedProperty(null); setSelectedLead(null); setSelectedDeal(null);
     setSelectedContact(null); setSelectedAccount(null); setSelectedLeaseComp(null);
     setSelectedSaleComp(null); setSelectedTask(null); setCatalystFilter(null);
+    setSelectedCampaign(null);
   };
 
   const handleSearchClick = (type, item) => {
@@ -208,6 +218,8 @@ export default function App() {
     leaseComps: leaseComps.length,
     saleComps: saleComps.length,
     hotDeals: deals.filter((d) => !['Closed', 'Dead'].includes(d.stage)).length,
+    activeCampaigns: campaigns.filter(c => c.status === 'Active').length,
+    unreadNews: newsArticles.filter(a => !a.read).length,
   };
 
   const pageTitles = {
@@ -218,6 +230,7 @@ export default function App() {
     contacts: 'Contacts', 'contact-detail': selectedContact?.name || 'Contact',
     accounts: 'Accounts', 'account-detail': selectedAccount?.name || 'Account',
     activities: 'Activities', tasks: 'Tasks', 'task-detail': selectedTask?.title || 'Task',
+    'news-feed': 'News Feed', campaigns: selectedCampaign?.title || 'Research Campaigns',
     'lease-comps': 'Lease Comps', 'lease-comp-detail': selectedLeaseComp?.address || 'Lease Comp',
     'sale-comps': 'Sale Comps', 'sale-comp-detail': selectedSaleComp?.address || 'Sale Comp',
     'comp-dashboard': 'Comp Analytics',
@@ -348,6 +361,8 @@ export default function App() {
             {page === 'owner-search' && <OwnerSearch properties={properties} leads={leads} onPropertyClick={openProperty} onLeadClick={openLead} showToast={showToast} />}
             {page === 'underwriting' && <Underwriting standalone properties={properties} deals={deals} leaseComps={leaseComps} saleComps={saleComps} />}
             {page === 'warn-intel' && <WarnIntel properties={properties} leads={leads} onRefresh={loadData} showToast={showToast} />}
+            {page === 'news-feed' && <NewsFeed articles={newsArticles} properties={properties} accounts={accounts} leads={leads} onRefresh={loadData} showToast={showToast} onPropertyClick={openProperty} onLeadClick={openLead} onAccountClick={openAccount} />}
+            {page === 'campaigns' && <ResearchCampaigns campaigns={campaigns} leads={leads} onRefresh={loadData} showToast={showToast} onLeadClick={openLead} onCampaignClick={openCampaign} selectedCampaign={selectedCampaign} />}
             {page === 'catalyst-view' && catalystFilter && <CatalystView tag={catalystFilter} properties={properties} leads={leads} deals={deals} onPropertyClick={openProperty} onLeadClick={openLead} onDealClick={openDeal} onClear={() => { setCatalystFilter(null); setPage('dashboard'); }} />}
             {page === 'map-view' && <MapView properties={properties} leads={leads} deals={deals} onPropertyClick={openProperty} onLeadClick={openLead} onDealClick={openDeal} />}
             {page === 'settings' && <ProfileSettings user={session?.user} showToast={showToast} />}
