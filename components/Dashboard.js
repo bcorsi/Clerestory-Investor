@@ -43,7 +43,7 @@ function DayOfWeek() {
 
 export default function Dashboard({
   properties, deals, leads, contacts, leaseComps, saleComps,
-  tasks, activities,
+  tasks, activities, campaigns,
   onPropertyClick, onDealClick, onLeadClick, onContactClick, onTaskClick, setPage,
   morningBrief, setMorningBrief, saveDailyBrief
 }) {
@@ -388,7 +388,7 @@ export default function Dashboard({
           ) : (
             <div>
               {hotLeads.slice(0, 7).map((lead, i) => (
-                <div key={lead.id} onClick={() => onLeadClick?.(lead)} className={`hot-lead ${i === 0 ? 'top' : ''}`}>
+                <div key={lead.id} onClick={() => onLeadClick?.(lead)} className={`hot-lead ${i === 0 ? 'top' : ''}`} style={{ cursor: 'pointer' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="hl-name">{lead.lead_name}{lead.address ? ` — ${lead.address}` : ''}</div>
                     <div className="hl-sub">{lead.submarket || lead.market || ''}{lead.building_sf ? ` · ${Number(lead.building_sf).toLocaleString()} SF` : ''}</div>
@@ -401,13 +401,31 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* ─── NEWS FEED ─────────────────────────────────────────── */}
-      <NewsFeed />
+      {/* ─── CAMPAIGNS ────────────────────────────────────────── */}
+      {(campaigns || []).length > 0 && (
+        <div className="card" style={{ marginTop: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active Campaigns</h3>
+            <button className="btn btn-sm" onClick={() => setPage?.('campaigns')}>View All →</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+            {(campaigns || []).filter(c => c.status === 'Active').slice(0, 4).map(c => (
+              <div key={c.id} onClick={() => setPage?.('campaigns')} style={{ padding: '14px', background: 'var(--bg-input)', borderRadius: '8px', borderLeft: '3px solid var(--purple)', cursor: 'pointer' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink2)', marginBottom: '4px' }}>{c.title || c.name}</div>
+                <div style={{ fontSize: '12px', color: 'var(--ink4)' }}>{c.target_count ? `${c.target_count} targets` : ''}{c.status ? ` · ${c.status}` : ''}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── NEWS FEED (top 4 + link) ──────────────────────────── */}
+      <DashboardNews setPage={setPage} />
     </div>
   );
 }
 
-function NewsFeed() {
+function DashboardNews({ setPage }) {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
@@ -434,7 +452,7 @@ function NewsFeed() {
         setArticles([{ title: 'News loaded', summary: text.slice(0, 200), source: 'AI Search', date: new Date().toLocaleDateString() }]);
       }
       setFetched(true);
-    } catch { setArticles([{ title: 'Error loading news', summary: 'Check API key and try again', source: '', date: '' }]); }
+    } catch { setArticles([]); }
     finally { setLoading(false); }
   };
 
@@ -442,12 +460,12 @@ function NewsFeed() {
     <div className="card" style={{ marginTop: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SoCal Industrial News</h3>
-        <button className="btn btn-sm" onClick={fetchNews} disabled={loading} style={{ fontSize: '13px', background: 'var(--accent)', color: '#fff', border: 'none' }}>{loading ? '⟳ Searching...' : fetched ? '⟳ Refresh' : '🔍 Load News'}</button>
+        {!fetched && <button className="btn btn-sm" onClick={fetchNews} disabled={loading} style={{ fontSize: '13px', background: 'var(--accent)', color: '#fff', border: 'none' }}>{loading ? '⟳ Searching...' : '🔍 Load News'}</button>}
       </div>
       {!fetched && !loading && <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>Click "Load News" to fetch latest SoCal industrial articles</div>}
       {articles.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {articles.map((a, i) => (
+          {articles.slice(0, 4).map((a, i) => (
             <div key={i} style={{ padding: '12px', background: 'var(--bg-input)', borderRadius: '6px', borderLeft: '3px solid var(--accent)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 500 }}>{a.url ? <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none', borderBottom: '1px dashed var(--accent)' }}>{a.title}</a> : a.title}</div>
@@ -457,6 +475,9 @@ function NewsFeed() {
               {a.source && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{a.source}</div>}
             </div>
           ))}
+          <button className="btn" style={{ alignSelf: 'flex-start', marginTop: '8px' }} onClick={() => setPage?.('news-feed')}>
+            View Full News Feed →
+          </button>
         </div>
       )}
     </div>

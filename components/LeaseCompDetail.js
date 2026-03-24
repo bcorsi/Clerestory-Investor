@@ -2,7 +2,7 @@
 
 import { fmt } from '../lib/constants';
 
-export default function LeaseCompDetail({ comp: c, properties }) {
+export default function LeaseCompDetail({ comp: c, properties, onEdit }) {
   // Calculate net effective
   const netEffective = c.rate && c.term_months && c.free_rent_months
     ? c.rate * (1 - c.free_rent_months / c.term_months)
@@ -29,7 +29,10 @@ export default function LeaseCompDetail({ comp: c, properties }) {
       {/* Header Card */}
       <div className="card mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '4px' }}>{c.address}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>{c.address}</h2>
+            {onEdit && <button className="btn btn-sm" onClick={() => onEdit(c)}>Edit</button>}
+          </div>
           <div style={{  color: 'var(--text-secondary)' }}>
             {c.city}{c.submarket ? ` · ${c.submarket}` : ''}
           </div>

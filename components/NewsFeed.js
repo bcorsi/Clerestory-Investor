@@ -106,12 +106,39 @@ export default function NewsFeed({ articles: initialArticles, properties, accoun
     setArticles(prev => prev.map(a => a.id === id ? { ...a, starred: !starred } : a));
   };
 
+  const [synopsisLoading, setSynopsisLoading] = useState(false);
+  const [synopsis, setSynopsis] = useState(null);
+
+  const handleSynopsis = async () => {
+    setSynopsisLoading(true);
+    try {
+      const recent = articles.slice(0, 10);
+      if (!recent.length) { showToast?.('No articles to synthesize'); setSynopsisLoading(false); return; }
+      const articlesText = recent.map((a, i) => `${i+1}. [${a.source||'Unknown'}] ${a.title}: ${a.snippet || ''}`).join('\n');
+      const res = await fetch('/api/ai', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514', max_tokens: 600,
+          system: 'You are a CRE brokerage intelligence analyst. Synthesize news articles into a brief daily intelligence brief for an industrial broker covering SGV and Inland Empire. Focus on actionable signals: deals, tenant moves, vacancies, rent trends, M&A activity. Be concise and specific.',
+          messages: [{ role: 'user', content: `Synthesize these ${recent.length} articles into a 2-3 paragraph daily intel brief:\n\n${articlesText}` }],
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || 'Could not generate synopsis.';
+      setSynopsis(text);
+    } catch { setSynopsis('Error generating synopsis.'); }
+    finally { setSynopsisLoading(false); }
+  };
+
   return (
     <div>
       {/* Header bar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn btn-primary" onClick={handleFetchNews} disabled={loading}>
           {loading ? '✦ Scanning...' : '✦ Scan News'}
+        </button>
+        <button className="btn" onClick={handleSynopsis} disabled={synopsisLoading || articles.length === 0}>
+          {synopsisLoading ? '✦ Synthesizing...' : '✦ AI Synopsis'}
         </button>
         <input className="input" placeholder="Search articles..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: '220px' }} />
         {['all', 'unread', 'starred', 'matched'].map(f => (
@@ -124,6 +151,17 @@ export default function NewsFeed({ articles: initialArticles, properties, accoun
           </button>
         ))}
       </div>
+
+      {/* AI Synopsis */}
+      {synopsis && (
+        <div style={{ padding: '16px 20px', background: 'var(--purple-bg)', border: '1px solid rgba(96,64,168,0.2)', borderRadius: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>✦ Daily Intelligence Brief</div>
+            <button onClick={() => setSynopsis(null)} style={{ background: 'none', border: 'none', color: 'var(--ink4)', cursor: 'pointer', fontSize: '14px' }}>×</button>
+          </div>
+          <div style={{ fontSize: '14px', lineHeight: 1.7, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{synopsis}</div>
+        </div>
+      )}
 
       {/* Articles */}
       {filtered.length === 0 ? (
@@ -164,11 +202,36 @@ export default function NewsFeed({ articles: initialArticles, properties, accoun
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px', alignItems: 'flex-start' }}>
                     <button onClick={(e) => { e.stopPropagation(); handleStar(a.id, a.starred); }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: a.starred ? 'var(--amber)' : 'var(--text-muted)', padding: '2px' }}>
                       {a.starred ? '★' : '☆'}
                     </button>
+                    <div style={{ position: 'relative' }}>
+                      <button onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.nextSibling; el.style.display = el.style.display === 'block' ? 'none' : 'block'; }}
+                        style={{ background: 'none', border: '1px solid var(--line)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--ink3)', padding: '2px 6px', fontWeight: 600 }}>
+                        + Link
+                      </button>
+                      <div style={{ display: 'none', position: 'absolute', right: 0, top: '100%', marginTop: '4px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '8px', padding: '8px', zIndex: 10, minWidth: '180px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Link to...</div>
+                        {(leads || []).slice(0, 5).map(l => (
+                          <div key={l.id} onClick={async (e) => {
+                            e.stopPropagation();
+                            try { const { insertRow } = await import('../lib/db'); await insertRow('notes', { content: `📰 News: ${a.title}\n${a.snippet || ''}\n\nSource: ${a.source || ''}\nURL: ${a.url || ''}`, note_type: 'Intel', lead_id: l.id }); showToast?.(`Linked to ${l.lead_name}`); } catch(err) { console.error(err); }
+                          }} style={{ padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: 'var(--ink2)' }} onMouseEnter={e => e.currentTarget.style.background='var(--bg)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                            🎯 {l.lead_name}
+                          </div>
+                        ))}
+                        {(properties || []).slice(0, 5).map(p => (
+                          <div key={p.id} onClick={async (e) => {
+                            e.stopPropagation();
+                            try { const { insertRow } = await import('../lib/db'); await insertRow('notes', { content: `📰 News: ${a.title}\n${a.snippet || ''}\n\nSource: ${a.source || ''}\nURL: ${a.url || ''}`, note_type: 'Intel', property_id: p.id }); showToast?.(`Linked to ${p.address}`); } catch(err) { console.error(err); }
+                          }} style={{ padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: 'var(--ink2)' }} onMouseEnter={e => e.currentTarget.style.background='var(--bg)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                            🏭 {p.address}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

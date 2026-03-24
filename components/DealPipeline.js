@@ -24,7 +24,7 @@ export default function DealPipeline({ deals, onRefresh, showToast, onDealClick 
     setDragging(null);
   };
 
-  const activeDeals = deals.filter(d => !['Closed', 'Dead'].includes(d.stage));
+  const activeDeals = deals.filter(d => !['Closed (Won)', 'Closed (Lost)', 'Dead'].includes(d.stage));
   const totalValue = activeDeals.reduce((s, d) => s + (d.deal_value || 0), 0);
   const totalComm = activeDeals.reduce((s, d) => s + (d.commission_est || 0), 0);
   const weightedComm = activeDeals.reduce((s, d) => s + (d.commission_est || 0) * ((d.probability || 0) / 100), 0);

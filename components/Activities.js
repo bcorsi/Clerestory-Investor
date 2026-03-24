@@ -38,8 +38,17 @@ export default function Activities({ activities, onRefresh, showToast, onAdd, pr
   };
 
   const typeIcon = (type) => {
-    const map = { Call: '📞', Email: '✉️', Meeting: '🤝', 'To-Do': '✓' };
-    return map[type] || '•';
+    const map = { Call: 'C', Email: 'E', Meeting: 'M', 'To-Do': 'T' };
+    const colorMap = { Call: '#10b981', Email: '#3b82f6', Meeting: '#8b5cf6', 'To-Do': '#f59e0b' };
+    const letter = map[type] || '•';
+    const bg = colorMap[type] || '#6b7280';
+    return (
+      <div style={{
+        width: '24px', height: '24px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: `${bg}18`, border: `1px solid ${bg}40`, color: bg,
+        fontSize: '11px', fontWeight: 700, letterSpacing: '0.02em', fontFamily: "'DM Mono',monospace", flexShrink: 0
+      }}>{letter}</div>
+    );
   };
 
   const typeColor = (type) => {

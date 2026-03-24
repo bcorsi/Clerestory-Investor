@@ -83,7 +83,13 @@ export default function PropertiesList({ properties, onPropertyClick }) {
               <th style={{ width: '28px' }}></th>
               <th onClick={() => toggleSort('address')} style={{ cursor: 'pointer' }}>Address{sortIndicator('address')}</th>
               <th onClick={() => toggleSort('submarket')} style={{ cursor: 'pointer' }}>Submarket{sortIndicator('submarket')}</th>
-              <th onClick={() => toggleSort('building_sf')} style={{ cursor: 'pointer' }}>Size{sortIndicator('building_sf')}</th>
+              <th onClick={() => toggleSort('building_sf')} style={{ cursor: 'pointer' }}>Bldg SF{sortIndicator('building_sf')}</th>
+              <th onClick={() => toggleSort('land_acres')} style={{ cursor: 'pointer' }}>Land AC{sortIndicator('land_acres')}</th>
+              <th onClick={() => toggleSort('coverage_ratio')} style={{ cursor: 'pointer' }}>Coverage{sortIndicator('coverage_ratio')}</th>
+              <th onClick={() => toggleSort('prop_type')} style={{ cursor: 'pointer' }}>Type{sortIndicator('prop_type')}</th>
+              <th onClick={() => toggleSort('clear_height')} style={{ cursor: 'pointer' }}>Clear Ht{sortIndicator('clear_height')}</th>
+              <th onClick={() => toggleSort('dock_high_doors')} style={{ cursor: 'pointer' }}>DH/GL{sortIndicator('dock_high_doors')}</th>
+              <th onClick={() => toggleSort('year_built')} style={{ cursor: 'pointer' }}>Built{sortIndicator('year_built')}</th>
               <th onClick={() => toggleSort('owner')} style={{ cursor: 'pointer' }}>Owner{sortIndicator('owner')}</th>
               <th onClick={() => toggleSort('vacancy_status')} style={{ cursor: 'pointer' }}>Status{sortIndicator('vacancy_status')}</th>
               <th>Catalysts</th>
@@ -104,8 +110,22 @@ export default function PropertiesList({ properties, onPropertyClick }) {
                     {' '}{p.submarket}
                   </td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>
-                    {(p.total_sf || p.building_sf) ? fmt.sf(p.total_sf || p.building_sf) : p.land_acres ? fmt.acres(p.land_acres) : '—'}
+                    {(p.total_sf || p.building_sf) ? fmt.sf(p.total_sf || p.building_sf) : '—'}
                   </td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{p.land_acres ? `${Number(p.land_acres).toFixed(2)} ac` : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>
+                    {(p.building_sf || p.total_sf) && p.land_acres
+                      ? `${(((p.total_sf || p.building_sf) / (p.land_acres * 43560)) * 100).toFixed(1)}%`
+                      : p.coverage_ratio ? `${p.coverage_ratio}%` : '—'}
+                  </td>
+                  <td style={{ fontSize: '12px' }}>{p.prop_type || p.record_type || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+                    {(p.dock_high_doors || p.grade_level_doors)
+                      ? `${p.dock_high_doors || 0}/${p.grade_level_doors || 0}`
+                      : '—'}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{p.year_built || '—'}</td>
                   <td>{p.owner || '—'}</td>
                   <td>
                     {p.vacancy_status && (
@@ -137,19 +157,16 @@ export default function PropertiesList({ properties, onPropertyClick }) {
                 </tr>
                 {expanded === p.id && (
                   <tr>
-                    <td colSpan={8} style={{ padding: 0, border: 'none' }}>
+                    <td colSpan={14} style={{ padding: 0, border: 'none' }}>
                       <div style={{ background: 'var(--bg)', borderBottom: '2px solid var(--border)', padding: '16px 20px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                           <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</span><div style={{ fontWeight: 500 }}>{p.city || '—'}</div></div>
-                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</span><div style={{ fontWeight: 500 }}>{p.record_type || '—'}</div></div>
                           <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tenant</span><div style={{ fontWeight: 500 }}>{p.tenant || '—'}</div></div>
                           <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Zoning</span><div style={{ fontWeight: 500 }}>{p.zoning || '—'}</div></div>
-                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Land Acres</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.land_acres ? fmt.acres(p.land_acres) : '—'}</div></div>
-                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clear Height</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.clear_height ? `${p.clear_height}'` : '—'}</div></div>
-                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Year Built</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.year_built || '—'}</div></div>
+                          <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Land SF</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.land_acres ? fmt.sf(Math.round(p.land_acres * 43560)) : p.land_sf ? fmt.sf(p.land_sf) : '—'}</div></div>
                           <div><span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>APN</span><div style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{p.apn || '—'}</div></div>
                         </div>
-                        {p.notes && <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>{p.notes}</div>}
+                        {p.notes && <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, padding: '8px 12px', background: 'var(--bg-card)', borderRadius: '6px', borderLeft: '3px solid var(--accent)', marginBottom: '12px' }}>{p.notes}</div>}
                         <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onPropertyClick(p); }}>
                           Open Full Detail →
                         </button>
@@ -161,7 +178,7 @@ export default function PropertiesList({ properties, onPropertyClick }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                   No properties match your filters
                 </td>
               </tr>

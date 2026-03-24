@@ -175,10 +175,15 @@ export default function SaleComps({ comps, onCompClick }) {
                           ))}
                         </div>
                         {c.notes && (
-                          <div>
+                          <div style={{ marginBottom: '12px' }}>
                             <div style={{  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>Notes</div>
                             <div style={{  color: 'var(--text-secondary)', lineHeight: 1.6 }}>{c.notes}</div>
                           </div>
+                        )}
+                        {onCompClick && (
+                          <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onCompClick(c); }}>
+                            Open Full Detail →
+                          </button>
                         )}
                       </div>
                     </td>

@@ -8,7 +8,12 @@ const SEARCH_EXAMPLES = [
   'Prologis',
   'Montana Avenue Capital Partners',
   'Chen Family Trust',
-  'Hemlock Land Holdings LLC',
+  'WARN notice southern california',
+  'industrial vacancy rate IE 2026',
+  'new warehouse construction Fontana',
+  'cap rate trends SoCal industrial',
+  'available industrial land Ontario CA',
+  'SBA loan maturity defaults 2026',
 ];
 
 export default function OwnerSearch({ properties, leads, onPropertyClick, onLeadClick, showToast }) {
@@ -35,12 +40,44 @@ export default function OwnerSearch({ properties, leads, onPropertyClick, onLead
     setSearching(true);
     setResult(null);
     try {
-      const res = await researchCompany(query.trim());
-      const parsed = extractJson(res);
-      const entry = { query: query.trim(), data: parsed, timestamp: new Date().toISOString() };
+      // Determine if this looks like a company name or a general search query
+      const q = query.trim();
+      // Treat as general web search unless it looks like a simple company/person name
+      // (1-3 words with no special keywords = likely a name, route to company research)
+      const wordCount = q.split(/\s+/).length;
+      const hasSearchKeywords = /warn|vacancy|rate|market|news|default|permit|zoning|sale|lease|rent|cap\s*rate|construction|development|tenant|industrial|logistics|warehouse|sg[v]|inland|empire|orange|county|available|foreclos|bankrupt|nod|notice|report|trend|deal|closing|listing/i.test(q);
+      const isGeneral = hasSearchKeywords || wordCount > 3;
+
+      let res;
+      if (isGeneral) {
+        // General web search via AI
+        const aiRes = await fetch('/api/ai', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514', max_tokens: 800,
+            tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+            system: 'You are a CRE research assistant. Search the web for the query and return results as a JSON object with: {"summary": "3-5 sentence summary of findings", "key_findings": ["finding1", "finding2", ...], "sources": ["url1", "url2", ...], "relevance_to_cre": "how this relates to commercial real estate brokerage"}. Return valid JSON only.',
+            messages: [{ role: 'user', content: `Research: "${q}". Search the web thoroughly and summarize findings relevant to Southern California industrial real estate.` }],
+          }),
+        });
+        const data = await aiRes.json();
+        const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+        try {
+          const clean = text.replace(/```json|```/g, '').trim();
+          res = JSON.parse(clean);
+        } catch {
+          res = { summary: text.slice(0, 500), key_findings: [], sources: [] };
+        }
+      } else {
+        // Company-specific research
+        res = await researchCompany(q);
+        res = extractJson(typeof res === 'string' ? res : JSON.stringify(res));
+      }
+
+      const entry = { query: q, data: res, timestamp: new Date().toISOString(), isGeneral };
       setResult(entry);
       setHistory(prev => [entry, ...prev.slice(0, 19)]);
-      showToast?.(`Research complete for "${query.trim()}"`);
+      showToast?.(`Research complete for "${q}"`);
     } catch (e) {
       console.error(e);
       setResult({ query: query.trim(), data: { summary: `Error: ${e.message}` }, timestamp: new Date().toISOString() });
@@ -77,7 +114,7 @@ export default function OwnerSearch({ properties, leads, onPropertyClick, onLead
           <input
             ref={inputRef}
             className="input"
-            placeholder="Search owner, company, or entity name..."
+            placeholder="Search anything — owner, company, WARN notices, market data..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}

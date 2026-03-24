@@ -294,6 +294,45 @@ export default function CsvUpload({ onClose, onDone }) {
               notes: mapped.notes || null,
             };
             if (data.name) { await insertRow('contacts', data); imported++; }
+          } else if (target === 'leads') {
+            const data = {
+              lead_name: normalizeName(mapped.lead_name || mapped.name || mapped.company || raw[headers[0]]) || null,
+              address: normalizeAddress(mapped.address) || null,
+              city: mapped.city || null,
+              market: mapped.market || null,
+              submarket: mapped.submarket || null,
+              owner: normalizeName(mapped.owner) || null,
+              decision_maker: normalizeName(mapped.decision_maker) || null,
+              phone: mapped.phone || null,
+              email: mapped.email || null,
+              building_sf: parseInt(String(mapped.building_sf || '').replace(/[^0-9]/g, '')) || null,
+              stage: mapped.stage || 'Lead',
+              tier: mapped.tier || null,
+              priority: mapped.priority || null,
+              notes: mapped.notes || null,
+            };
+            if (data.lead_name) { await insertRow('leads', data); imported++; }
+          } else if (target === 'deals') {
+            const data = {
+              deal_name: mapped.deal_name || mapped.name || raw[headers[0]] || null,
+              address: normalizeAddress(mapped.address) || null,
+              deal_type: mapped.deal_type || null,
+              stage: mapped.stage || 'Tracking',
+              deal_value: parseFloat(String(mapped.deal_value || mapped.price || '').replace(/[^0-9.]/g, '')) || null,
+              commission_est: parseFloat(String(mapped.commission_est || mapped.commission || '').replace(/[^0-9.]/g, '')) || null,
+              notes: mapped.notes || null,
+            };
+            if (data.deal_name) { await insertRow('deals', data); imported++; }
+          } else if (target === 'accounts') {
+            const data = {
+              name: normalizeName(mapped.name || mapped.company || raw[headers[0]]) || null,
+              account_type: mapped.account_type || mapped.type || null,
+              city: mapped.city || null,
+              hq_state: mapped.state || mapped.hq_state || null,
+              preferred_markets: mapped.markets ? mapped.markets.split(/[,;]/).map(s => s.trim()) : null,
+              notes: mapped.notes || null,
+            };
+            if (data.name) { await insertRow('accounts', data); imported++; }
           }
         } catch (err) {
           errors++;
@@ -326,6 +365,9 @@ export default function CsvUpload({ onClose, onDone }) {
               <option value="lease_comps">Lease Comps</option>
               <option value="sale_comps">Sale Comps</option>
               <option value="contacts">Contacts</option>
+              <option value="leads">Leads</option>
+              <option value="deals">Deals</option>
+              <option value="accounts">Accounts</option>
             </select>
           </div>
 

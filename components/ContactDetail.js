@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CONTACT_TYPES, fmt } from '../lib/constants';
 import { updateRow } from '../lib/db';
 
-export default function ContactDetail({ contact, activities, tasks, deals, properties, onRefresh, showToast, onDealClick, onPropertyClick, onAddActivity, onAddTask }) {
+export default function ContactDetail({ contact, activities, tasks, deals, properties, accounts, leads, onRefresh, showToast, onDealClick, onPropertyClick, onAccountClick, onLeadClick, onAddActivity, onAddTask }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...contact });
   const [saving, setSaving] = useState(false);
@@ -31,6 +31,7 @@ export default function ContactDetail({ contact, activities, tasks, deals, prope
   const pendingTasks = linkedTasks.filter((t) => !t.completed).length;
   const linkedDeals = deals.filter((d) => d.buyer === contact.company || d.seller === contact.company || d.tenant_name === contact.company);
   const linkedProperties = properties.filter((p) => p.owner === contact.company || p.tenant === contact.company);
+  const linkedLeads = (leads || []).filter((l) => l.owner === contact.company || l.company === contact.company || l.decision_maker === contact.name);
 
   const typeColor = (type) => {
     const map = { Owner: 'tag-amber', Buyer: 'tag-green', Tenant: 'tag-blue', Broker: 'tag-purple', Investor: 'tag-green', Lender: 'tag-ghost' };
@@ -99,9 +100,23 @@ export default function ContactDetail({ contact, activities, tasks, deals, prope
             <h3 style={{  fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Contact Info</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <Field label="Phone" value={contact.phone} mono />
-              <Field label="Email" value={contact.email} />
-              <Field label="LinkedIn" value={contact.linkedin} />
-              <Field label="Company" value={contact.company} />
+              <div>
+                <div style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>Email</div>
+                {contact.email ? <a href={`mailto:${contact.email}`} style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>{contact.email}</a> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>LinkedIn</div>
+                {contact.linkedin ? <a href={contact.linkedin.startsWith('http') ? contact.linkedin : `https://${contact.linkedin}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>{contact.linkedin}</a> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '4px' }}>Company</div>
+                {contact.company ? (
+                  <span style={{ color: 'var(--blue)', cursor: 'pointer', fontWeight: 500 }} onClick={() => {
+                    const acct = (accounts||[]).find(a => a.company === contact.company || a.name === contact.company);
+                    if (acct && onAccountClick) onAccountClick(acct);
+                  }}>{contact.company}</span>
+                ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+              </div>
               <Field label="Title" value={contact.title} />
             </div>
           </div>
@@ -150,6 +165,25 @@ export default function ContactDetail({ contact, activities, tasks, deals, prope
             </div>
           )}
         </div>
+      </div>
+
+      {/* Linked Leads */}
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <h3 style={{ fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>Leads ({linkedLeads.length})</h3>
+        {linkedLeads.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)' }}>No leads linked</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {linkedLeads.map((l) => (
+              <div key={l.id} onClick={() => onLeadClick?.(l)} style={{ padding: '8px', background: 'var(--bg-input)', borderRadius: '6px', cursor: 'pointer', border: '1px solid transparent', transition: 'border-color 0.15s' }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}>
+                <div style={{ fontWeight: 500 }}>{l.lead_name}</div>
+                <div style={{ color: 'var(--text-muted)' }}>{l.stage} · {l.tier ? `Tier ${l.tier}` : ''}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tasks */}

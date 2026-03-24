@@ -149,6 +149,29 @@ export default function PropertyDetail({
       if (result.owner_type && !p.owner_type) updates.owner_type = result.owner_type;
       if (result.tenant && !p.tenant) updates.tenant = result.tenant;
       if (result.vacancy_status && !p.vacancy_status) updates.vacancy_status = result.vacancy_status;
+      if (result.zoning && !p.zoning) updates.zoning = result.zoning;
+      // Auto-calculate Land SF from acres
+      if ((updates.land_acres || p.land_acres) && !p.land_sf) {
+        updates.land_sf = Math.round((updates.land_acres || p.land_acres) * 43560);
+      }
+      // Auto-lookup zoning via APN if still missing
+      if (!p.zoning && !updates.zoning && (p.apns?.length > 0 || p.apn)) {
+        try {
+          const apn = p.apns?.[0]?.apn || p.apn;
+          const zoningRes = await fetch('/api/ai', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: AI_MODEL_SONNET, max_tokens: 100,
+              tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+              system: 'You are a zoning research assistant. Look up the zoning designation for this parcel. Return ONLY the zoning code (e.g., "M-2", "I-1", "M-1"). If not found, return "Unknown".',
+              messages: [{ role: 'user', content: `What is the zoning for APN ${apn} in ${p.city || p.submarket || ''}, California? Search the county assessor or city zoning map.` }],
+            }),
+          });
+          const zoningData = await zoningRes.json();
+          const zoningText = (zoningData.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+          if (zoningText && zoningText !== 'Unknown' && zoningText.length < 20) updates.zoning = zoningText;
+        } catch (ze) { console.error('Zoning lookup error:', ze); }
+      }
       const summary = [result.news_summary, result.ma_activity, result.bankruptcy_info].filter(Boolean).join('\n\n');
       if (summary) await insertRow('notes', { content: `✦ Auto-Research:\n${summary}${result.sources?.length ? '\n\nSources: ' + result.sources.join(', ') : ''}`, note_type: 'Research', property_id: p.id });
       if (result.suggested_catalyst_tags?.length) { const current = p.catalyst_tags || []; const newTags = result.suggested_catalyst_tags.filter(t => !current.includes(t)); if (newTags.length) updates.catalyst_tags = [...current, ...newTags]; }
@@ -370,15 +393,32 @@ export default function PropertyDetail({
               {/* Timeline entries */}
               {timeline.length === 0 ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ink4)', fontSize: '13px' }}>No activity yet</div>
-              ) : timeline.slice(0, 20).map(e => (
+              ) : timeline.slice(0, 20).map(e => {
+                const renderDetail = (text) => {
+                  if (!text) return null;
+                  // Split on URLs, make them clickable
+                  const parts = text.split(/(https?:\/\/[^\s,]+)/g);
+                  return parts.map((part, i) => {
+                    if (/^https?:\/\//.test(part)) {
+                      const display = part.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+                      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'none', borderBottom: '1px dashed var(--blue)' }}>{display}</a>;
+                    }
+                    return <span key={i}>{part}</span>;
+                  });
+                };
+                const isResearch = e.label === 'Research' || (e.detail && e.detail.startsWith('✦ Auto-Research'));
+                return (
                 <div key={`${e.kind}-${e.id}`} className="tl-entry">
-                  <div className={e.kind === 'note' && e.pinned ? 'tl-dot' : 'tl-dot'} style={e.kind === 'activity' ? { background: 'var(--amber)', boxShadow: '0 0 0 3px rgba(184,122,16,0.08)' } : {}} />
+                  <div className="tl-dot" style={isResearch ? { background: 'var(--purple)', boxShadow: '0 0 0 3px rgba(96,64,168,0.1)' } : e.kind === 'activity' ? { background: 'var(--amber)', boxShadow: '0 0 0 3px rgba(184,122,16,0.08)' } : {}} />
                   <div>
-                    <div className="entry-date">{e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : ''}</div>
-                    <div className="entry-text">{e.subject && <strong>{e.subject}. </strong>}{e.detail || ''}{e.outcome && <span style={{ color: 'var(--green)' }}> → {e.outcome}</span>}</div>
+                    <div className="entry-date">
+                      {isResearch && <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--purple)', letterSpacing: '0.06em', marginRight: '8px' }}>✦ AUTO-RESEARCH</span>}
+                      {e.date ? new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : ''}
+                    </div>
+                    <div className="entry-text">{e.subject && <strong>{e.subject}. </strong>}{renderDetail(e.detail)}{e.outcome && <span style={{ color: 'var(--green)' }}> → {e.outcome}</span>}</div>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
 
             {/* Buildings */}
@@ -441,6 +481,15 @@ export default function PropertyDetail({
 
           {/* ═══ RIGHT COLUMN ═══ */}
           <div className="right-col">
+            {/* Google Maps link — at top under header */}
+            {p.address && (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address+', '+(p.city||'')+', CA')}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '8px', textDecoration: 'none', color: 'var(--blue)', fontSize: '13px', fontWeight: 600, marginBottom: '14px' }}>
+                📍 View on Google Maps
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--ink4)' }}>↗</span>
+              </a>
+            )}
+
             {/* Aerial with parcel overlay */}
             {p.address && (
               <div style={{ marginBottom: '14px' }}>
@@ -466,24 +515,72 @@ export default function PropertyDetail({
               )}
             </div>
 
-            {/* AI Opportunity Signal */}
-            {synth && (
-              <div className="opp-card">
-                <div className="opp-head">✦ AI Opportunity Signal</div>
-                <div className="opp-body">{synth.split('\n')[0]}</div>
+            {/* AI Opportunity Signal — beefed up */}
+            <div className="opp-card" style={{ marginTop: '14px' }}>
+              <div className="opp-head">✦ AI Opportunity Signal</div>
+              {synth ? (
+                <div className="opp-body" style={{ lineHeight: 1.7 }}>
+                  <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--ink2)' }}>{`Property Status Summary: ${p.address}`}</div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{synth}</div>
+                  {(p.catalyst_tags||[]).length > 0 && (
+                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--line2)' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink4)', textTransform: 'uppercase', marginBottom: '6px' }}>Active Catalysts</div>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {(p.catalyst_tags||[]).map(tag => (
+                          <span key={tag} className={`tag ${urgBadge(tag)}`} style={{ fontSize: '10px', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {linkedFU.filter(f => !f.completed).length > 0 && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--line2)', fontSize: '12px', color: 'var(--amber)' }}>
+                      ⚡ {linkedFU.filter(f => !f.completed).length} pending follow-up{linkedFU.filter(f => !f.completed).length > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="opp-body" style={{ color: 'var(--ink4)', fontStyle: 'italic' }}>Click "✦ Synthesize" on the Timeline to generate an AI opportunity signal with next steps, key contacts, and action items.</div>
+              )}
+            </div>
+
+            {/* Follow-Up Cadence — moved up between timeline and property details */}
+            <div style={{ marginTop: '14px', padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '10px' }}>
+              <div className="i-label" style={{ marginBottom: '8px', fontWeight: 700 }}>Follow-Up Cadence</div>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {CADENCE_OPTIONS.map(c => (
+                  <button key={c.label} className={`btn btn-sm ${p.follow_up_cadence === c.label ? 'btn-blue' : ''}`}
+                    onClick={async () => { try { await setCadence('properties', p.id, c.label, c.days); onRefresh?.(); showToast?.(`${c.label} set`); } catch(e) { console.error(e); } }}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            {linkedNotes.length > 0 && (
+              <div style={{ marginTop: '14px', padding: '14px 16px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '10px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink3)', marginBottom: '10px' }}>Notes</div>
+                {linkedNotes.slice(0, 5).map(n => (
+                  <div key={n.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line3)', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--ink4)', textTransform: 'uppercase' }}>{n.note_type || 'Note'}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--ink4)', fontFamily: "'DM Mono',monospace" }}>{n.created_at ? new Date(n.created_at).toLocaleDateString() : ''}</span>
+                    </div>
+                    <div style={{ color: 'var(--ink2)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{n.content?.slice(0, 200)}{n.content?.length > 200 ? '...' : ''}</div>
+                  </div>
+                ))}
               </div>
             )}
 
             {/* Property Details */}
-            <div className="info-card">
+            <div className="info-card" style={{ marginTop: '14px' }}>
               <div className="info-card-head">Property Details</div>
               <div className="info-grid">
                 <div className="info-cell"><div className="i-label">Market</div><div className="i-val">{p.market || '—'}</div></div>
                 <div className="info-cell"><div className="i-label">Submarket</div><div className="i-val">{p.submarket || p.city || '—'}</div></div>
                 <div className="info-cell"><div className="i-label">Type</div><div className="i-val">{p.prop_type || '—'}</div></div>
                 <div className="info-cell"><div className="i-label">Zoning</div><div className="i-val">{p.zoning || '—'}</div></div>
-                <div className="info-cell"><div className="i-label">APN</div><div className="i-val">{(p.apns||[]).length > 0 ? p.apns[0].apn : '—'}</div></div>
-                <div className="info-cell"><div className="i-label">Land SF</div><div className="i-val">{p.land_sf ? Number(p.land_sf).toLocaleString() : '—'}</div></div>
+                <div className="info-cell"><div className="i-label">Land SF</div><div className="i-val">{p.land_acres ? Math.round(p.land_acres * 43560).toLocaleString() : p.land_sf ? Number(p.land_sf).toLocaleString() : '—'}</div></div>
               </div>
             </div>
 
@@ -492,7 +589,6 @@ export default function PropertyDetail({
               <button className="btn" style={{ width: '100%', justifyContent: 'center' }} onClick={handleAutoResearch} disabled={researching}>{researching ? '✦ Researching...' : '✦ Auto-Research'}</button>
               <button className="btn" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowTagPicker(!showTagPicker)}>{showTagPicker ? 'Done Adding Tags' : '+ Add Catalyst Tag'}</button>
               <button className="btn" style={{ width: '100%', justifyContent: 'center' }} onClick={handleAutoTag} disabled={autoTagLoading}>{autoTagLoading ? '✦ Analyzing...' : '✦ AI Auto-Tag'}</button>
-              {p.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address+', '+(p.city||'')+', CA')}`} target="_blank" rel="noopener noreferrer" className="btn" style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>📍 Google Maps</a>}
             </div>
 
             {/* Tag picker */}
@@ -504,18 +600,6 @@ export default function PropertyDetail({
               </div>
             )}
 
-            {/* Cadence */}
-            <div style={{ marginTop: '14px' }}>
-              <div className="i-label" style={{ marginBottom: '6px' }}>Follow-Up Cadence</div>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {CADENCE_OPTIONS.map(c => (
-                  <button key={c.label} className={`btn btn-sm ${p.follow_up_cadence === c.label ? 'btn-blue' : ''}`}
-                    onClick={async () => { try { await setCadence('properties', p.id, c.label, c.days); onRefresh?.(); showToast?.(`${c.label} set`); } catch(e) { console.error(e); } }}>
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       ) : (

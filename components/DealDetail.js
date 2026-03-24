@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DEAL_STAGES, STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUTREACH_METHODS, OUTREACH_OUTCOMES, DEAL_CONTACT_ROLES, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, catalystTagClass, fmt } from '../lib/constants';
+import { DEAL_STAGES, STAGE_COLORS, LEAD_STAGE_COLORS, DEAL_TYPES, STRATEGIES, MARKETING_TYPES, OUTREACH_METHODS, OUTREACH_OUTCOMES, DEAL_CONTACT_ROLES, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, catalystTagClass, fmt } from '../lib/constants';
 import { updateRow, insertRow, fetchDealContacts, addDealContact, removeDealContact, fetchBuyerOutreach, insertOutreach, setCadence } from '../lib/db';
 import Underwriting from './Underwriting';
 import FilesLinks from './FilesLinks';
@@ -11,9 +11,9 @@ const NOTE_TYPES = ['Note', 'Intel', 'Call Log', 'Meeting Note', 'Status Update'
 const LOG_TYPES = ['Call', 'Email', 'Meeting'];
 
 export default function DealDetail({
-  deal, activities, tasks, properties, contacts, accounts, leaseComps, saleComps,
+  deal, activities, tasks, properties, contacts, accounts, leads, leaseComps, saleComps,
   notes: allNotes, followUps: allFollowUps,
-  onRefresh, showToast, onPropertyClick, onContactClick, onAccountClick, onCatalystClick, onAddActivity, onAddTask, onLeaseCompClick, onSaleCompClick
+  onRefresh, showToast, onPropertyClick, onContactClick, onAccountClick, onLeadClick, onTaskClick, onCatalystClick, onAddActivity, onAddTask, onLeaseCompClick, onSaleCompClick
 }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...deal });
@@ -194,11 +194,16 @@ export default function DealDetail({
   ) : null;
 
 
+  const linkedLeads = (leads || []).filter(l => l.property_id === deal.property_id || l.address === deal.address);
+
   const TABS = [
     { id: 'timeline', label: 'Timeline' },
     { id: 'underwriting', label: 'Underwriting' },
     { id: 'contacts', label: `Contacts (${dealContacts.length})` },
     { id: 'outreach', label: `Outreach (${outreachLog.length})` },
+    { id: 'leads', label: `Leads (${linkedLeads.length})` },
+    { id: 'property', label: linkedProperty ? 'Property' : 'Property' },
+    { id: 'comps', label: `Comps (${linkedLC.length + linkedSC.length})` },
     { id: 'files', label: 'Files' },
     { id: 'tasks', label: `Tasks (${linkedTasks.filter(t=>!t.completed).length})` },
   ];
@@ -412,27 +417,27 @@ export default function DealDetail({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <h3 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)' }}>Outreach Log</h3>
-              <button className="btn btn-sm" onClick={() => setShowAddOutreach(!showAddOutreach)}>{showAddOutreach ? 'Cancel' : '+ Log Outreach'}</button>
+              <button className="btn btn-sm" onClick={() => setShowOrForm(!showOrForm)}>{showOrForm ? 'Cancel' : '+ Log Outreach'}</button>
             </div>
-            {showAddOutreach && (
+            {showOrForm && (
               <div style={{ padding: '14px', background: 'var(--bg)', borderRadius: '10px', border: '1px solid var(--line)', marginBottom: '14px' }}>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Method</label>
-                    <select className="select" value={outreachMethod} onChange={e => setOutreachMethod(e.target.value)}>
+                    <select className="select" value={orMethod} onChange={e => setOrMethod(e.target.value)}>
                       {OUTREACH_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Outcome</label>
-                    <select className="select" value={outreachOutcome} onChange={e => setOutreachOutcome(e.target.value)}>
+                    <select className="select" value={orOutcome} onChange={e => setOrOutcome(e.target.value)}>
                       {OUTREACH_OUTCOMES.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: '10px' }}>
                   <label className="form-label">Notes</label>
-                  <textarea className="textarea" value={outreachNotes} onChange={e => setOutreachNotes(e.target.value)} rows={2} />
+                  <textarea className="textarea" value={orNotes} onChange={e => setOrNotes(e.target.value)} rows={2} />
                 </div>
                 <button className="btn btn-primary btn-sm" onClick={handleAddOutreach}>Log Outreach</button>
               </div>
@@ -459,6 +464,103 @@ export default function DealDetail({
           </div>
         )}
 
+        {activeTab === 'leads' && (
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '14px' }}>Linked Leads</h3>
+            {linkedLeads.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No leads linked to this deal</div>
+            ) : (
+              <div className="table-container"><table><thead><tr><th>Lead</th><th>Stage</th><th>Tier</th><th>Score</th></tr></thead><tbody>
+                {linkedLeads.map(l => (
+                  <tr key={l.id} onClick={() => onLeadClick?.(l)} style={{ cursor: 'pointer' }}>
+                    <td style={{ fontWeight: 500 }}>{l.lead_name}</td>
+                    <td><span className="badge" style={{ background: (LEAD_STAGE_COLORS[l.stage]||'var(--ink3)') + '14', color: LEAD_STAGE_COLORS[l.stage]||'var(--ink3)' }}>{l.stage}</span></td>
+                    <td style={{ fontWeight: 700, color: {'A+':'var(--green)',A:'var(--blue)',B:'var(--amber)',C:'var(--ink3)'}[l.tier] || 'var(--ink3)' }}>{l.tier || '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace", color: 'var(--blue)' }}>{l.score || '—'}</td>
+                  </tr>
+                ))}
+              </tbody></table></div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'property' && (
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '14px' }}>Linked Property</h3>
+            {linkedProperty ? (
+              <div className="card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>{linkedProperty.address}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--ink3)' }}>{[linkedProperty.city, linkedProperty.market, linkedProperty.submarket].filter(Boolean).join(' · ')}</div>
+                  </div>
+                  <button className="btn btn-sm btn-blue" onClick={() => onPropertyClick?.(linkedProperty)}>Open Property →</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  {[
+                    ['Building SF', linkedProperty.building_sf ? Number(linkedProperty.building_sf).toLocaleString() + ' SF' : null],
+                    ['Land Acres', linkedProperty.land_acres ? `${linkedProperty.land_acres} ac` : null],
+                    ['Coverage', linkedProperty.building_sf && linkedProperty.land_acres ? `${((linkedProperty.building_sf / (linkedProperty.land_acres * 43560)) * 100).toFixed(1)}%` : null],
+                    ['Clear Height', linkedProperty.clear_height ? `${linkedProperty.clear_height}'` : null],
+                    ['Year Built', linkedProperty.year_built],
+                    ['Prop Type', linkedProperty.prop_type],
+                    ['Owner', linkedProperty.owner],
+                    ['Tenant', linkedProperty.tenant],
+                    ['Vacancy', linkedProperty.vacancy_status],
+                    ['Dock/GL', (linkedProperty.dock_doors || linkedProperty.grade_doors) ? `${linkedProperty.dock_doors || 0}D / ${linkedProperty.grade_doors || 0}GL` : null],
+                    ['Lease Exp', linkedProperty.lease_expiration ? new Date(linkedProperty.lease_expiration).toLocaleDateString() : null],
+                    ['AI Score', linkedProperty.ai_score],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink4)', marginBottom: '4px' }}>{label}</div>
+                      <div style={{ fontSize: '14px', color: val ? 'var(--ink2)' : 'var(--ink4)', fontWeight: 500 }}>{val || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No property linked to this deal</div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'comps' && (
+          <div>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '14px' }}>Lease Comps ({linkedLC.length})</h3>
+            {linkedLC.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--ink4)', marginBottom: '20px' }}>No lease comps linked</div>
+            ) : (
+              <div className="table-container" style={{ marginBottom: '20px' }}><table><thead><tr><th>Address</th><th>Tenant</th><th>SF</th><th>Rate</th><th>Type</th></tr></thead><tbody>
+                {linkedLC.map(c => (
+                  <tr key={c.id} onClick={() => onLeaseCompClick?.(c)} style={{ cursor: 'pointer' }}>
+                    <td style={{ fontWeight: 500 }}>{c.address}</td>
+                    <td>{c.tenant || '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace" }}>{c.rsf ? c.rsf.toLocaleString() : '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace", color: 'var(--blue)', fontWeight: 600 }}>${c.rate}/SF</td>
+                    <td>{c.lease_type || '—'}</td>
+                  </tr>
+                ))}
+              </tbody></table></div>
+            )}
+            <h3 style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: '14px' }}>Sale Comps ({linkedSC.length})</h3>
+            {linkedSC.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--ink4)' }}>No sale comps linked</div>
+            ) : (
+              <div className="table-container"><table><thead><tr><th>Address</th><th>SF</th><th>Price</th><th>$/SF</th><th>Cap</th></tr></thead><tbody>
+                {linkedSC.map(c => (
+                  <tr key={c.id} onClick={() => onSaleCompClick?.(c)} style={{ cursor: 'pointer' }}>
+                    <td style={{ fontWeight: 500 }}>{c.address}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace" }}>{c.building_sf ? c.building_sf.toLocaleString() : '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace" }}>{c.sale_price ? '$' + Number(c.sale_price).toLocaleString() : '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace", color: 'var(--blue)', fontWeight: 600 }}>{c.price_psf ? '$' + Math.round(c.price_psf) : '—'}</td>
+                    <td style={{ fontFamily: "'DM Mono',monospace" }}>{c.cap_rate ? parseFloat(c.cap_rate).toFixed(2) + '%' : '—'}</td>
+                  </tr>
+                ))}
+              </tbody></table></div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'files' && <FilesLinks record={deal} table="deals" onRefresh={onRefresh} showToast={showToast} />}
 
         {activeTab === 'tasks' && (
@@ -478,7 +580,7 @@ export default function DealDetail({
                       const pc = { High: 'var(--rust)', Medium: 'var(--amber)', Low: 'var(--ink3)' }[t.priority] || 'var(--ink3)';
                       const od = !t.completed && t.due_date && new Date(t.due_date) < new Date();
                       return (
-                        <tr key={t.id} style={{ opacity: t.completed ? 0.6 : 1 }}>
+                        <tr key={t.id} onClick={() => onTaskClick?.(t)} style={{ cursor: 'pointer', opacity: t.completed ? 0.6 : 1 }}>
                           <td style={{ fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</td>
                           <td><span className="badge" style={{ background: pc + '14', borderColor: pc + '44', color: pc }}>{t.priority}</span></td>
                           <td style={{ fontFamily: "'DM Mono',monospace", color: od ? 'var(--rust)' : 'var(--ink4)' }}>{od ? 'OVERDUE · ' : ''}{t.due_date || '—'}</td>

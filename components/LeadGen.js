@@ -250,16 +250,18 @@ export default function LeadGen({ leads, onRefresh, showToast, onLeadClick }) {
     <div>
       {/* ═══ HEADER ═══ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '0 0 14px', marginBottom: '0' }}>
-        {/* Stage filter pills */}
-        {[['Lead', statusLeads.filter(l => l.stage !== 'Owner Contacted').length, 'var(--blue)'],
-          ['Owner Contacted', statusLeads.filter(l => l.stage === 'Owner Contacted').length, 'var(--green)']
-        ].map(([label, count, color]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--ink2)' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-            <span style={{ fontWeight: 500 }}>{label}</span>
-            <span style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, color }}>{count}</span>
-          </div>
-        ))}
+        {/* Stage filter pills — all 4 stages */}
+        {LEAD_STAGES.map(stage => {
+          const count = active.filter(l => l.stage === stage).length;
+          const color = LEAD_STAGE_COLORS[stage] || 'var(--ink3)';
+          return (
+            <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: 'var(--ink2)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+              <span style={{ fontWeight: 500 }}>{stage}</span>
+              <span style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, color }}>{count}</span>
+            </div>
+          );
+        })}
         {deadLeads.length > 0 && (
           <button onClick={() => setShowDead(!showDead)} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px', color: 'var(--ink3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'Instrument Sans',sans-serif" }}>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ink3)' }} />

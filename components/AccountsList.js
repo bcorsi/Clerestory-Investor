@@ -15,6 +15,9 @@ export default function AccountsList({ accounts, onAccountClick }) {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [sortBy, setSortBy] = useState('score');
+  const [sortAsc, setSortAsc] = useState(false);
+  const toggleSort = (col) => { if (sortBy === col) setSortAsc(!sortAsc); else { setSortBy(col); setSortAsc(false); } };
+  const sortInd = (col) => sortBy !== col ? '' : sortAsc ? ' ↑' : ' ↓';
 
   const filtered = useMemo(() => {
     let list = [...accounts];
@@ -31,9 +34,20 @@ export default function AccountsList({ accounts, onAccountClick }) {
     if (filterTiming && filterTiming !== 'All Timing') list = list.filter(a => a.acquisition_timing === filterTiming);
     
     // Sort
-    if (sortBy === 'score') list.sort((a, b) => (b.buyer_activity_score || 0) - (a.buyer_activity_score || 0));
-    else if (sortBy === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    else if (sortBy === 'deals') list.sort((a, b) => (b.total_deals_closed || 0) - (a.total_deals_closed || 0));
+    const dir = sortAsc ? 1 : -1;
+    list.sort((a, b) => {
+      let va, vb;
+      switch (sortBy) {
+        case 'name': va = a.name || ''; vb = b.name || ''; return dir * va.localeCompare(vb);
+        case 'type': va = a.account_type || ''; vb = b.account_type || ''; return dir * va.localeCompare(vb);
+        case 'markets': va = (a.preferred_markets || []).join(','); vb = (b.preferred_markets || []).join(','); return dir * va.localeCompare(vb);
+        case 'sf_range': va = a.sf_min || 0; vb = b.sf_min || 0; return dir * (va - vb);
+        case 'psf': va = a.price_psf_min || 0; vb = b.price_psf_min || 0; return dir * (va - vb);
+        case 'timing': va = a.acquisition_timing || ''; vb = b.acquisition_timing || ''; return dir * va.localeCompare(vb);
+        case 'deals': va = a.total_deals_closed || 0; vb = b.total_deals_closed || 0; return dir * (va - vb);
+        case 'score': default: va = a.buyer_activity_score || 0; vb = b.buyer_activity_score || 0; return dir * (va - vb);
+      }
+    });
     
     return list;
   }, [accounts, filterType, filterBuyerType, filterMarket, filterTiming, search, sortBy]);
@@ -137,14 +151,14 @@ export default function AccountsList({ accounts, onAccountClick }) {
         <table>
           <thead>
             <tr>
-              <th>Company</th>
-              <th>Type</th>
-              <th>Markets</th>
-              <th>SF Range</th>
-              <th>$/SF</th>
-              <th>Timing</th>
-              <th style={{ textAlign: 'right' }}>Deals</th>
-              <th style={{ textAlign: 'right' }}>Score</th>
+              <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>Company{sortInd('name')}</th>
+              <th onClick={() => toggleSort('type')} style={{ cursor: 'pointer' }}>Type{sortInd('type')}</th>
+              <th onClick={() => toggleSort('markets')} style={{ cursor: 'pointer' }}>Markets{sortInd('markets')}</th>
+              <th onClick={() => toggleSort('sf_range')} style={{ cursor: 'pointer' }}>SF Range{sortInd('sf_range')}</th>
+              <th onClick={() => toggleSort('psf')} style={{ cursor: 'pointer' }}>$/SF{sortInd('psf')}</th>
+              <th onClick={() => toggleSort('timing')} style={{ cursor: 'pointer' }}>Timing{sortInd('timing')}</th>
+              <th onClick={() => toggleSort('deals')} style={{ cursor: 'pointer', textAlign: 'right' }}>Deals{sortInd('deals')}</th>
+              <th onClick={() => toggleSort('score')} style={{ cursor: 'pointer', textAlign: 'right' }}>Score{sortInd('score')}</th>
             </tr>
           </thead>
           <tbody>

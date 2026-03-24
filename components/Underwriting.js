@@ -154,12 +154,12 @@ export default function Underwriting({ deal, property, leaseComps, saleComps, pr
     finally { setExporting(false); }
   };
 
-  const defSf = d.building_sf||p.building_sf||p.total_sf||0;
-  const defPrice = d.deal_value||d.purchase_price||0;
+  const defSf = d.building_sf||p.building_sf||p.total_sf||52000;
+  const defPrice = d.deal_value||d.purchase_price||(p.estimated_value)||9800000;
   const defRent = p.in_place_rent||p.market_rent||d.market_rent||1.25;
 
-  const [sf, setSf] = useState(defSf||50000);
-  const [purchasePrice, setPP] = useState(defPrice||5000000);
+  const [sf, setSf] = useState(defSf);
+  const [purchasePrice, setPP] = useState(defPrice);
   const [marketRent, setMR] = useState(Math.round(defRent*100));
   const [vacancy, setVac] = useState(5);
   const [expRatio, setExpR] = useState(8);

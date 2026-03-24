@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import AerialThumbnail from './AerialThumbnail';
 import BuildingSpecs from './BuildingSpecs';
 import CampaignTab from './CampaignTab';
+import FilesLinks from './FilesLinks';
 import { LEAD_STAGES, LEAD_STAGE_COLORS, LEAD_SUBSTEPS, LEAD_TIERS, PRIORITIES, PROP_TYPES, VACANCY_STATUS, LEASE_TYPES, OWNER_TYPES, MARKETS, SUBMARKETS, catalystTagClass, CATALYST_TAGS, CADENCE_OPTIONS, AI_MODEL_OPUS, AI_MODEL_SONNET, fmt } from '../lib/constants';
 import { updateRow, convertLeadToDeal, convertLeadToProperty, insertRow, calculateProbability, setCadence, autoResearch } from '../lib/db';
 
@@ -106,6 +107,8 @@ export default function LeadDetail({
   const linkedContacts = (contacts || []).filter(c => c.property_id === lead.property_id || c.company === lead.owner || c.company === lead.company).filter(c => c.id);
   const pendingTasks = linkedTasks.filter(t => !t.completed).length;
   const linkedProperty = (properties || []).find(p => p.address === lead.address || p.id === lead.property_id);
+  const linkedProperties = (properties || []).filter(p => p.address === lead.address || p.id === lead.property_id || p.owner === lead.owner);
+  const linkedDeals = (lead.deals || []).length ? lead.deals : [];
   const subs = LEAD_SUBSTEPS[lead.stage] || [];
   const subsDone = subs.filter(s => substeps[s]?.done).length;
 
@@ -277,9 +280,9 @@ export default function LeadDetail({
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '28px', fontWeight: 700, color: 'var(--ink)', marginBottom: '8px' }}>{lead.lead_name}</div>
             <div className="badges-row" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {(lead.catalyst_tags||[]).map(tag => (
-                <span key={tag} className={`badge ${catalystTagClass(tag)}`}>{tag}</span>
+                <span key={tag} className={`badge ${catalystTagClass(tag)}`} style={{ cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>
               ))}
-              {lead.tier && <span className="badge badge-blue">Tier {lead.tier}</span>}
+              {lead.tier && <span className="badge" style={{ background: `${tierColor(lead.tier)}18`, borderColor: `${tierColor(lead.tier)}44`, color: tierColor(lead.tier), fontWeight: 700, fontSize: '13px' }}>{lead.tier}</span>}
               <span className="badge badge-blue">{lead.stage || 'New'}</span>
             </div>
           </div>
@@ -304,6 +307,11 @@ export default function LeadDetail({
       <div className="sub-nav" style={{ padding: '0 36px', borderBottom: '1px solid var(--line)', background: 'var(--card)' }}>
         {[
           { id: 'overview', label: 'Overview' },
+          { id: 'properties', label: `Properties${linkedProperties.length ? ` (${linkedProperties.length})` : ''}` },
+          { id: 'deals', label: `Deals${linkedDeals.length ? ` (${linkedDeals.length})` : ''}` },
+          { id: 'contacts', label: `Contacts${linkedContacts.length ? ` (${linkedContacts.length})` : ''}` },
+          { id: 'files', label: 'Files' },
+          { id: 'tasks', label: `Tasks${linkedTasks.filter(t=>!t.completed).length ? ` (${linkedTasks.filter(t=>!t.completed).length})` : ''}` },
           { id: 'campaigns', label: 'Campaigns' },
         ].map(t => (
           <div key={t.id} className={`sub-tab ${mainTab === t.id ? 'active' : ''}`} onClick={() => setMainTab(t.id)}>{t.label}</div>
@@ -314,6 +322,100 @@ export default function LeadDetail({
       {mainTab === 'campaigns' && (
         <div style={{ padding: '28px 36px 48px' }}>
           <CampaignTab record={lead} onCampaignClick={onCampaignClick} />
+        </div>
+      )}
+
+      {/* ═══ PROPERTIES TAB ═══ */}
+      {mainTab === 'properties' && (
+        <div style={{ padding: '28px 36px 48px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>Linked Properties</div>
+          {linkedProperties.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No properties linked to this lead</div>
+          ) : (
+            <div className="table-container"><table><thead><tr><th>Address</th><th>Market</th><th>Size</th><th>Owner</th><th>Status</th></tr></thead><tbody>
+              {linkedProperties.map(p => (
+                <tr key={p.id} onClick={() => onPropertyClick?.(p)} style={{ cursor: 'pointer' }}>
+                  <td style={{ fontWeight: 500 }}>{p.address}</td>
+                  <td>{[p.market, p.submarket].filter(Boolean).join(' · ')}</td>
+                  <td style={{ fontFamily: "'DM Mono',monospace" }}>{p.building_sf ? Number(p.building_sf).toLocaleString() + ' SF' : '—'}</td>
+                  <td>{p.owner || '—'}</td>
+                  <td>{p.vacancy_status && <span className={`tag ${p.vacancy_status === 'Vacant' ? 'tag-red' : 'tag-green'}`}>{p.vacancy_status}</span>}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ DEALS TAB ═══ */}
+      {mainTab === 'deals' && (
+        <div style={{ padding: '28px 36px 48px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>Linked Deals</div>
+          {linkedDeals.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No deals linked yet. Convert this lead to create a deal.</div>
+          ) : (
+            <div className="table-container"><table><thead><tr><th>Deal</th><th>Stage</th><th>Value</th></tr></thead><tbody>
+              {linkedDeals.map(d => (
+                <tr key={d.id} style={{ cursor: 'pointer' }}>
+                  <td style={{ fontWeight: 500 }}>{d.deal_name}</td>
+                  <td>{d.stage}</td>
+                  <td style={{ fontFamily: "'DM Mono',monospace" }}>{d.deal_value ? fmt.price(d.deal_value) : '—'}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ CONTACTS TAB ═══ */}
+      {mainTab === 'contacts' && (
+        <div style={{ padding: '28px 36px 48px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>Linked Contacts</div>
+          {linkedContacts.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No contacts linked</div>
+          ) : (
+            <div className="table-container"><table><thead><tr><th>Name</th><th>Company</th><th>Type</th><th>Phone</th></tr></thead><tbody>
+              {linkedContacts.map(c => (
+                <tr key={c.id} onClick={() => onContactClick?.(c)} style={{ cursor: 'pointer' }}>
+                  <td style={{ fontWeight: 500 }}>{c.name}</td>
+                  <td>{c.company || '—'}</td>
+                  <td>{c.contact_type || '—'}</td>
+                  <td style={{ fontFamily: "'DM Mono',monospace" }}>{c.phone || '—'}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ FILES TAB ═══ */}
+      {mainTab === 'files' && (
+        <div style={{ padding: '28px 36px 48px' }}>
+          <FilesLinks record={lead} table="leads" onRefresh={onRefresh} showToast={showToast} />
+        </div>
+      )}
+
+      {/* ═══ TASKS TAB ═══ */}
+      {mainTab === 'tasks' && (
+        <div style={{ padding: '28px 36px 48px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tasks</div>
+            {onAddTask && <button className="btn btn-sm" onClick={() => onAddTask(lead.id)}>+ Task</button>}
+          </div>
+          {linkedTasks.length === 0 ? (
+            <div style={{ fontSize: '13px', color: 'var(--ink4)', padding: '16px 0' }}>No tasks yet</div>
+          ) : (
+            <div className="table-container"><table><thead><tr><th>Task</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead><tbody>
+              {linkedTasks.map(t => (
+                <tr key={t.id} style={{ opacity: t.completed ? 0.5 : 1 }}>
+                  <td style={{ fontWeight: 500, textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</td>
+                  <td><span style={{ color: t.priority === 'High' ? 'var(--rust)' : t.priority === 'Medium' ? 'var(--amber)' : 'var(--ink3)' }}>{t.priority}</span></td>
+                  <td style={{ fontFamily: "'DM Mono',monospace" }}>{t.due_date || '—'}</td>
+                  <td>{t.completed ? '✓ Done' : 'Pending'}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
         </div>
       )}
 
@@ -427,15 +529,29 @@ export default function LeadDetail({
             {/* Timeline entries */}
             {timeline.length === 0 && !(lead.source === 'WARN') ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ink4)', fontSize: '13px' }}>No activity yet</div>
-            ) : timeline.slice(0, 20).map(e => (
+            ) : timeline.slice(0, 20).map(e => {
+              // Linkify URLs in detail text
+              const renderDetail = (text) => {
+                if (!text) return null;
+                const parts = text.split(/(https?:\/\/[^\s,]+)/g);
+                return parts.map((part, i) => {
+                  if (/^https?:\/\//.test(part)) {
+                    const display = part.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+                    return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'none', borderBottom: '1px dashed var(--blue)' }}>{display}</a>;
+                  }
+                  return <span key={i}>{part}</span>;
+                });
+              };
+              return (
               <div key={`${e.kind}-${e.id}`} className="tl-entry">
-                <div className="tl-dot" style={e.kind === 'activity' ? { background: 'var(--amber)', boxShadow: '0 0 0 3px rgba(184,122,16,0.08)' } : {}} />
+                <div className="tl-dot" style={e.kind === 'activity' ? { background: 'var(--amber)', boxShadow: '0 0 0 3px rgba(184,122,16,0.08)' } : e.label === 'Research' ? { background: 'var(--purple)', boxShadow: '0 0 0 3px rgba(96,64,168,0.08)' } : {}} />
                 <div>
                   <div className="entry-date" style={{ fontFamily: "'DM Mono',monospace", fontSize: '11px', color: 'var(--ink4)', letterSpacing: '0.06em', marginBottom: '6px' }}>{e.date ? new Date(e.date).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}).toUpperCase() : ''}</div>
-                  <div className="entry-text" style={{ fontSize: '14px', color: 'var(--ink2)', lineHeight: 1.72 }}>{e.subject && <strong>{e.subject}. </strong>}{e.detail || ''}{e.outcome && <span style={{ color: 'var(--green)' }}> → {e.outcome}</span>}</div>
+                  {e.label === 'Research' && <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>✦ Auto-Research</div>}
+                  <div className="entry-text" style={{ fontSize: '14px', color: 'var(--ink2)', lineHeight: 1.72 }}>{e.subject && <strong>{e.subject}. </strong>}{renderDetail(e.detail)}{e.outcome && <span style={{ color: 'var(--green)' }}> → {e.outcome}</span>}</div>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
 
           {/* Contact & Property Info */}
@@ -487,12 +603,14 @@ export default function LeadDetail({
             </div>
           )}
 
-          {/* Score */}
-          {(lead.score || lead.probability) && (
+          {/* Score + Priority + Tier */}
+          {(lead.score || lead.probability || lead.priority || lead.tier) && (
             <div className="info-card" style={{ marginBottom: '14px' }}>
               <div className="info-card-head">Score</div>
-              <div style={{ padding: '14px 16px', display: 'flex', gap: '20px' }}>
+              <div style={{ padding: '14px 16px', display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 {lead.score != null && <div><div className="i-label">AI Score</div><div style={{ fontFamily: "'Playfair Display',serif", fontSize: '28px', fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{lead.score}</div></div>}
+                {lead.tier && <div><div className="i-label">Tier</div><div style={{ fontFamily: "'Playfair Display',serif", fontSize: '28px', fontWeight: 700, color: tierColor(lead.tier), lineHeight: 1 }}>{lead.tier}</div></div>}
+                {lead.priority && <div><div className="i-label">Priority</div><div style={{ fontSize: '14px', fontWeight: 700, color: lead.priority === 'High' ? 'var(--rust)' : lead.priority === 'Medium' ? 'var(--amber)' : 'var(--ink3)' }}>{lead.priority}</div></div>}
                 {lead.probability != null && <div><div className="i-label">Probability</div><div style={{ fontFamily: "'Playfair Display',serif", fontSize: '28px', fontWeight: 700, color: probColor(lead.probability), lineHeight: 1 }}>{lead.probability}%</div></div>}
               </div>
             </div>

@@ -162,7 +162,7 @@ export default function BuildingSpecs({ record, recordType = 'properties', onRef
       {/* ── HEADER ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: expanded ? '1px solid var(--line)' : 'none', background: 'var(--bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink3)' }}>Building Score</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink3)' }}>Property Score</div>
           {hasScore && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '22px', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{score}</div>
