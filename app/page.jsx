@@ -7,10 +7,10 @@ import DealPipeline from '../components/DealPipeline.jsx';
 import DealDetail from '../components/DealDetail.jsx';
 import PropertyDetail from '../components/PropertyDetail.jsx';
 import WarnIntel from '../components/WarnIntel.jsx';
+import LeadDetail from '../components/LeadDetail.jsx';
 
 // Add more imports as you build them:
 // import PropertiesList from '../components/PropertiesList';
-// import LeadDetail from '../components/LeadDetail';
 
 export default function App() {
   const [page, setPage] = useState('dashboard');
@@ -27,6 +27,7 @@ export default function App() {
     // Detail views
     if (selectedProperty) return <PropertyDetail property={selectedProperty} onBack={() => setSelectedProperty(null)} />;
     if (selectedDeal) return <DealDetail deal={selectedDeal} onBack={() => { setSelectedDeal(null); setPage('deals'); }} />;
+    if (selectedLead) return <LeadDetail lead={selectedLead} onBack={() => setSelectedLead(null)} />;
 
     switch (page) {
       case 'dashboard':    return <CommandCenter onNavigate={navigate} counts={counts} />;

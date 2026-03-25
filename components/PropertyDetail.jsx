@@ -7,6 +7,8 @@ export default function PropertyDetail({ property, onBack }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [specsOpen, setSpecsOpen] = useState(false);
   const [synthOpen, setSynthOpen] = useState(true);
+  const [logPanel, setLogPanel] = useState(null);
+  const [logText, setLogText] = useState('');
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -90,10 +92,10 @@ export default function PropertyDetail({ property, onBack }) {
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>92</div>
             </div>
             <div style={S.abSep} />
-            <button style={S.btnGhost}>📞 Log Call</button>
-            <button style={S.btnGhost}>✉ Log Email</button>
-            <button style={S.btnGhost}>📝 Add Note</button>
-            <button style={S.btnGhost}>+ Task</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'call' ? null : 'call')}>📞 Log Call</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'email' ? null : 'email')}>✉ Log Email</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>📝 Add Note</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'task' ? null : 'task')}>+ Task</button>
             <div style={S.abSep} />
             <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(p.address)}`)}>📍 Google Maps</button>
             <button style={S.btnLink}>🗂 CoStar</button>
@@ -104,6 +106,22 @@ export default function PropertyDetail({ property, onBack }) {
             <div style={{ marginLeft: 'auto' }} />
             <button style={S.btnGreen}>◈ Convert to Deal</button>
           </div>
+
+          {/* LOG PANEL */}
+          {logPanel && (
+            <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '14px 28px', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 6 }}>
+                  {logPanel === 'call' ? 'Log Call' : logPanel === 'email' ? 'Log Email' : logPanel === 'note' ? 'Add Note' : 'Add Task'}
+                </div>
+                <textarea value={logText} onChange={e => setLogText(e.target.value)}
+                  placeholder={`Notes for ${logPanel}...`}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, fontFamily: 'inherit', fontSize: 13, color: 'var(--ink2)', background: 'var(--bg)', outline: 'none', resize: 'vertical', minHeight: 72 }} />
+              </div>
+              <button style={S.btnGhost} onClick={() => { setLogPanel(null); setLogText(''); }}>Cancel</button>
+              <button style={S.btnBlue} onClick={() => { setLogPanel(null); setLogText(''); }}>Save</button>
+            </div>
+          )}
 
           <div style={S.inner}>
 
@@ -198,100 +216,107 @@ export default function PropertyDetail({ property, onBack }) {
               ))}
             </div>
 
-            {/* 2-COL BODY */}
-            <div style={S.bodyCols}>
-              {/* LEFT: Timeline */}
+            {/* 2-COL BODY — Timeline tab only */}
+            {activeTab === 'Timeline' && (
               <div>
-                <div style={S.card}>
-                  <div style={S.cardHdr}>
-                    <div style={S.cardTitle}><span style={S.liveDot} /> Activity Timeline</div>
-                    <span style={S.cardAction}>+ Log Activity</span>
-                  </div>
-                  {MOCK_ACTIVITIES.map((a, i) => (
-                    <div key={i} style={{ ...S.actRow, borderBottom: i < MOCK_ACTIVITIES.length - 1 ? '1px solid var(--line2)' : 'none' }}>
-                      <div style={{ ...S.actIcon, background: ICON_BG[a.type], color: ICON_COLOR[a.type] }}>{ICON_EMOJI[a.type]}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={S.actText} dangerouslySetInnerHTML={{ __html: a.text }} />
-                        <div style={S.actMeta}>{a.meta}</div>
+                <div style={S.bodyCols}>
+                  {/* LEFT: Timeline */}
+                  <div>
+                    <div style={S.card}>
+                      <div style={S.cardHdr}>
+                        <div style={S.cardTitle}><span style={S.liveDot} /> Activity Timeline</div>
+                        <span style={S.cardAction}>+ Log Activity</span>
                       </div>
-                      <div style={S.actDate}>{a.date}</div>
+                      {MOCK_ACTIVITIES.map((a, i) => (
+                        <div key={i} style={{ ...S.actRow, borderBottom: i < MOCK_ACTIVITIES.length - 1 ? '1px solid var(--line2)' : 'none' }}>
+                          <div style={{ ...S.actIcon, background: ICON_BG[a.type], color: ICON_COLOR[a.type] }}>{ICON_EMOJI[a.type]}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={S.actText} dangerouslySetInnerHTML={{ __html: a.text }} />
+                            <div style={S.actMeta}>{a.meta}</div>
+                          </div>
+                          <div style={S.actDate}>{a.date}</div>
+                        </div>
+                      ))}
+                      <div style={S.tlMore}><span style={S.tlMoreText}>View all 12 activities & notes →</span></div>
                     </div>
-                  ))}
-                  <div style={S.tlMore}><span style={S.tlMoreText}>View all 12 activities & notes →</span></div>
-                </div>
-              </div>
-
-              {/* RIGHT: Catalysts + AI Signal */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* Catalysts */}
-                <div style={S.card}>
-                  <div style={S.cardHdr}>
-                    <div style={S.cardTitle}>Active Catalysts</div>
-                    <span style={S.cardAction}>+ Add</span>
                   </div>
-                  {(p.catalysts ?? MOCK_CATALYSTS).map((c, i) => (
-                    <div key={i} style={{ ...S.catRow, borderBottom: i < (p.catalysts ?? MOCK_CATALYSTS).length - 1 ? '1px solid var(--line2)' : 'none' }}>
-                      <span style={{ ...S.cat, background: CAT_BG[c.type], borderColor: CAT_BDR[c.type], color: CAT_COLOR[c.type] }}>{c.label}</span>
-                      <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>{c.desc}</span>
-                      <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10.5, color: 'var(--ink4)' }}>{c.date}</span>
+
+                  {/* RIGHT: Catalysts + AI Signal */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={S.card}>
+                      <div style={S.cardHdr}>
+                        <div style={S.cardTitle}>Active Catalysts</div>
+                        <span style={S.cardAction}>+ Add</span>
+                      </div>
+                      {(p.catalysts ?? MOCK_CATALYSTS).map((c, i) => (
+                        <div key={i} style={{ ...S.catRow, borderBottom: i < (p.catalysts ?? MOCK_CATALYSTS).length - 1 ? '1px solid var(--line2)' : 'none' }}>
+                          <span style={{ ...S.cat, background: CAT_BG[c.type], borderColor: CAT_BDR[c.type], color: CAT_COLOR[c.type] }}>{c.label}</span>
+                          <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>{c.desc}</span>
+                          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10.5, color: 'var(--ink4)' }}>{c.date}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-
-                {/* AI Property Signal */}
-                <div style={S.propSignal}>
-                  <div style={S.propSignalHdr}><span style={{ fontSize: 13 }}>✦</span><span style={S.propSignalTitle}>AI Property Signal</span></div>
-                  <div style={S.propSignalBody}>
-                    <strong style={{ color: 'var(--blue)' }}>Top-quartile SGV Mid-Valley asset.</strong> 32' clear and 1.29 DH ratio rank in the top 15% of tracked SGV properties — submarket avg is 28' clear, 0.82 DH ratio. At {p.inPlaceRent ?? '$1.28/SF'} NNN, rent is{' '}
-                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>12% below market</span> ({p.marketRent ?? '$1.44–1.52'}), creating ~$300K/year NOI upside at renewal. No comparable 180K+ SF dock-high available within 5 miles —{' '}
-                    <span style={{ color: 'var(--green)', fontWeight: 600 }}>effectively irreplaceable at replacement cost ~$320/SF.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* OWNER + TENANT below timeline — full width 2-col */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
-              <div style={S.card}>
-                <div style={S.spHdr}>
-                  <span>Owner</span>
-                  <span style={S.spHdrA}>View Record →</span>
-                </div>
-                {[
-                  ['Company', p.owner ?? 'Leegin Creative Leather'],
-                  ['Contact', p.ownerContact ?? 'Bob Rosenthall'],
-                  ['Owner Type', p.ownerType ?? 'Owner-User'],
-                  ['Owner Since', p.ownerSince ?? '2009'],
-                ].map(([k, v]) => (
-                  <div key={k} style={S.spRow}>
-                    <span style={S.spKey}>{k}</span>
-                    <span style={{ fontSize: 13, color: k === 'Contact' ? 'var(--blue)' : 'var(--ink2)', cursor: k === 'Contact' ? 'pointer' : 'default' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={S.card}>
-                <div style={S.spHdr}><span>Tenant</span></div>
-                <div style={{ padding: '14px 16px 10px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 2 }}>Tenant</div>
-                  <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)', marginBottom: 2 }}>{p.tenant ?? 'Leegin Creative Leather'}</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{p.leaseExpiry ?? 'Aug 2027'}</div>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--rust)', marginTop: 2 }}>17 months remaining</div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--line2)' }}>
-                  {[
-                    { lbl: 'Current Rate', val: p.inPlaceRent ?? '$1.28/SF', color: 'var(--rust)' },
-                    { lbl: 'Market Rate', val: p.marketRent ?? '$1.44–1.52', color: 'var(--green)' },
-                    { lbl: 'Type', val: p.leaseType ?? 'NNN', color: 'var(--blue)' },
-                    { lbl: 'Spread', val: '+12–18%', color: 'var(--green)' },
-                  ].map((r, i) => (
-                    <div key={i} style={{ padding: '10px 16px', borderRight: i % 2 === 0 ? '1px solid var(--line2)' : 'none', borderTop: i >= 2 ? '1px solid var(--line2)' : 'none' }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 4 }}>{r.lbl}</div>
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 600, color: r.color }}>{r.val}</div>
+                    <div style={S.propSignal}>
+                      <div style={S.propSignalHdr}><span style={{ fontSize: 13 }}>✦</span><span style={S.propSignalTitle}>AI Property Signal</span></div>
+                      <div style={S.propSignalBody}>
+                        <strong style={{ color: 'var(--blue)' }}>Top-quartile SGV Mid-Valley asset.</strong> 32&apos; clear and 1.29 DH ratio rank in the top 15% of tracked SGV properties. At {p.inPlaceRent ?? '$1.28/SF'} NNN, rent is{' '}
+                        <span style={{ color: 'var(--green)', fontWeight: 600 }}>12% below market</span> ({p.marketRent ?? '$1.44–1.52'}), creating ~$300K/year NOI upside at renewal.{' '}
+                        <span style={{ color: 'var(--green)', fontWeight: 600 }}>Effectively irreplaceable at replacement cost ~$320/SF.</span>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                </div>
+
+                {/* OWNER + TENANT below — full width 2-col */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
+                  <div style={S.card}>
+                    <div style={S.spHdr}>
+                      <span>Owner</span>
+                      <span style={S.spHdrA}>View Record →</span>
+                    </div>
+                    {[
+                      ['Company', p.owner ?? 'Leegin Creative Leather'],
+                      ['Contact', p.ownerContact ?? 'Bob Rosenthall'],
+                      ['Owner Type', p.ownerType ?? 'Owner-User'],
+                      ['Owner Since', p.ownerSince ?? '2009'],
+                    ].map(([k, v]) => (
+                      <div key={k} style={S.spRow}>
+                        <span style={S.spKey}>{k}</span>
+                        <span style={{ fontSize: 13, color: k === 'Contact' ? 'var(--blue)' : 'var(--ink2)', cursor: k === 'Contact' ? 'pointer' : 'default' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={S.card}>
+                    <div style={S.spHdr}><span>Tenant</span></div>
+                    <div style={{ padding: '14px 16px 10px' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 2 }}>Tenant</div>
+                      <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)', marginBottom: 2 }}>{p.tenant ?? 'Leegin Creative Leather'}</div>
+                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{p.leaseExpiry ?? 'Aug 2027'}</div>
+                      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--rust)', marginTop: 2 }}>17 months remaining</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--line2)' }}>
+                      {[
+                        { lbl: 'Current Rate', val: p.inPlaceRent ?? '$1.28/SF', color: 'var(--rust)' },
+                        { lbl: 'Market Rate', val: p.marketRent ?? '$1.44–1.52', color: 'var(--green)' },
+                        { lbl: 'Type', val: p.leaseType ?? 'NNN', color: 'var(--blue)' },
+                        { lbl: 'Spread', val: '+12–18%', color: 'var(--green)' },
+                      ].map((r, i) => (
+                        <div key={i} style={{ padding: '10px 16px', borderRight: i % 2 === 0 ? '1px solid var(--line2)' : 'none', borderTop: i >= 2 ? '1px solid var(--line2)' : 'none' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 4 }}>{r.lbl}</div>
+                          <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 600, color: r.color }}>{r.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {activeTab !== 'Timeline' && (
+              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic' }}>
+                {activeTab} — coming soon
+              </div>
+            )}
 
           </div>
         </div>
@@ -341,6 +366,7 @@ const S = {
   abSep: { width: 1, height: 22, background: 'var(--line)', margin: '0 3px' },
   btnGhost: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink3)', whiteSpace: 'nowrap', fontFamily: 'inherit' },
   btnGreen: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--green)', background: 'var(--green)', color: '#fff', whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  btnBlue: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--blue)', background: 'var(--blue)', color: '#fff', whiteSpace: 'nowrap', fontFamily: 'inherit' },
   btnLink: { background: 'none', border: 'none', color: 'var(--blue2)', fontSize: 12.5, padding: '7px 10px', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', fontFamily: 'inherit' },
   inner: { padding: '18px 28px 0' },
   synthCard: { background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative', borderLeft: '3px solid var(--purple)' },

@@ -79,6 +79,8 @@ export default function DealDetail({ deal, onBack }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [uwView, setUWView] = useState('quick'); // 'quick' | 'dashboard'
   const [synthOpen, setSynthOpen] = useState(false);
+  const [logPanel, setLogPanel] = useState(null);
+  const [logText, setLogText] = useState('');
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -168,9 +170,9 @@ export default function DealDetail({ deal, onBack }) {
 
           {/* ACTION BAR */}
           <div style={S.actionBar}>
-            <button style={S.btnGhost}>📞 Log Call</button>
-            <button style={S.btnGhost}>✉ Log Email</button>
-            <button style={S.btnGhost}>📝 Add Note</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'call' ? null : 'call')}>📞 Log Call</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'email' ? null : 'email')}>✉ Log Email</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>📝 Add Note</button>
             <div style={S.abSep} />
             <button style={S.btnLink}>📍 Google Maps</button>
             <button style={S.btnLink}>🗂 CoStar</button>
@@ -181,6 +183,22 @@ export default function DealDetail({ deal, onBack }) {
             <div style={{ marginLeft: 'auto' }} />
             <button style={S.btnGreen}>Advance to PSA →</button>
           </div>
+
+          {/* LOG PANEL */}
+          {logPanel && (
+            <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '14px 28px', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 6 }}>
+                  {logPanel === 'call' ? 'Log Call' : logPanel === 'email' ? 'Log Email' : 'Add Note'}
+                </div>
+                <textarea value={logText} onChange={e => setLogText(e.target.value)}
+                  placeholder={`Notes for ${logPanel}...`}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, fontFamily: 'inherit', fontSize: 13, color: 'var(--ink2)', background: 'var(--bg)', outline: 'none', resize: 'vertical', minHeight: 72 }} />
+              </div>
+              <button style={S.btnGhost} onClick={() => { setLogPanel(null); setLogText(''); }}>Cancel</button>
+              <button style={S.btnBlue} onClick={() => { setLogPanel(null); setLogText(''); }}>Save</button>
+            </div>
+          )}
 
           {/* STAGE BREADCRUMB */}
           <div style={S.stageTrackWrap}>
@@ -403,6 +421,12 @@ export default function DealDetail({ deal, onBack }) {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab !== 'Timeline' && activeTab !== 'Underwriting' && (
+              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic' }}>
+                {activeTab} — coming soon
               </div>
             )}
 
