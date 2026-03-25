@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import CommandCenter from '../components/CommandCenter';
-import LeadGenList from '../components/LeadGenList';
-import DealPipeline from '../components/DealPipeline';
-import DealDetail from '../components/DealDetail';
-import PropertyDetail from '../components/PropertyDetail';
-import WarnIntel from '../components/WarnIntel';
+import Sidebar from '../components/Sidebar.jsx';
+import CommandCenter from '../components/CommandCenter.jsx';
+import LeadGenList from '../components/LeadGenList.jsx';
+import DealPipeline from '../components/DealPipeline.jsx';
+import DealDetail from '../components/DealDetail.jsx';
+import PropertyDetail from '../components/PropertyDetail.jsx';
+import WarnIntel from '../components/WarnIntel.jsx';
 
 // Add more imports as you build them:
 // import PropertiesList from '../components/PropertiesList';
