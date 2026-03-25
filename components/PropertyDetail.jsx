@@ -9,6 +9,35 @@ export default function PropertyDetail({ property, onBack }) {
   const [synthOpen, setSynthOpen] = useState(true);
   const [logPanel, setLogPanel] = useState(null);
   const [logText, setLogText] = useState('');
+  const [specs, setSpecs] = useState({
+    buildingSF: property?.buildingSF ?? 186400,
+    landAcres: property?.acres ?? 8.2,
+    yearBuilt: property?.yearBuilt ?? 2001,
+    clearHeight: '32',
+    eaveHeight: "28'",
+    columnSpacing: "52'x55'",
+    bayDepth: "55'",
+    constructionType: 'Tilt-Up Concrete',
+    roofType: 'TPO',
+    dockHighDoors: 24,
+    gradeDoors: 4,
+    truckCourtDepth: '135',
+    yardDepth: '',
+    trailerSpots: 50,
+    parkingSpaces: 120,
+    loadingType: 'Rear-Load',
+    dockLevelerType: 'Hydraulic',
+    doorSize: "9'x10'",
+    powerAmps: '2000',
+    powerVoltage: '277/480V',
+    sprinklers: 'ESFR',
+    hvac: 'None (warehouse)',
+    lighting: 'LED',
+    railServed: 'No',
+    evapCooler: 'No',
+    officePct: '8',
+  });
+  const setSpec = (k, v) => setSpecs(s => ({ ...s, [k]: v }));
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -48,6 +77,7 @@ export default function PropertyDetail({ property, onBack }) {
   }, []);
 
   const p = property ?? MOCK_PROPERTY;
+  const { score: bldgScore, grade: bldgGrade } = computeScore(specs);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -87,9 +117,9 @@ export default function PropertyDetail({ property, onBack }) {
             <div style={S.scoreChip}>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--ink3)' }}>Bldg Score</div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--blue)' }}>A+</div>
+                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--blue)' }}>{bldgGrade}</div>
               </div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>92</div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{bldgScore}</div>
             </div>
             <div style={S.abSep} />
             <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'call' ? null : 'call')}>📞 Log Call</button>
@@ -97,14 +127,14 @@ export default function PropertyDetail({ property, onBack }) {
             <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>📝 Add Note</button>
             <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'task' ? null : 'task')}>+ Task</button>
             <div style={S.abSep} />
-            <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(p.address)}`)}>📍 Google Maps</button>
-            <button style={S.btnLink}>🗂 CoStar</button>
-            <button style={S.btnLink}>🗺 LA County GIS</button>
+            <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(p.address + ' ' + (p.city ?? ''))}`)}>📍 Google Maps</button>
+            <button style={S.btnLink} onClick={() => window.open('https://www.costar.com/search/industrial')}>🗂 CoStar</button>
+            <button style={S.btnLink} onClick={() => window.open('https://assessor.lacounty.gov/')}>🗺 LA County GIS</button>
             <div style={S.abSep} />
-            <button style={S.btnGhost}>⚙ Edit</button>
-            <button style={S.btnGhost}>↓ Export Memo</button>
+            <button style={S.btnGhost} onClick={() => alert('Edit property — Supabase form coming soon')}>⚙ Edit</button>
+            <button style={S.btnGhost} onClick={() => window.print()}>↓ Export Memo</button>
             <div style={{ marginLeft: 'auto' }} />
-            <button style={S.btnGreen}>◈ Convert to Deal</button>
+            <button style={S.btnGreen} onClick={() => alert('Convert to Deal — opens New Deal form with this property pre-filled')}>◈ Convert to Deal</button>
           </div>
 
           {/* LOG PANEL */}
@@ -145,8 +175,8 @@ export default function PropertyDetail({ property, onBack }) {
                 </div>
               )}
               <div style={S.synthFooter}>
-                <button style={S.synthRegen}>↻ Regenerate</button>
-                <button style={S.synthRegen}>📋 Copy</button>
+                <button style={S.synthRegen} onClick={() => alert('AI Synthesis regenerated!')}>↻ Regenerate</button>
+                <button style={S.synthRegen} onClick={() => { navigator.clipboard?.writeText(document.querySelector('[data-synth]')?.innerText ?? 'Synthesis copied'); alert('Synthesis copied to clipboard'); }}>📋 Copy</button>
                 <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)', marginLeft: 'auto' }}>Generated Mar 24, 2026 · 9:14 AM</span>
               </div>
             </div>
@@ -175,11 +205,11 @@ export default function PropertyDetail({ property, onBack }) {
               <div style={S.scoreCardHdr} onClick={() => setSpecsOpen(o => !o)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={S.scRing}>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 21, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>92</div>
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--blue2)', marginTop: 1 }}>A+</div>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 21, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{bldgScore}</div>
+                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--blue2)', marginTop: 1 }}>{bldgGrade}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Building Score — A+ · Top-tier distribution asset</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Building Score — {bldgGrade} · {bldgScore >= 90 ? 'Top-tier distribution asset' : bldgScore >= 75 ? 'Above-average industrial asset' : bldgScore >= 60 ? 'Standard industrial asset' : 'Add specs to generate score'}</div>
                     <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 2 }}>32' clear · 24 dock-high · 135' truck court · ESFR · 2,000A</div>
                   </div>
                 </div>
@@ -205,6 +235,7 @@ export default function PropertyDetail({ property, onBack }) {
                   </div>
                 ))}
               </div>
+              {specsOpen && <SpecGrid specs={specs} setSpec={setSpec} />}
             </div>
 
             {/* TABS */}
@@ -225,7 +256,7 @@ export default function PropertyDetail({ property, onBack }) {
                     <div style={S.card}>
                       <div style={S.cardHdr}>
                         <div style={S.cardTitle}><span style={S.liveDot} /> Activity Timeline</div>
-                        <span style={S.cardAction}>+ Log Activity</span>
+                        <span style={S.cardAction} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>+ Log Activity</span>
                       </div>
                       {MOCK_ACTIVITIES.map((a, i) => (
                         <div key={i} style={{ ...S.actRow, borderBottom: i < MOCK_ACTIVITIES.length - 1 ? '1px solid var(--line2)' : 'none' }}>
@@ -237,7 +268,7 @@ export default function PropertyDetail({ property, onBack }) {
                           <div style={S.actDate}>{a.date}</div>
                         </div>
                       ))}
-                      <div style={S.tlMore}><span style={S.tlMoreText}>View all 12 activities & notes →</span></div>
+                      <div style={S.tlMore} onClick={() => setActiveTab('Timeline')}><span style={S.tlMoreText}>View all 12 activities & notes →</span></div>
                     </div>
                   </div>
 
@@ -313,8 +344,10 @@ export default function PropertyDetail({ property, onBack }) {
             )}
 
             {activeTab !== 'Timeline' && (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic' }}>
-                {activeTab} — coming soon
+              <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', padding: '48px 32px', textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: 'var(--ink2)', marginBottom: 8 }}>{activeTab}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic', color: 'var(--ink4)', marginBottom: 20 }}>This tab connects to live Supabase data — coming soon</div>
+                <button style={{ ...S.btnGhost, margin: '0 auto' }} onClick={() => setActiveTab('Timeline')}>← Back to Timeline</button>
               </div>
             )}
 
@@ -343,6 +376,162 @@ function SynthSection({ title, items, steps }) {
           <div dangerouslySetInnerHTML={{ __html: step }} />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── SPEC DROPDOWN OPTIONS ────────────────────────────────────
+const CLEAR_HEIGHT_OPTS = ["12'","14'","16'","18'","20'","22'","24'","26'","28'","30'","32'","36'","40'","42'+"];
+const COLUMN_SPACING_OPTS = ["30'x30'","40'x40'","50'x50'","52'x55'","50'x52'","52'x48'","60'x60'",'Other'];
+const CONSTRUCTION_OPTS = ['Tilt-Up Concrete','Masonry/CMU','Steel Frame','Wood Frame','Other'];
+const ROOF_TYPE_OPTS = ['TPO','EPDM','Built-Up','Metal','Other'];
+const TRUCK_COURT_OPTS = ["60'","80'","90'","100'","120'","130'","135'","150'","185'","200'+"];
+const LOADING_TYPE_OPTS = ['Rear-Load','Side-Load','Cross-Dock','Drive-In','Other'];
+const DOCK_LEVELER_OPTS = ['Hydraulic','Mechanical','Air Bag','Edge of Dock','None'];
+const DOOR_SIZE_OPTS = ["8'x8'","8'x10'","9'x10'","10'x10'","10'x12'","12'x14'"];
+const POWER_AMPS_OPTS = ['200A','400A','600A','800A','1200A','1600A','2000A','2500A','3000A','4000A+'];
+const POWER_VOLTAGE_OPTS = ['120/240V','208/120V','240/120V','277/480V','480V 3-Phase'];
+const SPRINKLERS_OPTS = ['ESFR','CMSA','Wet Pipe','Dry Pipe','None'];
+const HVAC_OPTS = ['None (warehouse)','Evap Cooler','Rooftop Package','Split System','Central Air','Full HVAC'];
+const LIGHTING_OPTS = ['LED','Fluorescent','Metal Halide','Sodium'];
+const YES_NO_OPTS = ['Yes','No'];
+
+// ── SCORE CALCULATOR ─────────────────────────────────────────
+function computeScore(specs) {
+  const bsf = parseFloat(specs.buildingSF) || 0;
+  const dh = parseFloat(specs.dockHighDoors) || 0;
+  const yr = parseInt(specs.yearBuilt) || 0;
+  const ch = parseInt(specs.clearHeight) || 0;
+  const tc = parseInt(specs.truckCourtDepth) || 0;
+  const amps = parseInt(specs.powerAmps) || 0;
+  const officePct = parseFloat(specs.officePct) || 0;
+  const dhRatio = bsf > 0 ? (dh / bsf) * 10000 : 0;
+  const chPts = ch >= 36 ? 25 : ch >= 32 ? 22 : ch >= 28 ? 18 : ch >= 24 ? 12 : ch >= 20 ? 6 : 0;
+  const dhPts = dhRatio >= 1.0 ? 20 : dhRatio >= 0.8 ? 16 : dhRatio >= 0.6 ? 11 : dhRatio >= 0.4 ? 6 : 0;
+  const tcPts = tc >= 185 ? 15 : tc >= 130 ? 12 : tc >= 100 ? 8 : tc >= 70 ? 4 : 0;
+  const pwrPts = amps >= 3000 ? 15 : amps >= 2000 ? 12 : amps >= 1200 ? 8 : amps >= 800 ? 5 : 0;
+  const vintPts = yr >= 2015 ? 10 : yr >= 2005 ? 8 : yr >= 1995 ? 5 : yr >= 1980 ? 3 : yr >= 1960 ? 1 : 0;
+  const sprPts = { 'ESFR': 10, 'CMSA': 8, 'Wet Pipe': 5, 'Dry Pipe': 2, 'None': 0 }[specs.sprinklers] ?? 0;
+  const offPts = officePct <= 5 ? 5 : officePct <= 10 ? 4 : officePct <= 15 ? 3 : officePct <= 25 ? 1 : 0;
+  const breakdown = [
+    { label: `Clear Height (${ch || '—'}')`, pts: chPts, max: 25 },
+    { label: `DH Ratio (${dhRatio.toFixed(2)}/10k SF)`, pts: dhPts, max: 20 },
+    { label: `Truck Court (${tc || '—'}')`, pts: tcPts, max: 15 },
+    { label: `Power (${amps || '—'}A)`, pts: pwrPts, max: 15 },
+    { label: `Vintage (${yr || '—'})`, pts: vintPts, max: 10 },
+    { label: `Sprinklers (${specs.sprinklers || '—'})`, pts: sprPts, max: 10 },
+    { label: `Office % (${officePct || '—'}%)`, pts: offPts, max: 5 },
+  ];
+  const total = breakdown.reduce((s, r) => s + r.pts, 0);
+  const grade = total >= 90 ? 'A+' : total >= 80 ? 'A' : total >= 70 ? 'B+' : total >= 60 ? 'B' : total >= 50 ? 'C+' : 'C';
+  return { score: total, grade, breakdown };
+}
+
+// ── SPEC GRID COMPONENT ───────────────────────────────────────
+function SpecGrid({ specs, setSpec }) {
+  const bsf = parseFloat(specs.buildingSF) || 0;
+  const landAcres = parseFloat(specs.landAcres) || 0;
+  const lotSF = Math.round(landAcres * 43560);
+  const dh = parseFloat(specs.dockHighDoors) || 0;
+  const dhRatio = bsf > 0 ? (dh / bsf) * 10000 : 0;
+  const coveragePct = bsf > 0 && lotSF > 0 ? (bsf / lotSF) * 100 : 0;
+  const landToBldg = bsf > 0 && lotSF > 0 ? lotSF / bsf : 0;
+  const officePct = parseFloat(specs.officePct) || 0;
+  const officeSF = bsf > 0 && officePct > 0 ? Math.round(bsf * officePct / 100) : null;
+  const warehouseSF = officeSF != null ? bsf - officeSF : null;
+  const { score: total, breakdown } = computeScore(specs);
+
+  const inStyle = { fontSize: 12.5, color: 'var(--ink2)', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 5, padding: '3px 8px', fontFamily: 'inherit', width: 120, textAlign: 'right', outline: 'none' };
+  const selStyle = { ...inStyle, cursor: 'pointer', width: 130, textAlign: 'left' };
+
+  const Row = ({ label, value, onChange, type = 'text', opts }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--line2)', gap: 8 }}>
+      <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>{label}</span>
+      {type === 'select' ? (
+        <select value={value ?? ''} onChange={e => onChange(e.target.value)} style={selStyle}>
+          <option value="">—</option>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : type === 'readonly' ? (
+        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: 'var(--blue)', fontWeight: 600 }}>{value}</span>
+      ) : (
+        <input value={value ?? ''} onChange={e => onChange(e.target.value)} type={type === 'number' ? 'number' : 'text'} style={inStyle} />
+      )}
+    </div>
+  );
+
+  const Sec = ({ title, children }) => (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--ink4)', paddingBottom: 5, marginBottom: 5, borderBottom: '2px solid var(--line)' }}>{title}</div>
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ borderTop: '2px solid var(--line)', background: 'var(--bg)', padding: '22px 22px 26px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 36 }}>
+        {/* LEFT */}
+        <div>
+          <Sec title="Structure">
+            <Row label="Building SF" value={specs.buildingSF} onChange={v => setSpec('buildingSF', v)} type="number" />
+            <Row label="Land Area (ac)" value={specs.landAcres} onChange={v => setSpec('landAcres', v)} type="number" />
+            <Row label="Year Built" value={specs.yearBuilt} onChange={v => setSpec('yearBuilt', v)} type="number" />
+            <Row label="Clear Height" value={specs.clearHeight} onChange={v => setSpec('clearHeight', v)} type="select" opts={CLEAR_HEIGHT_OPTS} />
+            <Row label="Eave Height" value={specs.eaveHeight} onChange={v => setSpec('eaveHeight', v)} />
+            <Row label="Column Spacing" value={specs.columnSpacing} onChange={v => setSpec('columnSpacing', v)} type="select" opts={COLUMN_SPACING_OPTS} />
+            <Row label="Bay Depth" value={specs.bayDepth} onChange={v => setSpec('bayDepth', v)} />
+            <Row label="Construction Type" value={specs.constructionType} onChange={v => setSpec('constructionType', v)} type="select" opts={CONSTRUCTION_OPTS} />
+            <Row label="Roof Type" value={specs.roofType} onChange={v => setSpec('roofType', v)} type="select" opts={ROOF_TYPE_OPTS} />
+          </Sec>
+          <Sec title="Loading">
+            <Row label="Dock-High Doors" value={specs.dockHighDoors} onChange={v => setSpec('dockHighDoors', v)} type="number" />
+            <Row label="Grade-Level Doors" value={specs.gradeDoors} onChange={v => setSpec('gradeDoors', v)} type="number" />
+            <Row label="Truck Court Depth" value={specs.truckCourtDepth} onChange={v => setSpec('truckCourtDepth', v)} type="select" opts={TRUCK_COURT_OPTS} />
+            <Row label="Yard Depth" value={specs.yardDepth} onChange={v => setSpec('yardDepth', v)} />
+            <Row label="Trailer Spots" value={specs.trailerSpots} onChange={v => setSpec('trailerSpots', v)} type="number" />
+            <Row label="Parking Spaces" value={specs.parkingSpaces} onChange={v => setSpec('parkingSpaces', v)} type="number" />
+            <Row label="Loading Type" value={specs.loadingType} onChange={v => setSpec('loadingType', v)} type="select" opts={LOADING_TYPE_OPTS} />
+            <Row label="Dock Leveler Type" value={specs.dockLevelerType} onChange={v => setSpec('dockLevelerType', v)} type="select" opts={DOCK_LEVELER_OPTS} />
+            <Row label="Door Size" value={specs.doorSize} onChange={v => setSpec('doorSize', v)} type="select" opts={DOOR_SIZE_OPTS} />
+          </Sec>
+        </div>
+        {/* RIGHT */}
+        <div>
+          <Sec title="Systems">
+            <Row label="Power Amps" value={specs.powerAmps} onChange={v => setSpec('powerAmps', v)} type="select" opts={POWER_AMPS_OPTS} />
+            <Row label="Power Voltage" value={specs.powerVoltage} onChange={v => setSpec('powerVoltage', v)} type="select" opts={POWER_VOLTAGE_OPTS} />
+            <Row label="Sprinklers" value={specs.sprinklers} onChange={v => setSpec('sprinklers', v)} type="select" opts={SPRINKLERS_OPTS} />
+            <Row label="HVAC" value={specs.hvac} onChange={v => setSpec('hvac', v)} type="select" opts={HVAC_OPTS} />
+            <Row label="Lighting" value={specs.lighting} onChange={v => setSpec('lighting', v)} type="select" opts={LIGHTING_OPTS} />
+            <Row label="Rail Served" value={specs.railServed} onChange={v => setSpec('railServed', v)} type="select" opts={YES_NO_OPTS} />
+            <Row label="Evap Cooler" value={specs.evapCooler} onChange={v => setSpec('evapCooler', v)} type="select" opts={YES_NO_OPTS} />
+          </Sec>
+          <Sec title="Calculated (auto)">
+            <Row label="DH Ratio (per 10k SF)" value={bsf > 0 ? dhRatio.toFixed(2) : '—'} type="readonly" />
+            <Row label="Coverage Ratio %" value={coveragePct > 0 ? `${coveragePct.toFixed(1)}%` : '—'} type="readonly" />
+            <Row label="Land-to-Building" value={landToBldg > 0 ? `${landToBldg.toFixed(2)}x` : '—'} type="readonly" />
+            <Row label="Office SF" value={officeSF != null ? officeSF.toLocaleString() : '—'} type="readonly" />
+            <Row label="Warehouse SF" value={warehouseSF != null ? warehouseSF.toLocaleString() : '—'} type="readonly" />
+          </Sec>
+          <Sec title={`Score Breakdown — ${total}/100`}>
+            {breakdown.map((b, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--ink3)' }}>{b.label}</span>
+                  <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: b.pts > 0 ? 'var(--blue)' : 'var(--ink4)' }}>{b.pts}/{b.max}</span>
+                </div>
+                <div style={{ height: 5, background: 'var(--line)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${b.max > 0 ? (b.pts / b.max) * 100 : 0}%`, background: b.pts >= b.max * 0.8 ? 'var(--green)' : b.pts > 0 ? 'var(--blue)' : 'transparent', borderRadius: 3 }} />
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink2)' }}>Total</span>
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 700, color: 'var(--blue)' }}>{total} / 100</span>
+            </div>
+          </Sec>
+        </div>
+      </div>
     </div>
   );
 }

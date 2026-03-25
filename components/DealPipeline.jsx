@@ -30,8 +30,8 @@ export default function DealPipeline({ deals = MOCK_DEALS, onSelectDeal }) {
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink4)' }}><span style={{ color: 'var(--ink2)', fontWeight: 500 }}>Deal Pipeline</span></span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={S.btnGhost}>Table View</button>
-          <button style={S.btnBlue}>+ New Deal</button>
+          <button style={S.btnGhost} onClick={() => alert('Table View — coming soon')}>Table View</button>
+          <button style={S.btnBlue} onClick={() => alert('New Deal — Supabase form coming soon')}>+ New Deal</button>
         </div>
       </div>
 
@@ -44,8 +44,8 @@ export default function DealPipeline({ deals = MOCK_DEALS, onSelectDeal }) {
               <div style={S.pageSub}>{deals.length} active deals · ${totalValue.toFixed(1)}M total value · ${wtdComm.toFixed(1)}M weighted commission</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={S.btnGhost}>Filter</button>
-              <button style={S.btnGhost}>Sort</button>
+              <button style={S.btnGhost} onClick={() => alert('Filter — coming soon')}>Filter</button>
+              <button style={S.btnGhost} onClick={() => alert('Sort — coming soon')}>Sort</button>
             </div>
           </div>
 

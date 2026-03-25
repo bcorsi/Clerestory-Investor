@@ -21,6 +21,15 @@ export default function LeadGenList({ leads = MOCK_LEADS, onSelectLead, onNaviga
   const [activeTab, setActiveTab] = useState('all');
   const [activeFilters, setActiveFilters] = useState(['SGV', 'IE West']);
 
+  const filteredLeads = leads.filter(l => {
+    if (activeTab === 'hot') return l.hot || l.score >= 80;
+    if (activeTab === 'warn') return l.warn;
+    if (activeTab === 'pipeline') return l.score >= 65 && !l.warn;
+    if (activeTab === 'grapevine') return l.source?.toLowerCase().includes('grapevine');
+    if (activeTab === 'archived') return l.score < 50;
+    return true; // 'all'
+  });
+
   const toggleFilter = (f) => setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
 
   return (
@@ -46,10 +55,10 @@ export default function LeadGenList({ leads = MOCK_LEADS, onSelectLead, onNaviga
               <div style={S.pageSub}>237 leads · 40 hot (A+/A) · 4 active WARN signals</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button style={S.btnGhost}>Import CSV</button>
-              <button style={S.btnGhost}>Map View</button>
-              <button style={{ ...S.btn, background: 'var(--rust)', color: '#fff', borderColor: 'var(--rust)', fontSize: 12 }}>⚡ Hot Queue (40)</button>
-              <button style={{ ...S.btn, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>+ Add Lead</button>
+              <button style={S.btnGhost} onClick={() => alert('Import CSV — coming soon')}>Import CSV</button>
+              <button style={S.btnGhost} onClick={() => alert('Map View — coming soon')}>Map View</button>
+              <button style={{ ...S.btn, background: 'var(--rust)', color: '#fff', borderColor: 'var(--rust)', fontSize: 12 }} onClick={() => setActiveTab('hot')}>⚡ Hot Queue (40)</button>
+              <button style={{ ...S.btn, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }} onClick={() => alert('Add Lead — Supabase form coming soon')}>+ Add Lead</button>
             </div>
           </div>
 
@@ -109,7 +118,9 @@ export default function LeadGenList({ leads = MOCK_LEADS, onSelectLead, onNaviga
                 </tr>
               </thead>
               <tbody>
-                {leads.map((l, i) => (
+                {filteredLeads.length === 0 ? (
+                  <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No leads in this category</td></tr>
+                ) : filteredLeads.map((l, i) => (
                   <LeadRow key={l.id ?? i} lead={l} onClick={() => onSelectLead?.(l)} />
                 ))}
               </tbody>
@@ -147,8 +158,8 @@ function LeadRow({ lead: l, onClick }) {
       <td style={{ padding: '11px 13px', fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)' }}>{l.lastContact}</td>
       <td style={{ padding: '11px 13px', verticalAlign: 'middle' }}>
         <div style={{ display: 'flex', gap: 4, opacity: hover ? 1 : 0, transition: 'opacity 0.1s' }}>
-          <button style={S.qaBlue} onClick={e => { e.stopPropagation(); }}>Call</button>
-          <button style={l.warn ? S.qaRust : S.qaGreen} onClick={e => { e.stopPropagation(); }}>
+          <button style={S.qaBlue} onClick={e => { e.stopPropagation(); alert(`Log call for ${l.name} — activity logging coming soon`); }}>Call</button>
+          <button style={l.warn ? S.qaRust : S.qaGreen} onClick={e => { e.stopPropagation(); alert(l.warn ? `Calling owner of ${l.name} — coming soon` : `Adding ${l.name} to pipeline — coming soon`); }}>
             {l.warn ? 'Call Owner' : 'Pipeline →'}
           </button>
         </div>

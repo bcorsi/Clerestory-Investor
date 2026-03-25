@@ -64,7 +64,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       <Sidebar currentPage={page} onNavigate={navigate} counts={counts} />
-      <div style={{ flex: 1, marginLeft: 242, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, marginLeft: 242, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 0 }}>
         {renderPage()}
       </div>
     </div>

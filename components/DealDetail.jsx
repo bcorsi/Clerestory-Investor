@@ -143,10 +143,10 @@ export default function DealDetail({ deal, onBack }) {
             <span style={{ color: 'var(--ink2)', fontWeight: 500 }}>{d.name}</span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button style={S.btnGhost}>⚙ Edit</button>
-            <button style={S.btnGhost}>+ Activity</button>
-            <button style={S.btnGhost}>↓ Export BOV</button>
-            <button style={S.btnBlue}>Advance Stage →</button>
+            <button style={S.btnGhost} onClick={() => alert('Edit deal — Supabase form coming soon')}>⚙ Edit</button>
+            <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>+ Activity</button>
+            <button style={S.btnGhost} onClick={() => window.print()}>↓ Export BOV</button>
+            <button style={S.btnBlue} onClick={() => alert('Advance Stage — moves deal to next stage in pipeline')}>Advance Stage →</button>
           </div>
         </div>
       </div>
@@ -174,14 +174,14 @@ export default function DealDetail({ deal, onBack }) {
             <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'email' ? null : 'email')}>✉ Log Email</button>
             <button style={S.btnGhost} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>📝 Add Note</button>
             <div style={S.abSep} />
-            <button style={S.btnLink}>📍 Google Maps</button>
-            <button style={S.btnLink}>🗂 CoStar</button>
-            <button style={S.btnLink}>🗺 LA County GIS</button>
+            <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent((d.address ?? '4900 Workman Mill Rd') + ' City of Industry CA')}`)}>📍 Google Maps</button>
+            <button style={S.btnLink} onClick={() => window.open('https://www.costar.com/search/industrial')}>🗂 CoStar</button>
+            <button style={S.btnLink} onClick={() => window.open('https://assessor.lacounty.gov/')}>🗺 LA County GIS</button>
             <div style={S.abSep} />
-            <button style={S.btnGhost}>↓ Export Memo</button>
-            <button style={S.btnGhost}>📊 Run Comps</button>
+            <button style={S.btnGhost} onClick={() => window.print()}>↓ Export Memo</button>
+            <button style={S.btnGhost} onClick={() => alert('Run Comps — pulls sale/lease comps for this submarket')}>📊 Run Comps</button>
             <div style={{ marginLeft: 'auto' }} />
-            <button style={S.btnGreen}>Advance to PSA →</button>
+            <button style={S.btnGreen} onClick={() => alert('Advance to PSA — moves deal to PSA Negotiation stage')}>Advance to PSA →</button>
           </div>
 
           {/* LOG PANEL */}
@@ -244,7 +244,7 @@ export default function DealDetail({ deal, onBack }) {
             {activeTab === 'Timeline' && (
               <div style={S.bodyCols}>
                 <div style={S.card}>
-                  <div style={S.cardHdr}><div style={S.cardTitle}><span style={S.liveDot} />Activity Timeline</div><span style={S.cardAction}>+ Log Activity</span></div>
+                  <div style={S.cardHdr}><div style={S.cardTitle}><span style={S.liveDot} />Activity Timeline</div><span style={S.cardAction} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>+ Log Activity</span></div>
                   {MOCK_ACTIVITIES.map((a, i) => (
                     <div key={i} style={{ ...S.actRow, borderBottom: i < MOCK_ACTIVITIES.length - 1 ? '1px solid var(--line2)' : 'none' }}>
                       <div style={{ ...S.actIcon, background: ICON_BG[a.type], color: ICON_COLOR[a.type] }}>{ICON_EMOJI[a.type]}</div>
@@ -271,7 +271,7 @@ export default function DealDetail({ deal, onBack }) {
                   </div>
                   {/* Deal details */}
                   <div style={S.card}>
-                    <div style={S.spHdr}><span>Deal Details</span><span style={S.spHdrA}>Edit</span></div>
+                    <div style={S.spHdr}><span>Deal Details</span><span style={S.spHdrA} onClick={() => alert('Edit deal details — form coming soon')}>Edit</span></div>
                     {[
                       ['Deal Type', d.dealType ?? 'Sale-Leaseback'],
                       ['Stage', d.stage ?? 'LOI'],
@@ -425,8 +425,10 @@ export default function DealDetail({ deal, onBack }) {
             )}
 
             {activeTab !== 'Timeline' && activeTab !== 'Underwriting' && (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic' }}>
-                {activeTab} — coming soon
+              <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', padding: '48px 32px', textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: 'var(--ink2)', marginBottom: 8 }}>{activeTab}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic', color: 'var(--ink4)', marginBottom: 20 }}>This tab connects to live Supabase data — coming soon</div>
+                <button style={{ ...S.btnGhost, margin: '0 auto' }} onClick={() => setActiveTab('Timeline')}>← Back to Timeline</button>
               </div>
             )}
 

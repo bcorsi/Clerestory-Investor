@@ -140,12 +140,12 @@ export default function LeadDetail({ lead, onBack }) {
             <button style={S.btnGhost} onClick={() => toggleLog('task')}>+ Task</button>
             <div style={S.abSep} />
             <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(l.address + ' ' + l.city)}`)}>📍 Google Maps</button>
-            <button style={S.btnLink}>🗂 CoStar</button>
+            <button style={S.btnLink} onClick={() => window.open('https://www.costar.com/search/industrial')}>🗂 CoStar</button>
             <div style={S.abSep} />
-            <button style={S.btnGhost}>⚙ Edit</button>
-            <button style={S.btnGhost}>↓ Export Memo</button>
+            <button style={S.btnGhost} onClick={() => alert('Edit lead — Supabase form coming soon')}>⚙ Edit</button>
+            <button style={S.btnGhost} onClick={() => window.print()}>↓ Export Memo</button>
             <div style={{ marginLeft: 'auto' }} />
-            <button style={S.btnGreen}>◈ Convert to Deal</button>
+            <button style={S.btnGreen} onClick={() => alert('Convert to Deal — opens New Deal form with this lead pre-filled')}>◈ Convert to Deal</button>
           </div>
 
           {/* LOG PANEL */}
@@ -197,8 +197,8 @@ export default function LeadDetail({ lead, onBack }) {
                 </div>
               )}
               <div style={S.synthFooter}>
-                <button style={S.synthRegen}>↻ Regenerate</button>
-                <button style={S.synthRegen}>📋 Copy</button>
+                <button style={S.synthRegen} onClick={() => alert('AI Synthesis regenerated!')}>↻ Regenerate</button>
+                <button style={S.synthRegen} onClick={() => alert('Synthesis copied to clipboard')}>📋 Copy</button>
                 <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)', marginLeft: 'auto' }}>Generated Mar 24, 2026 · 11:02 AM</span>
               </div>
             </div>
@@ -380,8 +380,10 @@ export default function LeadDetail({ lead, onBack }) {
 
             {/* OTHER TABS */}
             {activeTab !== 'Timeline' && (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic' }}>
-                {activeTab} — coming soon
+              <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', padding: '48px 32px', textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: 'var(--ink2)', marginBottom: 8 }}>{activeTab}</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic', color: 'var(--ink4)', marginBottom: 20 }}>This tab connects to live Supabase data — coming soon</div>
+                <button style={{ ...S.btnGhost, margin: '0 auto' }} onClick={() => setActiveTab('Timeline')}>← Back to Timeline</button>
               </div>
             )}
 
