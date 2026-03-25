@@ -77,7 +77,6 @@ function buildSensGrid(baseInputs, exitCaps, rentGrowths) {
 
 export default function DealDetail({ deal, onBack }) {
   const [activeTab, setActiveTab] = useState('Timeline');
-  const [uwView, setUWView] = useState('quick'); // 'quick' | 'dashboard'
   const [synthOpen, setSynthOpen] = useState(false);
   const [logPanel, setLogPanel] = useState(null);
   const [logText, setLogText] = useState('');
@@ -101,15 +100,14 @@ export default function DealDetail({ deal, onBack }) {
     price: '$47,500,000', sf: '312,000', rent: '$0.82',
     marketRent: '$0.98', exitCap: '5.25', ltv: '65', rate: '6.50', bumps: '3.0', hold: '5',
   }));
-  const [running, setRunning] = useState(false);
-
   const EXIT_CAPS = [4.50, 4.75, 5.00, 5.25, 5.50, 5.75];
   const RENT_GROWTHS = [2.0, 2.5, 3.0, 3.5, 4.0];
   const sensGrid = buildSensGrid(inputs, EXIT_CAPS, RENT_GROWTHS);
 
-  function handleRun() {
-    setRunning(true);
-    setTimeout(() => { setResults(runModel(inputs)); setRunning(false); }, 350);
+  function handleInputChange(key, val) {
+    const next = { ...inputs, [key]: val };
+    setInputs(next);
+    setResults(runModel(next));
   }
 
   // Leaflet map
@@ -298,78 +296,64 @@ export default function DealDetail({ deal, onBack }) {
             {/* ── UNDERWRITING TAB ── */}
             {activeTab === 'Underwriting' && (
               <div>
-                {/* Toggle */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                  {['quick','dashboard'].map(v => (
-                    <button key={v} style={{ ...S.uwToggle, ...(uwView === v ? S.uwToggleActive : {}) }} onClick={() => setUWView(v)}>
-                      {v === 'quick' ? 'Quick Underwrite' : 'Returns Dashboard'}
-                    </button>
-                  ))}
+                {/* ── QUICK UNDERWRITE ── */}
+                <div style={{ ...S.card, borderLeft: '3px solid var(--blue2)', marginBottom: 16 }}>
+                  <div style={{ padding: '12px 18px 12px 22px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Quick Underwrite — {inputs.hold}-Year Hold Model</div>
+                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--ink4)' }}>Values auto-populated · edits recalculate instantly</div>
+                  </div>
+                  {/* Input grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, padding: '16px 22px' }}>
+                    {[
+                      { key: 'price', lbl: 'Asking Price', note: '~$152/SF on 312K SF' },
+                      { key: 'rent', lbl: 'In-Place Rent (NNN/SF/mo)', note: 'From property record' },
+                      { key: 'marketRent', lbl: 'Market Rent (NNN/SF/mo)', note: 'SGV comp range' },
+                      { key: 'bumps', lbl: 'Annual Rent Bumps', note: '%' },
+                      { key: 'exitCap', lbl: 'Exit Cap Rate', note: '%' },
+                      { key: 'ltv', lbl: 'LTV', note: '%' },
+                      { key: 'rate', lbl: 'Interest Rate', note: '%' },
+                      { key: 'hold', lbl: 'Hold Period (years)', note: '' },
+                      { key: 'sf', lbl: 'Building SF', note: 'From property record' },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', display: 'block', marginBottom: 5 }}>{f.lbl}</label>
+                        <input
+                          value={inputs[f.key]}
+                          onChange={e => handleInputChange(f.key, e.target.value)}
+                          style={{ width: '100%', padding: '8px 11px', border: '1px solid var(--line)', borderRadius: 7, fontFamily: 'inherit', fontSize: 14, color: 'var(--ink2)', background: 'var(--bg)', outline: 'none' }}
+                        />
+                        {f.note && <div style={{ fontSize: 12, color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', marginTop: 3 }}>{f.note}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Results */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', background: 'var(--bg2)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
+                    {[
+                      { lbl: 'Going-In Cap', val: results.goingInCap, color: 'var(--blue)' },
+                      { lbl: 'Unlevered IRR', val: results.unlevered, color: 'var(--green)' },
+                      { lbl: 'Levered IRR', val: results.levered, color: 'var(--green)' },
+                      { lbl: 'Equity Multiple', val: results.equityMultiple, color: 'var(--green)' },
+                      { lbl: 'DSCR Yr 1', val: results.dscr, color: 'var(--blue)' },
+                    ].map((m, i) => (
+                      <div key={i} style={{ padding: '14px 16px', borderRight: i < 4 ? '1px solid var(--line)' : 'none' }}>
+                        <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', display: 'block', marginBottom: 6 }}>{m.lbl}</label>
+                        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 700, lineHeight: 1, color: m.color }}>{m.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Actions */}
+                  <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button style={S.uwExcel} onClick={() => alert('Generates full multi-sheet Excel model via sgv-ie-finance skill')}>↓ Export Full Excel Model</button>
+                  </div>
                 </div>
 
-                {/* ── QUICK UNDERWRITE ── */}
-                {uwView === 'quick' && (
-                  <div style={{ ...S.card, borderLeft: '3px solid var(--blue2)', marginBottom: 16 }}>
-                    <div style={{ padding: '12px 18px 12px 22px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Quick Underwrite — {inputs.hold}-Year Hold Model</div>
-                      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--ink4)' }}>Values auto-populated · adjust and run</div>
-                    </div>
-                    {/* Input grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, padding: '16px 22px' }}>
-                      {[
-                        { key: 'price', lbl: 'Asking Price', note: '~$152/SF on 312K SF' },
-                        { key: 'rent', lbl: 'In-Place Rent (NNN/SF/mo)', note: 'From property record' },
-                        { key: 'marketRent', lbl: 'Market Rent (NNN/SF/mo)', note: 'SGV comp range' },
-                        { key: 'bumps', lbl: 'Annual Rent Bumps', note: '%' },
-                        { key: 'exitCap', lbl: 'Exit Cap Rate', note: '%' },
-                        { key: 'ltv', lbl: 'LTV', note: '%' },
-                        { key: 'rate', lbl: 'Interest Rate', note: '%' },
-                        { key: 'hold', lbl: 'Hold Period (years)', note: '' },
-                        { key: 'sf', lbl: 'Building SF', note: 'From property record' },
-                      ].map(f => (
-                        <div key={f.key}>
-                          <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', display: 'block', marginBottom: 5 }}>{f.lbl}</label>
-                          <input
-                            value={inputs[f.key]}
-                            onChange={e => setInputs(prev => ({ ...prev, [f.key]: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 11px', border: '1px solid var(--line)', borderRadius: 7, fontFamily: 'inherit', fontSize: 14, color: 'var(--ink2)', background: 'var(--bg)', outline: 'none' }}
-                          />
-                          {f.note && <div style={{ fontSize: 12, color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', marginTop: 3 }}>{f.note}</div>}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Results */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', background: 'var(--bg2)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
-                      {[
-                        { lbl: 'Going-In Cap', val: results.goingInCap, color: 'var(--blue)' },
-                        { lbl: 'Unlevered IRR', val: results.unlevered, color: 'var(--green)' },
-                        { lbl: 'Levered IRR', val: results.levered, color: 'var(--green)' },
-                        { lbl: 'Equity Multiple', val: results.equityMultiple, color: 'var(--green)' },
-                        { lbl: 'DSCR Yr 1', val: results.dscr, color: 'var(--blue)' },
-                      ].map((m, i) => (
-                        <div key={i} style={{ padding: '14px 16px', borderRight: i < 4 ? '1px solid var(--line)' : 'none' }}>
-                          <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', display: 'block', marginBottom: 6 }}>{m.lbl}</label>
-                          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 700, lineHeight: 1, color: m.color, opacity: running ? 0.3 : 1, transition: 'opacity 0.35s' }}>{m.val}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Actions */}
-                    <div style={{ padding: '12px 22px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button style={S.uwRun} onClick={handleRun}>{running ? '⟳ Running…' : '▶ Run / Update'}</button>
-                      <button style={S.uwExcel} onClick={() => alert('Generates full multi-sheet Excel model via sgv-ie-finance skill')}>↓ Export Full Excel Model</button>
-                      <button style={{ ...S.btnGhost, marginLeft: 'auto', fontSize: 12 }} onClick={() => setUWView('dashboard')}>View Returns Dashboard →</button>
-                    </div>
-                  </div>
-                )}
-
                 {/* ── RETURNS DASHBOARD ── */}
-                {uwView === 'dashboard' && (
-                  <div>
-                    <div style={{ ...S.card, marginBottom: 16 }}>
-                      <div style={{ ...S.cardHdr }}>
-                        <div style={S.cardTitle}>Returns Summary — {inputs.hold}-Year Hold</div>
-                        <button style={S.uwExcel}>↓ Export Excel</button>
-                      </div>
+                <div>
+                  <div style={{ ...S.card, marginBottom: 16 }}>
+                    <div style={{ ...S.cardHdr }}>
+                      <div style={S.cardTitle}>Returns Dashboard — {inputs.hold}-Year Hold</div>
+                      <button style={S.uwExcel} onClick={() => alert('Generates full multi-sheet Excel model via sgv-ie-finance skill')}>↓ Export Excel</button>
+                    </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
                         {[
                           { lbl: 'Unlevered IRR', val: results.unlevered, sub: 'Exceeds 10% hurdle', color: 'var(--green)' },
@@ -420,7 +404,6 @@ export default function DealDetail({ deal, onBack }) {
                       </div>
                     </div>
                   </div>
-                )}
               </div>
             )}
 

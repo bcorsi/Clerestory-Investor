@@ -59,6 +59,14 @@
 html, body { width: 100%; min-height: 100vh; background: var(--bg); color: var(--ink); }
 body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 
+/* Animations */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+
+/* Leaflet map fix */
+.leaflet-container { position: relative !important; z-index: 1; }
+.leaflet-pane { z-index: 1 !important; }
+.leaflet-tile-pane { z-index: 1 !important; }
+
 /* ═══════════════════════════════════════════════════════════════
    APP LAYOUT
    ═══════════════════════════════════════════════════════════════ */
