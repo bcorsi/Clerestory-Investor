@@ -35,9 +35,10 @@ const TABS = [
   { key: 'lenders', label: 'Lenders' },
 ];
 
-export default function ContactsList({ onSelectContact }) {
+export default function ContactsList({ onSelectContact, contacts: propContacts, loading }) {
   const [activeTab, setActiveTab] = useState('all');
-  const filteredContacts = activeTab === 'all' ? MOCK_CONTACTS : MOCK_CONTACTS.filter(c => c.tabKey === activeTab);
+  const contacts = (propContacts && propContacts.length > 0) ? propContacts : MOCK_CONTACTS;
+  const filteredContacts = activeTab === 'all' ? contacts : contacts.filter(c => c.tabKey === activeTab || (c.contact_type || '').toLowerCase().includes(activeTab));
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -83,20 +84,28 @@ export default function ContactsList({ onSelectContact }) {
           </div>
 
           {/* TABLE */}
-          <div style={S.tblWrap}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Contact', 'Type', 'Company / Account', 'Phone', 'Email', 'Last Contact', 'Linked To', ''].map((h, i) => (
-                    <th key={i} style={S.th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredContacts.map(c => <ContactRow key={c.id} contact={c} onSelectContact={onSelectContact} />)}
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div style={{ padding: '8px 0' }}>
+              {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 56, marginBottom: 6 }} />)}
+            </div>
+          ) : (
+            <div style={S.tblWrap}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Contact', 'Type', 'Company / Account', 'Phone', 'Email', 'Last Contact', 'Linked To', ''].map((h, i) => (
+                      <th key={i} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredContacts.length === 0 ? (
+                    <tr><td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No contacts yet — add your first contact</td></tr>
+                  ) : filteredContacts.map(c => <ContactRow key={c.id} contact={c} onSelectContact={onSelectContact} />)}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

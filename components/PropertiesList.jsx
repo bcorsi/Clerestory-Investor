@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import ImportModal from './ImportModal';
+import { insertRecord } from '../lib/useSupabase';
 
 const MOCK_PROPERTIES = [
   { id: 1, address: '14022 Nelson Ave E', city: 'Baldwin Park', state: 'CA', zip: '91706', market: 'SGV', submarket: 'Mid Valley', type: 'Distribution', score: 92, grade: 'A+', scoreColor: 'var(--blue)', sf: 186400, tenant: 'Leegin Creative Leather', leaseExp: 'Aug 2027', leaseExpColor: 'var(--rust)', status: 'occupied', catalysts: [{ label: "Lease '27", cls: 'lease' }], lat: 34.0887, lng: -117.9712 },
@@ -41,31 +42,37 @@ const FILTERS = [
   { key: 'capex',   label: 'CapEx' },
 ];
 
-export default function PropertiesList({ onSelectProperty }) {
+export default function PropertiesList({ onSelectProperty, properties: propData, loading, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
-  const [properties, setProperties] = useState(MOCK_PROPERTIES);
   const [showImport, setShowImport] = useState(false);
+
+  // Use Supabase data when available, fall back to mock for demo
+  const properties = (propData && propData.length > 0) ? propData : MOCK_PROPERTIES;
 
   const filtered = properties.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'sgv') return p.market === 'SGV';
-    if (filter === 'ie') return p.market === 'IE';
-    if (filter === 'occupied') return p.status === 'occupied';
-    if (filter === 'vacant') return p.status === 'vacant';
+    if (filter === 'ie') return (p.market || '').startsWith('IE');
+    if (filter === 'occupied') return p.status === 'occupied' || p.vacancy_status === 'Occupied';
+    if (filter === 'vacant') return p.status === 'vacant' || p.vacancy_status === 'Vacant';
     if (filter === 'partial') return p.status === 'partial';
-    if (filter === 'warn') return p.catalysts.some(c => c.cls === 'warn');
-    if (filter === 'expiry') return p.catalysts.some(c => c.cls === 'lease');
-    if (filter === 'slb') return p.catalysts.some(c => c.cls === 'slb');
-    if (filter === 'capex') return p.catalysts.some(c => c.cls === 'capex');
+    const cats = p.catalysts || p.catalyst_tags || [];
+    if (filter === 'warn') return cats.some(c => (c.cls || c) === 'warn' || (c.label || c || '').includes('WARN'));
+    if (filter === 'expiry') return cats.some(c => (c.cls || c) === 'lease' || (c.label || c || '').includes('Lease'));
+    if (filter === 'slb') return cats.some(c => (c.cls || c) === 'slb' || (c.label || c || '').toLowerCase().includes('slb'));
+    if (filter === 'capex') return cats.some(c => (c.cls || c) === 'capex' || (c.label || c || '').includes('CapEx'));
     return true;
   });
 
-  const totalSF = properties.reduce((s, p) => s + (p.sf ?? 0), 0);
+  const totalSF = properties.reduce((s, p) => s + (p.sf ?? p.building_sf ?? 0), 0);
 
-  const handleImportComplete = ({ importedProperties }) => {
-    if (importedProperties?.length) {
-      setProperties(prev => [...prev, ...importedProperties]);
+  const handleImportComplete = async ({ importedProperties, importedAccounts }) => {
+    // Persist to Supabase
+    for (const prop of (importedProperties || [])) {
+      try { await insertRecord('properties', prop); } catch (e) { console.error(e); }
     }
+    toast?.(`Imported ${(importedProperties || []).length} properties`, 'success');
+    onRefresh?.();
   };
 
   return (
@@ -128,22 +135,32 @@ export default function PropertiesList({ onSelectProperty }) {
           </div>
 
           {/* TABLE */}
-          <div style={S.tblWrap}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Property', 'Market / Submarket', 'Type', 'Score ↓', 'SF', 'Tenant', 'Lease Exp.', 'Status', 'Catalysts', ''].map((h, i) => (
-                    <th key={i} style={S.th}>{h}</th>
+          {loading ? (
+            <div style={{ padding: '8px 0' }}>
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="skeleton" style={{ height: 56, marginBottom: 6, borderRadius: 8 }} />
+              ))}
+            </div>
+          ) : (
+            <div style={S.tblWrap}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Property', 'Market / Submarket', 'Type', 'Score ↓', 'SF', 'Tenant', 'Lease Exp.', 'Status', 'Catalysts', ''].map((h, i) => (
+                      <th key={i} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={10} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No properties yet — import from CoStar or add manually</td></tr>
+                  ) : filtered.map(p => (
+                    <PropertyRow key={p.id} p={p} onSelect={onSelectProperty} />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(p => (
-                  <PropertyRow key={p.id} p={p} onSelect={onSelectProperty} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

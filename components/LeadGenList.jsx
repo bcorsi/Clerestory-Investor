@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { insertRecord } from '../lib/useSupabase';
 
 const CATALYST_TAGS_OPTIONS = ['Lease Expiry \'25–\'27', 'WARN Notice', 'NOD Filed', 'CapEx Signal', 'Sale-Leaseback', 'Owner-User', 'Hiring Signal', 'Vacancy Risk', 'Broker Intel'];
 
@@ -13,13 +14,14 @@ function AddLeadModal({ onClose, onSave }) {
     if (!form.company) { alert('Company Name is required'); return; }
     const C = (bg, bdr, color, label) => ({ bg, bdr, color, label });
     const catalysts = tags.map(t => t.includes('WARN') ? C('var(--rust-bg)', 'var(--rust-bdr)', 'var(--rust)', '⚠ ' + t) : t.includes('Expiry') ? C('var(--amber-bg)', 'var(--amber-bdr)', 'var(--amber)', t) : t.includes('CapEx') || t.includes('SLB') ? C('var(--purple-bg)', 'var(--purple-bdr)', 'var(--purple)', t) : C('var(--blue-bg)', 'var(--blue-bdr)', 'var(--blue)', t));
+    // Pass both the UI-shaped lead AND the raw form data + tags for Supabase
     onSave({
       id: Date.now(), score: Number(form.score), grade: Number(form.score) >= 90 ? 'A+' : Number(form.score) >= 80 ? 'A' : Number(form.score) >= 70 ? 'B+' : 'B',
       name: form.company, addr: form.address + (form.city ? ' · ' + form.city : ''),
       market: form.market || 'SGV', sf: form.sf ? form.sf + ' SF' : '—',
       catalysts, source: form.source || 'Manual', owner: form.ownerName || 'Unknown',
       lastContact: 'Never', hot: Number(form.score) >= 80, warn: tags.some(t => t.includes('WARN')),
-    });
+    }, form, tags);
     onClose();
   };
 
@@ -161,11 +163,13 @@ const SIZE_FILTERS = ['50K+ SF', '100K+ SF'];
 
 const SCORE_COLOR = (score) => score >= 85 ? 'var(--blue)' : score >= 70 ? 'var(--blue2)' : score >= 55 ? 'var(--amber)' : 'var(--ink4)';
 
-export default function LeadGenList({ leads: initialLeads, onSelectLead, onNavigate }) {
+export default function LeadGenList({ leads: propLeads, loading, onRefresh, toast, onSelectLead, onNavigate }) {
   const [activeTab, setActiveTab] = useState('all');
   const [activeFilters, setActiveFilters] = useState(['SGV', 'IE West']);
-  const [leads, setLeads] = useState(initialLeads ?? MOCK_LEADS);
   const [showAddLead, setShowAddLead] = useState(false);
+
+  // Use Supabase data when available, fall back to mock
+  const leads = (propLeads && propLeads.length > 0) ? propLeads : MOCK_LEADS;
 
   const filteredLeads = leads.filter(l => {
     if (activeTab === 'hot') return l.hot || l.score >= 80;
@@ -180,7 +184,34 @@ export default function LeadGenList({ leads: initialLeads, onSelectLead, onNavig
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {showAddLead && <AddLeadModal onClose={() => setShowAddLead(false)} onSave={lead => { setLeads(prev => [lead, ...prev]); setActiveTab('all'); }} />}
+      {showAddLead && <AddLeadModal onClose={() => setShowAddLead(false)} onSave={async (lead, formData, tags) => {
+        try {
+          await insertRecord('leads', {
+            lead_name: formData.company,
+            company: formData.company,
+            address: formData.address,
+            city: formData.city,
+            market: formData.market,
+            submarket: formData.submarket,
+            building_sf: formData.sf ? parseInt(String(formData.sf).replace(/,/g, '')) : null,
+            prop_type: formData.propType,
+            owner: formData.ownerName,
+            owner_type: formData.ownerType,
+            catalyst_tags: tags,
+            score: Number(formData.score),
+            notes: formData.notes,
+            stage: 'New',
+            tier: Number(formData.score) >= 80 ? 'A' : Number(formData.score) >= 60 ? 'B' : 'C',
+            priority: Number(formData.score) >= 80 ? 'High' : 'Medium',
+            source: formData.source,
+          });
+          toast?.('Lead added successfully', 'success');
+          onRefresh?.();
+        } catch (e) {
+          toast?.('Failed to save lead — ' + e.message, 'error');
+        }
+        setActiveTab('all');
+      }} />}
       {/* TOPBAR */}
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink4)' }}><span style={{ color: 'var(--ink2)', fontWeight: 500 }}>Lead Gen</span></span>
@@ -255,24 +286,30 @@ export default function LeadGenList({ leads: initialLeads, onSelectLead, onNavig
           </div>
 
           {/* TABLE */}
-          <div style={S.tblWrap}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Score', 'Company / Address', 'Market', 'SF', 'Catalyst', 'Source', 'Owner', 'Last Contact', ''].map((h, i) => (
-                    <th key={i} style={S.th}>{h}</th>
+          {loading ? (
+            <div style={{ padding: '8px 0' }}>
+              {[1,2,3,4,5,6,7].map(i => <div key={i} className="skeleton" style={{ height: 60, marginBottom: 6 }} />)}
+            </div>
+          ) : (
+            <div style={S.tblWrap}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Score', 'Company / Address', 'Market', 'SF', 'Catalyst', 'Source', 'Owner', 'Last Contact', ''].map((h, i) => (
+                      <th key={i} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.length === 0 ? (
+                    <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No leads yet — add your first lead or sync WARN Intel</td></tr>
+                  ) : filteredLeads.map((l, i) => (
+                    <LeadRow key={l.id ?? i} lead={l} onClick={() => onSelectLead?.(l)} />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.length === 0 ? (
-                  <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No leads in this category</td></tr>
-                ) : filteredLeads.map((l, i) => (
-                  <LeadRow key={l.id ?? i} lead={l} onClick={() => onSelectLead?.(l)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

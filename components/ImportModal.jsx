@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
+import { insertRecord, updateRecord } from '../lib/useSupabase';
 
 /* ─── Normalisation helpers ─────────────────────────────────────── */
 function normalizeAPN(apn) {
@@ -706,19 +707,27 @@ export default function ImportModal({
       ...reviewNew,
     ];
 
-    // Simulate progress (real app would batch Supabase inserts)
+    // Real Supabase inserts/updates with progress
+    const table = importType === 'properties' ? 'properties' : 'accounts';
     const total = toMerge.length + reviewMerge.length + toCreate.length;
     let done = 0;
 
-    const tick = () => new Promise(r => setTimeout(r, 30));
-
+    // Process merges (update existing records)
     for (const item of [...toMerge, ...reviewMerge]) {
-      await tick();
+      try {
+        if (item.match?.id) {
+          await updateRecord(table, item.match.id, item.costar);
+        }
+      } catch (e) { console.error('Import merge error:', e); }
       done++;
       setProgress(Math.round((done / Math.max(total, 1)) * 100));
     }
+
+    // Process new records (insert)
     for (const item of toCreate) {
-      await tick();
+      try {
+        await insertRecord(table, item.costar);
+      } catch (e) { console.error('Import insert error:', e); }
       done++;
       setProgress(Math.round((done / Math.max(total, 1)) * 100));
     }

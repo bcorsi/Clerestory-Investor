@@ -18,11 +18,18 @@ const CAT_STYLES = {
   rep: { bg: 'var(--purple-bg)', bdr: 'var(--purple-bdr)', color: 'var(--purple)', label: 'Buyer Rep' },
 };
 
-export default function DealPipeline({ deals = MOCK_DEALS, onSelectDeal }) {
-  const totalValue = deals.reduce((s, d) => s + d.valueMM, 0);
-  const inLOI = deals.filter(d => ['loi', 'loi_accepted'].includes(d.stage)).length;
+export default function DealPipeline({ deals: propDeals, loading, onSelectDeal }) {
+  // Use Supabase data when available, fall back to mock
+  const deals = (propDeals && propDeals.length > 0) ? propDeals : MOCK_DEALS;
+
+  // Normalize deal value (Supabase uses deal_value, mock uses valueMM)
+  const getVal = (d) => d.valueMM ?? (d.deal_value ? d.deal_value / 1e6 : 0);
+  const getProb = (d) => d.prob ?? d.probability ?? 50;
+
+  const totalValue = deals.reduce((s, d) => s + getVal(d), 0);
+  const inLOI = deals.filter(d => ['loi', 'loi_accepted', 'LOI', 'LOI Accepted'].includes(d.stage)).length;
   const actionNeeded = deals.filter(d => d.action).length;
-  const wtdComm = deals.reduce((s, d) => s + d.valueMM * (d.prob / 100) * 0.012, 0);
+  const wtdComm = deals.reduce((s, d) => s + getVal(d) * (getProb(d) / 100) * 0.012, 0);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -71,8 +78,8 @@ export default function DealPipeline({ deals = MOCK_DEALS, onSelectDeal }) {
           {/* KANBAN */}
           <div style={S.kanban}>
             {STAGES.map(stage => {
-              const stageDeals = deals.filter(d => d.stage === stage.key);
-              const stageTotal = stageDeals.reduce((s, d) => s + d.valueMM, 0);
+              const stageDeals = deals.filter(d => d.stage === stage.key || d.stage === stage.label);
+              const stageTotal = stageDeals.reduce((s, d) => s + getVal(d), 0);
               return (
                 <div key={stage.key} style={S.col}>
                   <div style={{ ...S.colHdr, background: stage.colorAlpha }}>
@@ -103,11 +110,11 @@ function DealCard({ deal: d, stageColor, onClick }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)', marginBottom: 3, paddingLeft: 6 }}>{d.name}</div>
-      <div style={{ fontSize: 12, color: 'var(--ink4)', paddingLeft: 6, marginBottom: 8 }}>{d.addr}</div>
+      <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)', marginBottom: 3, paddingLeft: 6 }}>{d.name ?? d.deal_name}</div>
+      <div style={{ fontSize: 12, color: 'var(--ink4)', paddingLeft: 6, marginBottom: 8 }}>{d.addr ?? d.address}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 6 }}>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>${d.valueMM}M</div>
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)' }}>{d.prob}% close</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>${(d.valueMM ?? (d.deal_value ? (d.deal_value / 1e6).toFixed(1) : 0))}M</div>
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)' }}>{d.prob ?? d.probability ?? 50}% close</div>
       </div>
       {d.cats?.length > 0 && (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingLeft: 6, marginTop: 6 }}>

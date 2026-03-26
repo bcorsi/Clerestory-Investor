@@ -570,6 +570,8 @@ tr.urgent td { background: #FFF8F6; }
   box-shadow: 0 4px 20px rgba(0,0,0,0.12); animation: slideUp 0.2s ease;
 }
 @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.skeleton { animation: skeleton-pulse 1.5s ease-in-out infinite; background: var(--bg2); border-radius: 8px; }
 
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

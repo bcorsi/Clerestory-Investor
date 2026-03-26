@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { updateRecord } from '../lib/useSupabase';
 
 const MOCK_TASKS = {
   overdue: [
@@ -26,14 +27,27 @@ const MOCK_TASKS = {
   ],
 };
 
-export default function Tasks({ onSelectTask }) {
+export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefresh, toast }) {
   const [checked, setChecked] = useState(new Set());
 
-  const toggle = (id) => setChecked(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+  // Build flat list from Supabase data or mock sections
+  const hasSupa = propTasks && propTasks.length > 0;
+
+  const toggle = async (id) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+    // If this is a real Supabase task (numeric id), mark complete
+    if (hasSupa && typeof id === 'number') {
+      try {
+        await updateRecord('tasks', id, { completed: true, completed_at: new Date().toISOString() });
+        toast?.('Task completed ✓', 'success');
+        onRefresh?.();
+      } catch (e) { toast?.('Failed to update task', 'error'); }
+    }
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -59,29 +73,50 @@ export default function Tasks({ onSelectTask }) {
           {/* BODY GRID */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
             <div>
-              {/* OVERDUE */}
-              <TaskGroup label="Overdue" count={MOCK_TASKS.overdue.length} countStyle="rust">
-                {MOCK_TASKS.overdue.map(t => (
-                  <TaskRow key={t.id} task={t} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                    dueLabel={t.daysAgo} dueStyle="overdue" onSelect={onSelectTask} />
-                ))}
-              </TaskGroup>
-
-              {/* TODAY */}
-              <TaskGroup label="Today" count={MOCK_TASKS.today.length} countStyle="amber">
-                {MOCK_TASKS.today.map(t => (
-                  <TaskRow key={t.id} task={t} type={t.priority === 'high' ? 'high' : 'normal'} checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                    dueLabel="Today" dueStyle="today" onSelect={onSelectTask} />
-                ))}
-              </TaskGroup>
-
-              {/* THIS WEEK */}
-              <TaskGroup label="This Week" count={MOCK_TASKS.thisWeek.length} countStyle="blue">
-                {MOCK_TASKS.thisWeek.map(t => (
-                  <TaskRow key={t.id} task={t} type="normal" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                    dueLabel={t.due} dueStyle="soon" onSelect={onSelectTask} />
-                ))}
-              </TaskGroup>
+              {loading ? (
+                [1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 56, marginBottom: 8, borderRadius: 8 }} />)
+              ) : hasSupa ? (
+                /* ── Supabase tasks grouped by due date ── */
+                (() => {
+                  const now = new Date(); now.setHours(0,0,0,0);
+                  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
+                  const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate()+7);
+                  const overdue = propTasks.filter(t => t.due_date && new Date(t.due_date) < now);
+                  const today   = propTasks.filter(t => t.due_date && new Date(t.due_date) >= now && new Date(t.due_date) < tomorrow);
+                  const week    = propTasks.filter(t => t.due_date && new Date(t.due_date) >= tomorrow && new Date(t.due_date) < weekEnd);
+                  const later   = propTasks.filter(t => !t.due_date || new Date(t.due_date) >= weekEnd);
+                  const toRow = (t) => ({ id: t.id, text: t.title, detail: t.description, meta: { linkLabel: null } });
+                  return (<>
+                    {overdue.length > 0 && <TaskGroup label="Overdue" count={overdue.length} countStyle="rust">{overdue.map(t => <TaskRow key={t.id} task={toRow(t)} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Overdue" dueStyle="overdue" onSelect={onSelectTask} />)}</TaskGroup>}
+                    {today.length > 0   && <TaskGroup label="Today"   count={today.length}   countStyle="amber">{today.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Today"   dueStyle="today"   onSelect={onSelectTask} />)}</TaskGroup>}
+                    {week.length > 0    && <TaskGroup label="This Week" count={week.length}   countStyle="blue">{week.map(t =>    <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel={t.due_date?.slice(5,10)} dueStyle="soon" onSelect={onSelectTask} />)}</TaskGroup>}
+                    {later.length > 0   && <TaskGroup label="Later"   count={later.length}   countStyle="blue">{later.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="—"       dueStyle="soon"   onSelect={onSelectTask} />)}</TaskGroup>}
+                    {propTasks.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No open tasks</div>}
+                  </>);
+                })()
+              ) : (
+                /* ── Mock tasks (fallback) ── */
+                <>
+                  <TaskGroup label="Overdue" count={MOCK_TASKS.overdue.length} countStyle="rust">
+                    {MOCK_TASKS.overdue.map(t => (
+                      <TaskRow key={t.id} task={t} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
+                        dueLabel={t.daysAgo} dueStyle="overdue" onSelect={onSelectTask} />
+                    ))}
+                  </TaskGroup>
+                  <TaskGroup label="Today" count={MOCK_TASKS.today.length} countStyle="amber">
+                    {MOCK_TASKS.today.map(t => (
+                      <TaskRow key={t.id} task={t} type={t.priority === 'high' ? 'high' : 'normal'} checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
+                        dueLabel="Today" dueStyle="today" onSelect={onSelectTask} />
+                    ))}
+                  </TaskGroup>
+                  <TaskGroup label="This Week" count={MOCK_TASKS.thisWeek.length} countStyle="blue">
+                    {MOCK_TASKS.thisWeek.map(t => (
+                      <TaskRow key={t.id} task={t} type="normal" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
+                        dueLabel={t.due} dueStyle="soon" onSelect={onSelectTask} />
+                    ))}
+                  </TaskGroup>
+                </>
+              )}
             </div>
 
             {/* RIGHT PANEL */}

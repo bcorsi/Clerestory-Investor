@@ -31,16 +31,23 @@ const TABS = [
   { key: 'tenants', label: 'Tenants' },
 ];
 
-export default function Accounts({ onSelectAccount }) {
+export default function Accounts({ onSelectAccount, accounts: propAccounts, loading, onRefresh, toast }) {
   const [activeTab, setActiveTab] = useState('all');
-  const [accounts, setAccounts] = useState(MOCK_ACCOUNTS);
   const [showImport, setShowImport] = useState(false);
-  const filteredAccounts = activeTab === 'all' ? accounts : accounts.filter(a => a.tabKey === activeTab);
 
-  const handleImportComplete = ({ importedAccounts }) => {
-    if (importedAccounts?.length) {
-      setAccounts(prev => [...prev, ...importedAccounts]);
+  // Use Supabase data when available, fall back to mock
+  const accounts = (propAccounts && propAccounts.length > 0) ? propAccounts : MOCK_ACCOUNTS;
+  const filteredAccounts = activeTab === 'all' ? accounts : accounts.filter(a => (a.tabKey || '').includes(activeTab) || (a.account_type || a.type || '').toLowerCase().includes(activeTab));
+
+  const handleImportComplete = async ({ importedAccounts }) => {
+    for (const acct of (importedAccounts || [])) {
+      try {
+        const { insertRecord } = await import('../lib/useSupabase');
+        await insertRecord('accounts', acct);
+      } catch (e) { console.error(e); }
     }
+    toast?.(`Imported ${(importedAccounts || []).length} accounts`, 'success');
+    onRefresh?.();
   };
 
   return (
@@ -105,9 +112,17 @@ export default function Accounts({ onSelectAccount }) {
           </div>
 
           {/* GRID */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
-            {filteredAccounts.map(a => <AccountCard key={a.id} acct={a} onSelectAccount={onSelectAccount} />)}
-          </div>
+          {loading ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+              {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton" style={{ height: 160, borderRadius: 10 }} />)}
+            </div>
+          ) : filteredAccounts.length === 0 ? (
+            <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No accounts yet — import from CoStar or add manually</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+              {filteredAccounts.map(a => <AccountCard key={a.id} acct={a} onSelectAccount={onSelectAccount} />)}
+            </div>
+          )}
         </div>
       </div>
 
