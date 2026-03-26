@@ -2,7 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 
 const STAGES = ['Tracking','Underwriting','Off-Market Outreach','LOI','LOI Accepted','PSA Negotiation','Due Diligence','Non-Contingent','Closed Won'];
-const TABS = ['Timeline','Underwriting','Property','Contacts','Comps','Files'];
+const TABS = ['Timeline','Underwriting','Property','Contacts','Comps','Buyer Matches','Files'];
+
+const MOCK_BUYER_MATCHES = [
+  { id: 6,  company: 'Pacific Manufacturing Group',  type: 'Corporate / Buyer',    req: '280–320K SF · SGV / Whittier · 30\'+ Clear · Dock-High', match: 96 },
+  { id: 8,  company: 'Rexford Industrial Realty',    type: 'Institutional REIT',   req: '100–400K SF · SoCal Industrial · NNN Yield · Core/Core+', match: 89 },
+  { id: 2,  company: 'Cabot Industrial Value Fund',  type: 'Institutional REIT',   req: '150–300K SF · IE West / SGV · Value-Add OK · Sub-5.5 Cap', match: 83 },
+  { id: 10, company: 'Matrix Logistics Partners',    type: 'Private Equity Buyer', req: '200–350K SF · IE West · Dock-High · NNN Leaseback Preferred', match: 78 },
+];
 
 // ── Quick UW model (runs client-side, no server needed) ─────
 function runModel(inputs) {
@@ -75,7 +82,7 @@ function buildSensGrid(baseInputs, exitCaps, rentGrowths) {
   }));
 }
 
-export default function DealDetail({ deal, onBack, onNavigate }) {
+export default function DealDetail({ deal, onBack, onNavigate, onSelectAccount }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [synthOpen, setSynthOpen] = useState(false);
   const [logPanel, setLogPanel] = useState(null);
@@ -410,7 +417,7 @@ export default function DealDetail({ deal, onBack, onNavigate }) {
               </div>
             )}
 
-            {activeTab !== 'Timeline' && activeTab !== 'Underwriting' && <DealTabContent tab={activeTab} d={d} />}
+            {activeTab !== 'Timeline' && activeTab !== 'Underwriting' && <DealTabContent tab={activeTab} d={d} onSelectAccount={onSelectAccount} />}
 
           </div>
         </div>
@@ -419,7 +426,7 @@ export default function DealDetail({ deal, onBack, onNavigate }) {
   );
 }
 
-function DealTabContent({ tab, d }) {
+function DealTabContent({ tab, d, onSelectAccount }) {
   const tbl = (cols, rows) => (
     <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -482,6 +489,42 @@ function DealTabContent({ tab, d }) {
       ['14500 Nelson Ave, Baldwin Park', 'Lease', '142,000', 'Jan 2025', '$1.38/SF/Mo NNN', '5-yr term', 'Pacific Mfg Group'],
       ['1300 Arrow Hwy, Irwindale', 'Lease', '96,000', 'Mar 2025', '$1.44/SF/Mo NNN', '3-yr term', 'Apex Distribution'],
     ]
+  );
+  if (tab === 'Buyer Matches') return (
+    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
+      <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)' }}>Buyer Matches</div>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink4)' }}>
+          {MOCK_BUYER_MATCHES.length} active buyers · AI-matched to this deal
+        </div>
+      </div>
+      {MOCK_BUYER_MATCHES.map((b, i) => (
+        <div key={b.id}
+          style={{ display: 'flex', alignItems: 'center', padding: '14px 18px', gap: 16, borderBottom: i < MOCK_BUYER_MATCHES.length - 1 ? '1px solid var(--line2)' : 'none', cursor: 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+          onMouseLeave={e => e.currentTarget.style.background = ''}>
+          {/* Score ring */}
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: '2.5px solid var(--blue2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(78,110,150,0.07)' }}>
+            <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{b.match}</span>
+          </div>
+          {/* Company + requirement */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink2)' }}
+              onClick={() => onSelectAccount?.({ id: b.id, name: b.company, type: b.type })}>
+              {b.company}
+            </div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink4)', marginTop: 2 }}>{b.req}</div>
+          </div>
+          {/* Match % */}
+          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 700, color: 'var(--blue)', lineHeight: 1, width: 64, textAlign: 'right', flexShrink: 0 }}>{b.match}%</div>
+          {/* Open account link */}
+          <span style={{ fontSize: 12.5, color: 'var(--blue2)', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            onClick={() => onSelectAccount?.({ id: b.id, name: b.company, type: b.type })}>
+            Open Account →
+          </span>
+        </div>
+      ))}
+    </div>
   );
   if (tab === 'Files') return (
     <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>

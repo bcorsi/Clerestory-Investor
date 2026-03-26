@@ -1,9 +1,16 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-const TABS = ['Timeline', 'Buildings', 'APNs', 'Lease Comps', 'Sale Comps', 'Contacts', 'Deals', 'Leads', 'Files'];
+const TABS = ['Timeline', 'Buildings', 'APNs', 'Lease Comps', 'Sale Comps', 'Contacts', 'Deals', 'Leads', 'Buyer Matches', 'Files'];
 
-export default function PropertyDetail({ property, onBack, onNavigate }) {
+const MOCK_BUYER_MATCHES = [
+  { id: 6,  company: 'Pacific Manufacturing Group',  type: 'Corporate / Buyer',    req: '280–320K SF · SGV / Whittier · 30\'+ Clear · Dock-High', match: 94 },
+  { id: 8,  company: 'Rexford Industrial Realty',    type: 'Institutional REIT',   req: '100–400K SF · SoCal Industrial · NNN Yield · Core/Core+', match: 87 },
+  { id: 2,  company: 'Cabot Industrial Value Fund',  type: 'Institutional REIT',   req: '150–300K SF · IE West / SGV · Value-Add OK · Sub-5.5 Cap', match: 81 },
+  { id: 10, company: 'Matrix Logistics Partners',    type: 'Private Equity Buyer', req: '150–250K SF · IE West · Dock-High · 28\'+ Clear', match: 74 },
+];
+
+export default function PropertyDetail({ property, onBack, onNavigate, onSelectAccount }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [specsOpen, setSpecsOpen] = useState(false);
   const [synthOpen, setSynthOpen] = useState(true);
@@ -343,7 +350,7 @@ export default function PropertyDetail({ property, onBack, onNavigate }) {
               </div>
             )}
 
-            {activeTab !== 'Timeline' && <PropertyTabContent tab={activeTab} p={p} />}
+            {activeTab !== 'Timeline' && <PropertyTabContent tab={activeTab} p={p} onSelectAccount={onSelectAccount} />}
 
           </div>
         </div>
@@ -352,7 +359,7 @@ export default function PropertyDetail({ property, onBack, onNavigate }) {
   );
 }
 
-function PropertyTabContent({ tab, p }) {
+function PropertyTabContent({ tab, p, onSelectAccount }) {
   const tbl = (cols, rows) => (
     <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -419,6 +426,42 @@ function PropertyTabContent({ tab, p }) {
     [
       [p.tenant ?? 'Leegin Creative Leather', '95', 'A+', 'Broker Intel', 'Active', 'Mar 20, 2026'],
     ]
+  );
+  if (tab === 'Buyer Matches') return (
+    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
+      <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)' }}>Buyer Matches</div>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink4)' }}>
+          {MOCK_BUYER_MATCHES.length} active buyers · AI-matched to this asset
+        </div>
+      </div>
+      {MOCK_BUYER_MATCHES.map((b, i) => (
+        <div key={b.id}
+          style={{ display: 'flex', alignItems: 'center', padding: '14px 18px', gap: 16, borderBottom: i < MOCK_BUYER_MATCHES.length - 1 ? '1px solid var(--line2)' : 'none', cursor: 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+          onMouseLeave={e => e.currentTarget.style.background = ''}>
+          {/* Score ring */}
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: '2.5px solid var(--blue2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(78,110,150,0.07)' }}>
+            <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{b.match}</span>
+          </div>
+          {/* Company + requirement */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink2)' }}
+              onClick={() => onSelectAccount?.({ id: b.id, name: b.company, type: b.type })}>
+              {b.company}
+            </div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--ink4)', marginTop: 2 }}>{b.req}</div>
+          </div>
+          {/* Match % */}
+          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 700, color: 'var(--blue)', lineHeight: 1, width: 64, textAlign: 'right', flexShrink: 0 }}>{b.match}%</div>
+          {/* Open account link */}
+          <span style={{ fontSize: 12.5, color: 'var(--blue2)', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            onClick={() => onSelectAccount?.({ id: b.id, name: b.company, type: b.type })}>
+            Open Account →
+          </span>
+        </div>
+      ))}
+    </div>
   );
   if (tab === 'Files') return (
     <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>

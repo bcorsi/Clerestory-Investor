@@ -58,8 +58,8 @@ export default function App() {
 
   const renderPage = () => {
     // Detail views — checked BEFORE the page switch so they overlay any list page
-    if (selectedProperty) return <PropertyDetail property={selectedProperty} onBack={() => setSelectedProperty(null)} onNavigate={navigate} />;
-    if (selectedDeal) return <DealDetail deal={selectedDeal} onBack={() => { setSelectedDeal(null); setPage('deals'); }} onNavigate={navigate} />;
+    if (selectedProperty) return <PropertyDetail property={selectedProperty} onBack={() => setSelectedProperty(null)} onNavigate={navigate} onSelectAccount={openAccount} />;
+    if (selectedDeal) return <DealDetail deal={selectedDeal} onBack={() => { setSelectedDeal(null); setPage('deals'); }} onNavigate={navigate} onSelectAccount={openAccount} />;
     if (selectedLead) return <LeadDetail lead={selectedLead} onBack={() => setSelectedLead(null)} onNavigate={navigate} />;
     if (selectedAccount) return <AccountDetailPage account={selectedAccount} onBack={() => setSelectedAccount(null)} onNavigate={navigate} />;
     if (selectedContact) return <ContactDetailPage contact={selectedContact} onBack={() => setSelectedContact(null)} onNavigate={navigate} />;
