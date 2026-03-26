@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import ImportModal from './ImportModal';
 
 const MOCK_ACCOUNTS = [
   { id: 1, initial: 'L', name: 'Leegin Creative Leather Products', type: 'Owner-User', tabKey: 'owner-user', location: 'Baldwin Park, CA', tags: [{ label: "Lease '27", color: 'amber' }, { label: 'SLB Target', color: 'green' }], props: 1, deals: 1, statLabel: 'Deal Value', statVal: '$48M', contacts: 'Bob Rosenthall · +1 contact' },
@@ -32,7 +33,15 @@ const TABS = [
 
 export default function Accounts({ onSelectAccount }) {
   const [activeTab, setActiveTab] = useState('all');
-  const filteredAccounts = activeTab === 'all' ? MOCK_ACCOUNTS : MOCK_ACCOUNTS.filter(a => a.tabKey === activeTab);
+  const [accounts, setAccounts] = useState(MOCK_ACCOUNTS);
+  const [showImport, setShowImport] = useState(false);
+  const filteredAccounts = activeTab === 'all' ? accounts : accounts.filter(a => a.tabKey === activeTab);
+
+  const handleImportComplete = ({ importedAccounts }) => {
+    if (importedAccounts?.length) {
+      setAccounts(prev => [...prev, ...importedAccounts]);
+    }
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -40,7 +49,7 @@ export default function Accounts({ onSelectAccount }) {
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink2)', fontWeight: 500 }}>Accounts</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={S.btnGhost} onClick={() => alert('Import CSV — coming soon')}>Import CSV</button>
+          <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={S.btnBlue} onClick={() => alert('Add Account — coming soon')}>+ Add Account</button>
         </div>
       </div>
@@ -101,6 +110,15 @@ export default function Accounts({ onSelectAccount }) {
           </div>
         </div>
       </div>
+
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        importType="owners"
+        existingProperties={[]}
+        existingAccounts={accounts}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 }

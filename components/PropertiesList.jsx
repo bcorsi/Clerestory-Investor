@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import ImportModal from './ImportModal';
 
 const MOCK_PROPERTIES = [
   { id: 1, address: '14022 Nelson Ave E', city: 'Baldwin Park', state: 'CA', zip: '91706', market: 'SGV', submarket: 'Mid Valley', type: 'Distribution', score: 92, grade: 'A+', scoreColor: 'var(--blue)', sf: 186400, tenant: 'Leegin Creative Leather', leaseExp: 'Aug 2027', leaseExpColor: 'var(--rust)', status: 'occupied', catalysts: [{ label: "Lease '27", cls: 'lease' }], lat: 34.0887, lng: -117.9712 },
@@ -42,8 +43,10 @@ const FILTERS = [
 
 export default function PropertiesList({ onSelectProperty }) {
   const [filter, setFilter] = useState('all');
+  const [properties, setProperties] = useState(MOCK_PROPERTIES);
+  const [showImport, setShowImport] = useState(false);
 
-  const filtered = MOCK_PROPERTIES.filter(p => {
+  const filtered = properties.filter(p => {
     if (filter === 'all') return true;
     if (filter === 'sgv') return p.market === 'SGV';
     if (filter === 'ie') return p.market === 'IE';
@@ -57,7 +60,13 @@ export default function PropertiesList({ onSelectProperty }) {
     return true;
   });
 
-  const totalSF = MOCK_PROPERTIES.reduce((s, p) => s + (p.sf ?? 0), 0);
+  const totalSF = properties.reduce((s, p) => s + (p.sf ?? 0), 0);
+
+  const handleImportComplete = ({ importedProperties }) => {
+    if (importedProperties?.length) {
+      setProperties(prev => [...prev, ...importedProperties]);
+    }
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -66,7 +75,7 @@ export default function PropertiesList({ onSelectProperty }) {
         <span style={{ fontSize: 13, color: 'var(--ink4)' }}>CRM <span style={{ color: 'var(--ink2)' }}> › </span><span style={{ color: 'var(--ink2)', fontWeight: 600 }}>Properties</span></span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button style={S.btnGhost} onClick={() => alert('Filter — coming soon')}>⊕ Filter</button>
-          <button style={S.btnGhost} onClick={() => alert('Import CSV — coming soon')}>↑ Import CSV</button>
+          <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={S.btnBlue} onClick={() => alert('Add Property — Supabase form coming soon')}>+ Add Property</button>
         </div>
       </div>
@@ -77,7 +86,7 @@ export default function PropertiesList({ onSelectProperty }) {
           <div style={S.pageHeader}>
             <div>
               <div style={S.pageTitle}>Properties</div>
-              <div style={S.pageSub}>18 properties tracked · {(totalSF / 1e6).toFixed(2)}M SF · SGV / IE Industrial</div>
+              <div style={S.pageSub}>{properties.length} properties tracked · {(totalSF / 1e6).toFixed(2)}M SF · SGV / IE Industrial</div>
             </div>
           </div>
 
@@ -137,6 +146,15 @@ export default function PropertiesList({ onSelectProperty }) {
           </div>
         </div>
       </div>
+
+      <ImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        importType="properties"
+        existingProperties={properties}
+        existingAccounts={[]}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 }
