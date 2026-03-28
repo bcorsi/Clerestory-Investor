@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { fmt, CATALYST_URGENCY, CATALYST_TAGS, CADENCE_OPTIONS, STAGE_COLORS, LEAD_STAGE_COLORS, AI_MODEL_OPUS, AI_MODEL_SONNET } from '../lib/constants';
+import { fmt, CATALYST_URGENCY, CATALYST_TAGS, CATALYST_TAG_KEYS, getCatalystStyle, CADENCE_OPTIONS, STAGE_COLORS, LEAD_STAGE_COLORS, AI_MODEL_OPUS, AI_MODEL_SONNET } from '../lib/constants';
 import { updateRow, insertRow, addApn, removeApn, addBuilding, removeBuilding, calculateProbability, setCadence, autoResearch } from '../lib/db';
 import EditPropertyModal from './EditPropertyModal';
 import BuyerMatching from './BuyerMatching';
@@ -110,7 +110,8 @@ export default function PropertyDetail({
   };
   const changeTab = t => { setActiveTab(t); setSortKey(null); setSortDir('asc'); setFilterText(''); };
 
-  const urgBadge = tag => {const l=CATALYST_URGENCY?.[tag];if(l==='immediate')return'tag-red';if(l==='high')return'tag-amber';if(l==='medium')return'tag-blue';return'tag-ghost';};
+  const catBadgeStyle = tag => { const s = getCatalystStyle(tag); return { display:'inline-flex', alignItems:'center', gap:3, padding:'3px 8px', borderRadius:4, fontSize:10.5, fontWeight:500, fontFamily:"'DM Mono',monospace", background:s.bg, border:`1px solid ${s.bdr}`, color:s.color, cursor:'pointer' }; };
+  const catDot = tag => getCatalystStyle(tag).dot;
   const probColor = v => v>=75?'var(--green)':v>=50?'var(--amber)':'var(--ink3)';
   const fmtAgo = d => {if(!d)return'';const dt=new Date(d);const time=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});const x=Math.floor((Date.now()-dt)/86400000);if(x===0)return'Today '+time;if(x===1)return'Yesterday '+time;if(x<7)return x+'d ago '+time;return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+time;};
   const closeAll = () => {setShowNoteForm(false);setShowLogForm(false);setShowFuForm(false);};
@@ -132,7 +133,7 @@ export default function PropertyDetail({
   // Catalyst tag management
   const addTag = async(tag)=>{const current=p.catalyst_tags||[];if(current.includes(tag))return;const updated=[...current,tag];try{const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Added: ${tag} (score: ${scores.probability}%)`);}catch(e){console.error(e);}};
   const removeTag = async(tag)=>{const updated=(p.catalyst_tags||[]).filter(t=>t!==tag);try{const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Removed: ${tag}`);}catch(e){console.error(e);}};
-  const handleAutoTag = async()=>{setAutoTagLoading(true);try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_SONNET,max_tokens:200,system:`You are a CRE catalyst tag analyst. Given property data and notes, suggest relevant catalyst tags from this exact list: ${CATALYST_TAGS.join(', ')}. Return ONLY a JSON array of tag strings, no explanation.`,messages:[{role:'user',content:`Property: ${p.address}\nOwner: ${p.owner||'Unknown'} (${p.owner_type||'Unknown'})\nTenant: ${p.tenant||'Vacant'}\nVacancy: ${p.vacancy_status||'Unknown'}\nLease Exp: ${p.lease_expiration||'N/A'}\nRent: ${p.in_place_rent||'N/A'}\nSF: ${p.building_sf||'N/A'}\nYear Built: ${p.year_built||'N/A'}\nClear: ${p.clear_height||'N/A'}\nNotes: ${(p.notes||'').slice(0,500)}\n\nExisting tags: ${(p.catalyst_tags||[]).join(', ')||'None'}\n\nSuggest additional catalyst tags. Return JSON array only.`}]})});const data=await res.json();const text=data.content?.[0]?.text||'[]';const clean=text.replace(/```json|```/g,'').trim();const suggested=JSON.parse(clean);const newTags=suggested.filter(t=>CATALYST_TAGS.includes(t)&&!(p.catalyst_tags||[]).includes(t));if(newTags.length===0){showToast?.('No new tags suggested');}else{const updated=[...(p.catalyst_tags||[]),...newTags];const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Added ${newTags.length} tags (score: ${scores.probability}%)`);}}catch(e){console.error(e);showToast?.('Error auto-suggesting tags');}finally{setAutoTagLoading(false);}};
+  const handleAutoTag = async()=>{setAutoTagLoading(true);try{const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL_SONNET,max_tokens:200,system:`You are a CRE catalyst tag analyst. Given property data and notes, suggest relevant catalyst tags from this exact list: ${CATALYST_TAG_KEYS.join(', ')}. Return ONLY a JSON array of tag strings, no explanation.`,messages:[{role:'user',content:`Property: ${p.address}\nOwner: ${p.owner||'Unknown'} (${p.owner_type||'Unknown'})\nTenant: ${p.tenant||'Vacant'}\nVacancy: ${p.vacancy_status||'Unknown'}\nLease Exp: ${p.lease_expiration||'N/A'}\nRent: ${p.in_place_rent||'N/A'}\nSF: ${p.building_sf||'N/A'}\nYear Built: ${p.year_built||'N/A'}\nClear: ${p.clear_height||'N/A'}\nNotes: ${(p.notes||'').slice(0,500)}\n\nExisting tags: ${(p.catalyst_tags||[]).join(', ')||'None'}\n\nSuggest additional catalyst tags. Return JSON array only.`}]})});const data=await res.json();const text=data.content?.[0]?.text||'[]';const clean=text.replace(/```json|```/g,'').trim();const suggested=JSON.parse(clean);const newTags=suggested.filter(t=>CATALYST_TAG_KEYS.includes(t)&&!(p.catalyst_tags||[]).includes(t));if(newTags.length===0){showToast?.('No new tags suggested');}else{const updated=[...(p.catalyst_tags||[]),...newTags];const scores=calculateProbability({...p,catalyst_tags:updated});await updateRow('properties',p.id,{catalyst_tags:updated,ai_score:scores.rawScore,probability:scores.probability});onRefresh?.();showToast?.(`Added ${newTags.length} tags (score: ${scores.probability}%)`);}}catch(e){console.error(e);showToast?.('Error auto-suggesting tags');}finally{setAutoTagLoading(false);}};
 
   const handleAutoResearch = async () => {
     setResearching(true); showToast?.('✦ Researching... this may take 15-30 seconds');
@@ -259,9 +260,10 @@ export default function PropertyDetail({
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ padding: '4px 12px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.85)' }}>{[p.city, p.zip].filter(Boolean).join(' · ')}</span>
             {p.vacancy_status && <span style={{ padding: '4px 12px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, background: p.vacancy_status === 'Occupied' ? 'rgba(26,122,72,0.3)' : 'rgba(192,60,24,0.3)', border: `1px solid ${p.vacancy_status === 'Occupied' ? 'rgba(26,122,72,0.5)' : 'rgba(192,60,24,0.5)'}`, color: p.vacancy_status === 'Occupied' ? '#6EE0A4' : '#F0906A' }}>{p.vacancy_status}</span>}
-            {(p.catalyst_tags||[]).slice(0,3).map(tag => (
-              <span key={tag} style={{ padding: '4px 12px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, background: 'rgba(184,122,16,0.3)', border: '1px solid rgba(184,122,16,0.5)', color: '#F0C060', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>
-            ))}
+            {(p.catalyst_tags||[]).slice(0,3).map(tag => {
+              const cs = getCatalystStyle(tag);
+              return <span key={tag} style={{ padding: '4px 12px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, fontFamily: "'DM Mono',monospace", background: cs.bg, border: `1px solid ${cs.bdr}`, color: cs.color, cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{cs.dot} {tag}</span>;
+            })}
             {(p.catalyst_tags||[]).length > 3 && <span style={{ padding: '4px 12px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>+{p.catalyst_tags.length - 3}</span>}
           </div>
         </div>
@@ -533,7 +535,7 @@ export default function PropertyDetail({
                   {(p.catalyst_tags||[]).length > 0 && (
                     <div style={{ marginTop: '10px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {(p.catalyst_tags||[]).map(tag => (
-                        <span key={tag} className={`tag ${urgBadge(tag)}`} style={{ fontSize: '10px', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>{tag}</span>
+                        <span key={tag} style={catBadgeStyle(tag)} onClick={() => onCatalystClick?.(tag)}>{catDot(tag)} {tag}</span>
                       ))}
                     </div>
                   )}
@@ -594,9 +596,10 @@ export default function PropertyDetail({
             {/* Tag picker */}
             {showTagPicker && (
               <div style={{ marginTop: '10px', padding: '12px', background: 'var(--bg)', borderRadius: '10px', border: '1px solid var(--line)', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {CATALYST_TAGS.filter(t => !(p.catalyst_tags||[]).includes(t)).map(t => (
-                  <button key={t} onClick={() => addTag(t)} className={`tag ${urgBadge(t)}`} style={{ cursor: 'pointer', opacity: 0.7, border: '1px dashed var(--line)' }}>{t}</button>
-                ))}
+                {CATALYST_TAG_KEYS.filter(t => !(p.catalyst_tags||[]).includes(t)).map(t => {
+                  const cs = getCatalystStyle(t);
+                  return <button key={t} onClick={() => addTag(t)} style={{ ...catBadgeStyle(t), opacity: 0.5, borderStyle: 'dashed' }}>{cs.dot} {t}</button>;
+                })}
               </div>
             )}
 
