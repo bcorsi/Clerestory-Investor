@@ -32,27 +32,15 @@ export default function OwnerSearchPage({ onNavigate, onSelectAccount, accounts 
     setWebLoading(true);
     setWebResult(null);
 
-    // 1. Local filter (instant)
-    const localFiltered = (accounts || MOCK_RESULTS).filter(a =>
-      (a.name || a.owner || '').toLowerCase().includes(query.toLowerCase()) ||
-      (a.company || '').toLowerCase().includes(query.toLowerCase())
-    );
+    // Search local app data only (properties + accounts)
+    const q = query.toLowerCase().trim();
+    const localFiltered = (accounts || []).filter(a => {
+      const nameMatch = !q || (a.name || a.owner || '').toLowerCase().includes(q) || (a.company || '').toLowerCase().includes(q);
+      const mktMatch = !market || (a.city || a.market || a.location || '').toLowerCase().includes(market.toLowerCase());
+      const typeMatch = !ownerType || (a.account_type || a.type || '').toLowerCase().includes(ownerType.toLowerCase());
+      return nameMatch && mktMatch && typeMatch;
+    });
     setLocalResults(localFiltered);
-
-    // 2. AI web research
-    if (query.trim()) {
-      try {
-        const res = await fetch('/api/owner-search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
-        });
-        const data = await res.json();
-        if (data.success) setWebResult(data.result);
-      } catch (e) {
-        console.error('Owner search API error:', e);
-      }
-    }
     setWebLoading(false);
   };
 

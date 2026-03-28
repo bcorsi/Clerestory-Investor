@@ -82,14 +82,27 @@ export default function CompAnalytics({ onNavigate, leaseComps: propLeaseComps, 
   const [dateRange, setDateRange] = useState('All');
   const [compTab, setCompTab] = useState('lease');
 
+  const matchMarket = (c, m) => {
+    if (m === 'All') return true;
+    const loc = (c.market || c.submarket || c.city || '').toLowerCase();
+    if (m === 'SGV') return loc.includes('sgv') || loc.includes('industry') || loc.includes('baldwin') || loc.includes('el monte') || loc.includes('irwindale') || loc.includes('azusa') || loc.includes('covina') || loc.includes('temple') || loc.includes('rosemead');
+    if (m === 'IE West') return loc.includes('ie west') || loc.includes('ontario') || loc.includes('rancho') || loc.includes('fontana') || loc.includes('chino') || loc.includes('upland') || loc.includes('montclair');
+    if (m === 'IE East') return loc.includes('ie east') || loc.includes('riverside') || loc.includes('moreno') || loc.includes('perris') || loc.includes('corona');
+    if (m === 'OC') return loc.includes('oc') || loc.includes('orange') || loc.includes('anaheim') || loc.includes('irvine') || loc.includes('santa ana');
+    return loc.includes(m.toLowerCase());
+  };
+  const matchDate = (dateStr, range) => {
+    if (range === 'All') return true;
+    return String(dateStr || '').includes(range);
+  };
   const filteredLease = (propLeaseComps && propLeaseComps.length > 0 ? propLeaseComps : LEASE_TABLE).filter(c => {
-    if (market !== 'All' && c.market !== market) return false;
-    if (dateRange !== 'All' && !String(c.start_date || c.date || '').includes(dateRange)) return false;
+    if (!matchMarket(c, market)) return false;
+    if (!matchDate(c.start_date || c.date, dateRange)) return false;
     return true;
   });
   const filteredSale = (propSaleComps && propSaleComps.length > 0 ? propSaleComps : SALE_TABLE).filter(c => {
-    if (market !== 'All' && c.market !== market) return false;
-    if (dateRange !== 'All' && !String(c.sale_date || c.date || '').includes(dateRange)) return false;
+    if (!matchMarket(c, market)) return false;
+    if (!matchDate(c.sale_date || c.date, dateRange)) return false;
     return true;
   });
 
