@@ -54,11 +54,35 @@
 }
 
 html, body {
-  background: var(--bg) !important;
+  background: #F4F1EC !important;
   color: var(--ink);
   font-family: 'Instrument Sans', sans-serif;
 }
 
+/* Force parchment background on all content areas — NEVER white */
+main, #__next, #__next > div, #__next > div > div {
+  background: #F4F1EC !important;
+}
+
+/* Content card — Salesforce Lightning style */
+.content-card {
+  background: #FFFFFF;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.065);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  padding: 24px;
+}
+.content-card + .content-card { margin-top: 16px; }
+
+/* Card section header */
+.card-header {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #78726A;
+  margin-bottom: 12px;
+}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }

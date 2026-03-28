@@ -273,7 +273,7 @@ export default function App() {
       case 'lease-comps':  return <LeaseCompsPage  onNavigate={navigate} onSelectComp={c => setSelectedLeaseComp(c)} leaseComps={leaseComps} loading={loading} onRefresh={loadAllData} />;
       case 'sale-comps':   return <SaleCompsPage   onNavigate={navigate} onSelectComp={c => setSelectedSaleComp(c)} saleComps={saleComps} loading={loading} onRefresh={loadAllData} />;
       case 'map':          return <MapViewPage      onNavigate={navigate} onSelectProperty={openProperty} onSelectLead={openLead} properties={properties} leads={leads} />;
-      case 'owner-search': return <OwnerSearchPage  onNavigate={navigate} onSelectAccount={openAccount} accounts={accounts} />;
+      case 'owner-search': return <OwnerSearchPage  onNavigate={navigate} onSelectAccount={openAccount} onSelectProperty={openProperty} accounts={accounts} properties={properties} />;
       case 'news':         return <NewsFeed         onNavigate={navigate} />;
       case 'campaigns':    return <Campaigns        onNavigate={navigate} />;
       case 'comp-analytics': return <CompAnalytics  onNavigate={navigate} leaseComps={leaseComps} saleComps={saleComps} onSelectLeaseComp={c => { setSelectedLeaseComp(c); setPage('lease-comps'); }} onSelectSaleComp={c => { setSelectedSaleComp(c); setPage('sale-comps'); }} />;
@@ -288,7 +288,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       <Sidebar currentPage={page} onNavigate={navigate} counts={counts} onCollapseChange={setSidebarCollapsed} />
-      <div style={{ flex: 1, marginLeft, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 0, transition: 'margin-left 0.25s ease' }}>
+      <div style={{ flex: 1, marginLeft, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 0, transition: 'margin-left 0.25s ease', background: '#F4F1EC' }}>
         <ErrorBoundary key={page}>
           {renderPage()}
         </ErrorBoundary>

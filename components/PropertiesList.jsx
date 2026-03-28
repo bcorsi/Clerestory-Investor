@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { getCatalystStyle, getScoreRing } from '../lib/constants';
 import ImportModal from './ImportModal';
 import { insertRecord } from '../lib/useSupabase';
 
@@ -178,7 +179,16 @@ export default function PropertiesList({ onSelectProperty, properties: propData,
 
 function PropertyRow({ p, onSelect }) {
   const [hover, setHover] = useState(false);
-  const st = STATUS_STYLE[p.status] ?? { bg: 'var(--blue-bg)', bdr: 'var(--blue-bdr)', color: 'var(--blue)', label: p.status || '—' };
+  // Normalize field names: support both mock (p.sf, p.status, p.catalysts) and Supabase (p.building_sf, p.vacancy_status, p.catalyst_tags)
+  const sf = p.sf ?? p.building_sf;
+  const score = p.score ?? p.ai_score ?? 0;
+  const ring = getScoreRing(score);
+  const tenant = p.tenant ?? p.tenant_name ?? '—';
+  const leaseExp = p.leaseExp ?? p.lease_expiration ?? '—';
+  const status = p.status ?? (p.vacancy_status || '').toLowerCase().replace(/\s.*/, '') || '—';
+  const st = STATUS_STYLE[status] ?? { bg: 'var(--blue-bg)', bdr: 'var(--blue-bdr)', color: 'var(--blue)', label: p.vacancy_status || status || '—' };
+  const catalysts = p.catalysts || (p.catalyst_tags || []).map(t => ({ label: t, _tag: t }));
+  const propType = p.type ?? p.prop_type ?? '—';
   return (
     <tr style={{ borderBottom: '1px solid var(--line2)', cursor: 'pointer', background: hover ? '#F8F6F2' : 'transparent', transition: 'background 0.1s' }}
       onClick={() => onSelect?.(p)}
@@ -186,26 +196,29 @@ function PropertyRow({ p, onSelect }) {
       onMouseLeave={() => setHover(false)}>
       <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>
         <div style={{ fontWeight: 500, color: 'var(--ink)', fontSize: 14 }}>{p.address}</div>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 13, color: 'var(--ink4)', marginTop: 1 }}>{p.city}, {p.state} {p.zip}</div>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 13, color: 'var(--ink4)', marginTop: 1 }}>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</div>
       </td>
-      <td style={S.tdMuted}>{p.market} · {p.submarket}</td>
-      <td style={S.tdMuted}>{p.type}</td>
+      <td style={S.tdMuted}>{[p.market, p.submarket].filter(Boolean).join(' · ') || '—'}</td>
+      <td style={S.tdMuted}>{propType}</td>
       <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>
-        <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, color: p.scoreColor }}>
-          {p.score} <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 500, color: 'var(--ink4)' }}>{p.grade}</span>
-        </span>
+        {score > 0 ? (
+          <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, color: ring.color }}>
+            {score}
+          </span>
+        ) : <span style={{ color: 'var(--ink4)' }}>—</span>}
       </td>
-      <td style={{ ...S.tdMuted, fontFamily: "'DM Mono',monospace", fontSize: 12.5 }}>{p.sf ? p.sf.toLocaleString() : '—'}</td>
-      <td style={S.tdMuted}>{p.tenant}</td>
-      <td style={{ ...S.tdMuted, fontFamily: "'DM Mono',monospace", fontSize: 12.5, color: p.leaseExpColor ?? 'var(--ink4)' }}>{p.leaseExp}</td>
+      <td style={{ ...S.tdMuted, fontFamily: "'DM Mono',monospace", fontSize: 12.5 }}>{sf ? Number(sf).toLocaleString() : '—'}</td>
+      <td style={S.tdMuted}>{tenant}</td>
+      <td style={{ ...S.tdMuted, fontFamily: "'DM Mono',monospace", fontSize: 12.5, color: 'var(--ink4)' }}>{leaseExp}</td>
       <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>
         <span style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 500, background: st.bg, border: `1px solid ${st.bdr}`, color: st.color }}>{st.label}</span>
       </td>
       <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {(p.catalysts || []).map((c, i) => {
-            const cs = CAT_STYLE[c.cls] ?? CAT_STYLE.broker;
-            return <span key={i} style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 500, background: cs.bg, border: `1px solid ${cs.bdr}`, color: cs.color }}>{c.label}</span>;
+          {catalysts.slice(0, 3).map((c, i) => {
+            const tagName = c._tag || c.label || c;
+            const cs = c.cls ? (CAT_STYLE[c.cls] ?? CAT_STYLE.broker) : getCatalystStyle(tagName);
+            return <span key={i} style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 500, background: cs.bg, border: `1px solid ${cs.bdr}`, color: cs.color, fontFamily: "'DM Mono',monospace" }}>{cs.dot || ''} {c.label || tagName}</span>;
           })}
         </div>
       </td>

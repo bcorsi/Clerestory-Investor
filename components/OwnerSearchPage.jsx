@@ -16,7 +16,7 @@ const STATUS_STYLE = {
   Never: { bg: 'var(--bg2)', bdr: 'var(--line)', color: 'var(--ink4)' },
 };
 
-export default function OwnerSearchPage({ onNavigate, onSelectAccount, accounts }) {
+export default function OwnerSearchPage({ onNavigate, onSelectAccount, onSelectProperty, accounts, properties }) {
   const [query, setQuery] = useState('');
   const [searched, setSearched] = useState(false);
   const [market, setMarket] = useState('');
@@ -32,15 +32,20 @@ export default function OwnerSearchPage({ onNavigate, onSelectAccount, accounts 
     setWebLoading(true);
     setWebResult(null);
 
-    // Search local app data only (properties + accounts)
+    // Search local app data: properties by owner + accounts by name
     const q = query.toLowerCase().trim();
-    const localFiltered = (accounts || []).filter(a => {
-      const nameMatch = !q || (a.name || a.owner || '').toLowerCase().includes(q) || (a.company || '').toLowerCase().includes(q);
+    const matchedAccounts = (accounts || []).filter(a => {
+      const nameMatch = !q || (a.name || '').toLowerCase().includes(q);
       const mktMatch = !market || (a.city || a.market || a.location || '').toLowerCase().includes(market.toLowerCase());
       const typeMatch = !ownerType || (a.account_type || a.type || '').toLowerCase().includes(ownerType.toLowerCase());
       return nameMatch && mktMatch && typeMatch;
-    });
-    setLocalResults(localFiltered);
+    }).map(a => ({ ...a, _type: 'account', owner: a.name }));
+    const matchedProperties = (properties || []).filter(p => {
+      const nameMatch = !q || (p.owner || '').toLowerCase().includes(q) || (p.address || '').toLowerCase().includes(q);
+      const mktMatch = !market || (p.city || p.submarket || p.market || '').toLowerCase().includes(market.toLowerCase());
+      return nameMatch && mktMatch;
+    }).map(p => ({ ...p, _type: 'property', owner: p.owner || p.address, entityType: p.owner_type || '—', totalSF: p.building_sf ? `${Number(p.building_sf).toLocaleString()} SF` : '—', markets: p.submarket || p.city || '—' }));
+    setLocalResults([...matchedProperties, ...matchedAccounts]);
     setWebLoading(false);
   };
 
