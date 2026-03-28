@@ -126,6 +126,44 @@ export async function GET(request) {
             inserted += batch.length;
           }
         }
+
+        // 6. Cross-reference company names against tenant names in properties table
+        // Auto-create leads when a WARN filing matches a tenant in our database
+        const { data: props } = await supabase.from('properties').select('id, address, city, tenant, building_sf');
+        const tenantMap = {};
+        (props || []).forEach(p => {
+          if (p.tenant) tenantMap[p.tenant.toLowerCase().trim()] = p;
+        });
+
+        let leadsCreated = 0;
+        for (const filing of newFilings) {
+          const co = filing.company.toLowerCase().trim();
+          // Check if company name matches any tenant
+          const match = tenantMap[co] || Object.entries(tenantMap).find(([k]) => co.includes(k) || k.includes(co))?.[1];
+          if (match) {
+            // Check if lead already exists for this company
+            const { data: existingLead } = await supabase.from('leads')
+              .select('id')
+              .ilike('lead_name', `%${filing.company}%`)
+              .limit(1);
+            if (!existingLead || existingLead.length === 0) {
+              const { error: leadErr } = await supabase.from('leads').insert({
+                lead_name: `${filing.company} — WARN Target`,
+                address: match.address || filing.address,
+                city: match.city || filing.city,
+                building_sf: match.building_sf,
+                stage: 'New',
+                tier: 'A',
+                priority: 'HIGH',
+                catalyst_tags: ['WARN Filed'],
+                source: 'WARN Auto-Sync',
+                notes: `WARN notice filed ${filing.notice_date}. ${filing.workers} workers affected. ${filing.is_closure ? 'Permanent closure.' : 'Layoff.'} Matched to tenant at ${match.address}.`,
+              });
+              if (!leadErr) leadsCreated++;
+            }
+          }
+        }
+        console.log(`[warn-sync] ${leadsCreated} leads auto-created from tenant matches`);
       }
     }
 

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import CsvUpload from './CsvUpload';
 
 const MOCK_COMPS = [
   { id: 1, address: '14500 Nelson Ave', city: 'Baldwin Park', market: 'SGV', sf: 186400, price: 48200000, psf: 258, capRate: 5.2, saleType: 'Investment', buyerType: 'REIT', date: 'Feb 2026', source: 'Broker' },
@@ -18,7 +19,8 @@ const fmt = {
   price: n => n >= 1000000 ? '$' + (n / 1000000).toFixed(1) + 'M' : '$' + n.toLocaleString(),
 };
 
-export default function SaleCompsPage({ onNavigate, onSelectComp }) {
+export default function SaleCompsPage({ onNavigate, onSelectComp, saleComps: propComps, loading, onRefresh }) {
+  const [showImport, setShowImport] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
 
   const filtered = MOCK_COMPS.filter(c => {
@@ -40,7 +42,7 @@ export default function SaleCompsPage({ onNavigate, onSelectComp }) {
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink2)', fontWeight: 500 }}>Sale Comps</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={S.btnGhost} onClick={() => {}}>Import CSV</button>
+          <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={S.btnBlue} onClick={() => {}}>+ Add Comp</button>
         </div>
       </div>
@@ -105,6 +107,7 @@ export default function SaleCompsPage({ onNavigate, onSelectComp }) {
           </div>
         </div>
       </div>
+      {showImport && <CsvUpload onClose={() => setShowImport(false)} onDone={() => { setShowImport(false); onRefresh?.(); }} />}
     </div>
   );
 }

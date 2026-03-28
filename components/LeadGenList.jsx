@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { insertRecord } from '../lib/useSupabase';
+import CsvUpload from './CsvUpload';
 
 const CATALYST_TAGS_OPTIONS = ['Lease Expiry \'25–\'27', 'WARN Notice', 'NOD Filed', 'CapEx Signal', 'Sale-Leaseback', 'Owner-User', 'Hiring Signal', 'Vacancy Risk', 'Broker Intel'];
 
@@ -167,6 +168,7 @@ export default function LeadGenList({ leads: propLeads, loading, onRefresh, toas
   const [activeTab, setActiveTab] = useState('all');
   const [activeFilters, setActiveFilters] = useState(['SGV', 'IE West']);
   const [showAddLead, setShowAddLead] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Use Supabase data when available, fall back to mock
   const leads = (propLeads && propLeads.length > 0) ? propLeads : MOCK_LEADS;
@@ -233,7 +235,7 @@ export default function LeadGenList({ leads: propLeads, loading, onRefresh, toas
               <div style={S.pageSub}>237 leads · 40 hot (A+/A) · 4 active WARN signals</div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button style={S.btnGhost} onClick={() => {}}>Import CSV</button>
+              <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
               <button style={S.btnGhost} onClick={() => {}}>Map View</button>
               <button style={{ ...S.btn, background: 'var(--rust)', color: '#fff', borderColor: 'var(--rust)', fontSize: 12 }} onClick={() => setActiveTab('hot')}>⚡ Hot Queue (40)</button>
               <button style={{ ...S.btn, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }} onClick={() => setShowAddLead(true)}>+ Add Lead</button>
@@ -312,6 +314,7 @@ export default function LeadGenList({ leads: propLeads, loading, onRefresh, toas
           )}
         </div>
       </div>
+      {showImport && <CsvUpload onClose={() => setShowImport(false)} onDone={() => { setShowImport(false); onRefresh?.(); }} />}
     </div>
   );
 }

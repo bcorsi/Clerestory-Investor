@@ -267,8 +267,8 @@ export default function App() {
       case 'accounts':     return <Accounts        {...dataProps} onSelectAccount={openAccount} />;
       case 'contacts':     return <ContactsList    {...dataProps} onSelectContact={openContact} />;
       case 'tasks':        return <Tasks           {...dataProps} onSelectTask={openTask} onSelectProperty={openProperty} onSelectDeal={openDeal} onSelectLead={openLead} />;
-      case 'lease-comps':  return <LeaseCompsPage  onNavigate={navigate} onSelectComp={c => setSelectedLeaseComp(c)} leaseComps={leaseComps} loading={loading} />;
-      case 'sale-comps':   return <SaleCompsPage   onNavigate={navigate} onSelectComp={c => setSelectedSaleComp(c)} saleComps={saleComps} loading={loading} />;
+      case 'lease-comps':  return <LeaseCompsPage  onNavigate={navigate} onSelectComp={c => setSelectedLeaseComp(c)} leaseComps={leaseComps} loading={loading} onRefresh={loadAllData} />;
+      case 'sale-comps':   return <SaleCompsPage   onNavigate={navigate} onSelectComp={c => setSelectedSaleComp(c)} saleComps={saleComps} loading={loading} onRefresh={loadAllData} />;
       case 'map':          return <MapViewPage      onNavigate={navigate} onSelectProperty={openProperty} onSelectLead={openLead} properties={properties} leads={leads} />;
       case 'owner-search': return <OwnerSearchPage  onNavigate={navigate} onSelectAccount={openAccount} accounts={accounts} />;
       case 'news':         return <NewsFeed         onNavigate={navigate} />;

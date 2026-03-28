@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import CsvUpload from './CsvUpload';
 
 const MOCK_COMPS = [
   { id: 1, address: '14250 Monte Vista Ave', city: 'Chino', market: 'IE West', sf: 48200, rate: 1.22, type: 'NNN', term: 36, date: 'Jan 2026', tenant: 'Tenant A', landlord: 'Private', grossEquiv: 1.58, source: 'Broker' },
@@ -20,7 +21,8 @@ const MARKET_TABS = ['All', 'SGV', 'IE West', 'IE East', 'OC', '2026', '2025', '
 const SF_FILTERS = ['sub-50K', '50-100K', '100K+'];
 const TYPE_FILTERS = ['NNN', 'MG'];
 
-export default function LeaseCompsPage({ onNavigate, onSelectComp }) {
+export default function LeaseCompsPage({ onNavigate, onSelectComp, leaseComps: propComps, loading, onRefresh }) {
+  const [showImport, setShowImport] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
   const [sfFilter, setSfFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState(null);
@@ -48,7 +50,7 @@ export default function LeaseCompsPage({ onNavigate, onSelectComp }) {
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink2)', fontWeight: 500 }}>Lease Comps</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={S.btnGhost} onClick={() => {}}>Import CSV</button>
+          <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={S.btnBlue} onClick={() => {}}>+ Add Comp</button>
         </div>
       </div>
@@ -121,6 +123,7 @@ export default function LeaseCompsPage({ onNavigate, onSelectComp }) {
           </div>
         </div>
       </div>
+      {showImport && <CsvUpload onClose={() => setShowImport(false)} onDone={() => { setShowImport(false); onRefresh?.(); }} />}
     </div>
   );
 }

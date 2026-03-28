@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import CsvUpload from './CsvUpload';
 
 const MOCK_CONTACTS = [
   { id: 1, initials: 'BR', color: '#4E6E96', name: 'Bob Rosenthall', title: 'President & CEO', type: 'Owner', tabKey: 'owners', typeColor: 'blue', company: 'Leegin Creative Leather', phone: '(626) 555-0182', email: 'brosenthall@leegin.com', lastContact: 'Mar 22', linkedTo: [{ label: '14022 Nelson', color: 'var(--blue)' }, { label: 'SLB Deal', color: 'var(--green)' }], actions: ['Call', 'Email'] },
@@ -35,7 +36,8 @@ const TABS = [
   { key: 'lenders', label: 'Lenders' },
 ];
 
-export default function ContactsList({ onSelectContact, contacts: propContacts, loading }) {
+export default function ContactsList({ onSelectContact, contacts: propContacts, loading, onRefresh, toast }) {
+  const [showImport, setShowImport] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const contacts = (propContacts && propContacts.length > 0) ? propContacts : MOCK_CONTACTS;
   const filteredContacts = activeTab === 'all' ? contacts : contacts.filter(c => c.tabKey === activeTab || (c.contact_type || '').toLowerCase().includes(activeTab));
@@ -46,7 +48,7 @@ export default function ContactsList({ onSelectContact, contacts: propContacts, 
       <div style={S.topbar}>
         <span style={{ fontSize: 13, color: 'var(--ink2)', fontWeight: 500 }}>Contacts</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button style={S.btnGhost} onClick={() => {}}>Import CSV</button>
+          <button style={S.btnGhost} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={S.btnBlue} onClick={() => {}}>+ Add Contact</button>
         </div>
       </div>
@@ -108,6 +110,7 @@ export default function ContactsList({ onSelectContact, contacts: propContacts, 
           )}
         </div>
       </div>
+      {showImport && <CsvUpload onClose={() => setShowImport(false)} onDone={() => { setShowImport(false); onRefresh?.(); }} />}
     </div>
   );
 }
