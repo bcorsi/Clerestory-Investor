@@ -2,36 +2,23 @@
 import { useState } from 'react';
 import { updateRecord } from '../lib/useSupabase';
 
-const MOCK_TASKS = {
-  overdue: [
-    { id: 1, text: 'Call Jodie re: Teledyne WARN broker appointment status', meta: { linkLabel: 'WARN Intel', linkColor: 'var(--rust)' }, detail: 'Teledyne Technologies · Fontana', daysAgo: '2 days ago' },
-    { id: 2, text: 'Identify Cabot REIT asset manager for IE West portfolio', meta: { linkLabel: 'Lead', linkColor: 'var(--blue)' }, detail: 'Teledyne · 16830 Chestnut St', daysAgo: '3 days ago' },
-    { id: 3, text: 'Send SLB investor demand summary to RJ Neu — comparable sales $240–275/SF', meta: { linkLabel: 'Deal', linkColor: 'var(--green)' }, detail: 'Pacific Mfg · Workman Mill', daysAgo: '1 day ago' },
-  ],
-  today: [
-    { id: 4, text: 'Follow up with Bob Rosenthall re: SLB decision — board meeting was this week', meta: { linkLabel: 'Property', linkColor: 'var(--blue)' }, detail: '14022 Nelson Ave E · Baldwin Park', priority: 'high' },
-    { id: 5, text: 'Send Tarhong UW model v2 to buyer group — updated with 5.25% exit cap', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Tarhong Industry Properties' },
-    { id: 6, text: 'Review Rexford LOI counter — respond by EOD', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Rexford · 4800 Azusa Canyon Rd · Irwindale' },
-    { id: 7, text: 'Draft lease comp report for Matrix Logistics — include Hacienda submarket', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Matrix Logistics · LOI stage' },
-    { id: 8, text: 'Update lead score for Snak King — WARN permit confirmed today', meta: { linkLabel: 'Lead', linkColor: 'var(--amber)' }, detail: 'Snak King Corp · 16150 Stephens St' },
-  ],
-  thisWeek: [
-    { id: 9, text: 'Prepare lease comps for Matrix Logistics meeting — Thu Mar 26', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Matrix Logistics · LOI stage', due: 'Mar 26' },
-    { id: 10, text: 'Review Rexford Irwindale PSA draft from buyer counsel', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Rexford Industrial · LOI Accepted', due: 'Mar 27' },
-    { id: 11, text: 'Run Snak King CapEx permit research — confirm SLB timing window', meta: { linkLabel: 'Lead', linkColor: 'var(--amber)' }, detail: 'Snak King Corp · 16150 Stephens St', due: 'Mar 27' },
-    { id: 12, text: 'Schedule property tour with Pacific Mfg — Workman Mill full access', meta: { linkLabel: 'Property', linkColor: 'var(--blue)' }, detail: '4900 Workman Mill Rd · City of Industry', due: 'Mar 28' },
-    { id: 13, text: 'Send Q1 activity report to Colliers branch manager', meta: { linkLabel: null }, detail: 'Internal', due: 'Mar 28' },
-    { id: 14, text: 'Update deal probability — Tarhong and Valley Cold Storage', meta: { linkLabel: 'Deal', linkColor: 'var(--blue)' }, detail: 'Pipeline review', due: 'Mar 28' },
-    { id: 15, text: 'Request updated rent roll for 16830 Chestnut St', meta: { linkLabel: 'Property', linkColor: 'var(--blue)' }, detail: 'Cabot portfolio · Fontana', due: 'Mar 29' },
-    { id: 16, text: 'Follow up on NOD filing — 18421 Railroad St ownership research', meta: { linkLabel: 'Lead', linkColor: 'var(--amber)' }, detail: 'Acromill LLC · IE South', due: 'Mar 29' },
-  ],
-};
 
 export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefresh, toast, properties, deals, leads, onSelectProperty, onSelectDeal, onSelectLead }) {
   const [checked, setChecked] = useState(new Set());
 
-  // Build flat list from Supabase data or mock sections
-  const hasSupa = propTasks && propTasks.length > 0;
+  // Use only real Supabase tasks — no mock fallback
+  const tasks = propTasks || [];
+
+  // Compute summary counts from real data
+  const now = new Date(); now.setHours(0,0,0,0);
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
+  const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate()+7);
+  const overdueAll = tasks.filter(t => !t.completed && t.due_date && new Date(t.due_date) < now);
+  const todayAll   = tasks.filter(t => !t.completed && t.due_date && new Date(t.due_date) >= now && new Date(t.due_date) < tomorrow);
+  const weekAll    = tasks.filter(t => !t.completed && t.due_date && new Date(t.due_date) >= tomorrow && new Date(t.due_date) < weekEnd);
+  const laterAll   = tasks.filter(t => !t.completed && (!t.due_date || new Date(t.due_date) >= weekEnd));
+  const completedToday = tasks.filter(t => t.completed && t.completed_at && new Date(t.completed_at).toDateString() === new Date().toDateString());
+  const openCount = tasks.filter(t => !t.completed).length;
 
   const toggle = async (id) => {
     setChecked(prev => {
@@ -39,14 +26,11 @@ export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefre
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-    // If this is a real Supabase task (numeric id), mark complete
-    if (hasSupa && typeof id === 'number') {
-      try {
-        await updateRecord('tasks', id, { completed: true, completed_at: new Date().toISOString() });
-        toast?.('Task completed ✓', 'success');
-        onRefresh?.();
-      } catch (e) { toast?.('Failed to update task', 'error'); }
-    }
+    try {
+      await updateRecord('tasks', id, { completed: true, completed_at: new Date().toISOString() });
+      toast?.('Task completed', 'success');
+      onRefresh?.();
+    } catch (e) { toast?.('Failed to update task', 'error'); }
   };
 
   return (
@@ -66,7 +50,7 @@ export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefre
           <div style={S.pageHeader}>
             <div>
               <div style={S.pageTitle}>My <em style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--rust)', fontSize: 36, fontWeight: 400 }}>Tasks</em></div>
-              <div style={S.pageSub}>26 open · 3 overdue · 5 due today</div>
+              <div style={S.pageSub}>{openCount} open · {overdueAll.length} overdue · {todayAll.length} due today</div>
             </div>
           </div>
 
@@ -75,47 +59,19 @@ export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefre
             <div>
               {loading ? (
                 [1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 56, marginBottom: 8, borderRadius: 8 }} />)
-              ) : hasSupa ? (
-                /* ── Supabase tasks grouped by due date ── */
+              ) : tasks.length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No tasks</div>
+              ) : (
+                /* ── Tasks grouped by due date ── */
                 (() => {
-                  const now = new Date(); now.setHours(0,0,0,0);
-                  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
-                  const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate()+7);
-                  const overdue = propTasks.filter(t => t.due_date && new Date(t.due_date) < now);
-                  const today   = propTasks.filter(t => t.due_date && new Date(t.due_date) >= now && new Date(t.due_date) < tomorrow);
-                  const week    = propTasks.filter(t => t.due_date && new Date(t.due_date) >= tomorrow && new Date(t.due_date) < weekEnd);
-                  const later   = propTasks.filter(t => !t.due_date || new Date(t.due_date) >= weekEnd);
                   const toRow = (t) => ({ id: t.id, text: t.title, detail: t.description, meta: { linkLabel: null } });
                   return (<>
-                    {overdue.length > 0 && <TaskGroup label="Overdue" count={overdue.length} countStyle="rust">{overdue.map(t => <TaskRow key={t.id} task={toRow(t)} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Overdue" dueStyle="overdue" onSelect={onSelectTask} />)}</TaskGroup>}
-                    {today.length > 0   && <TaskGroup label="Today"   count={today.length}   countStyle="amber">{today.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Today"   dueStyle="today"   onSelect={onSelectTask} />)}</TaskGroup>}
-                    {week.length > 0    && <TaskGroup label="This Week" count={week.length}   countStyle="blue">{week.map(t =>    <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel={t.due_date?.slice(5,10)} dueStyle="soon" onSelect={onSelectTask} />)}</TaskGroup>}
-                    {later.length > 0   && <TaskGroup label="Later"   count={later.length}   countStyle="blue">{later.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="—"       dueStyle="soon"   onSelect={onSelectTask} />)}</TaskGroup>}
-                    {propTasks.length === 0 && <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink4)', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', fontSize: 15 }}>No open tasks</div>}
+                    {overdueAll.length > 0 && <TaskGroup label="Overdue" count={overdueAll.length} countStyle="rust">{overdueAll.map(t => <TaskRow key={t.id} task={toRow(t)} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Overdue" dueStyle="overdue" onSelect={onSelectTask} />)}</TaskGroup>}
+                    {todayAll.length > 0   && <TaskGroup label="Today"   count={todayAll.length}   countStyle="amber">{todayAll.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="Today"   dueStyle="today"   onSelect={onSelectTask} />)}</TaskGroup>}
+                    {weekAll.length > 0    && <TaskGroup label="This Week" count={weekAll.length}   countStyle="blue">{weekAll.map(t =>    <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel={t.due_date?.slice(5,10)} dueStyle="soon" onSelect={onSelectTask} />)}</TaskGroup>}
+                    {laterAll.length > 0   && <TaskGroup label="Later"   count={laterAll.length}   countStyle="blue">{laterAll.map(t =>   <TaskRow key={t.id} task={toRow(t)} type="normal"  checked={checked.has(t.id)} onCheck={() => toggle(t.id)} dueLabel="—"       dueStyle="soon"   onSelect={onSelectTask} />)}</TaskGroup>}
                   </>);
                 })()
-              ) : (
-                /* ── Mock tasks (fallback) ── */
-                <>
-                  <TaskGroup label="Overdue" count={MOCK_TASKS.overdue.length} countStyle="rust">
-                    {MOCK_TASKS.overdue.map(t => (
-                      <TaskRow key={t.id} task={t} type="overdue" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                        dueLabel={t.daysAgo} dueStyle="overdue" onSelect={onSelectTask} />
-                    ))}
-                  </TaskGroup>
-                  <TaskGroup label="Today" count={MOCK_TASKS.today.length} countStyle="amber">
-                    {MOCK_TASKS.today.map(t => (
-                      <TaskRow key={t.id} task={t} type={t.priority === 'high' ? 'high' : 'normal'} checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                        dueLabel="Today" dueStyle="today" onSelect={onSelectTask} />
-                    ))}
-                  </TaskGroup>
-                  <TaskGroup label="This Week" count={MOCK_TASKS.thisWeek.length} countStyle="blue">
-                    {MOCK_TASKS.thisWeek.map(t => (
-                      <TaskRow key={t.id} task={t} type="normal" checked={checked.has(t.id)} onCheck={() => toggle(t.id)}
-                        dueLabel={t.due} dueStyle="soon" onSelect={onSelectTask} />
-                    ))}
-                  </TaskGroup>
-                </>
               )}
             </div>
 
@@ -124,30 +80,15 @@ export default function Tasks({ onSelectTask, tasks: propTasks, loading, onRefre
               <div style={S.rightCard}>
                 <div style={S.rcHdr}>Task Summary</div>
                 {[
-                  { label: 'Overdue', val: 3, valStyle: 'rust' },
-                  { label: 'Due Today', val: 5, valStyle: 'amber' },
-                  { label: 'This Week', val: 8, valStyle: null },
-                  { label: 'Later', val: 10, valStyle: null },
-                  { label: 'Completed Today', val: 4, valStyle: 'green' },
+                  { label: 'Overdue', val: overdueAll.length, valStyle: 'rust' },
+                  { label: 'Due Today', val: todayAll.length, valStyle: 'amber' },
+                  { label: 'This Week', val: weekAll.length, valStyle: null },
+                  { label: 'Later', val: laterAll.length, valStyle: null },
+                  { label: 'Completed Today', val: completedToday.length, valStyle: 'green' },
                 ].map(r => (
                   <div key={r.label} style={S.rcRow}>
                     <span style={{ fontSize: 13, color: 'var(--ink3)' }}>{r.label}</span>
                     <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: r.valStyle ? `var(--${r.valStyle})` : 'var(--ink)' }}>{r.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={S.rightCard}>
-                <div style={S.rcHdr}>By Deal / Property</div>
-                {[
-                  { label: 'Pacific Mfg · LOI', val: '3 tasks', color: 'var(--amber)' },
-                  { label: 'Teledyne WARN', val: '2 overdue', color: 'var(--rust)' },
-                  { label: 'Rexford Irwindale', val: '2 tasks', color: 'var(--blue)' },
-                  { label: 'Matrix Logistics', val: '1 task', color: 'var(--blue)' },
-                ].map(r => (
-                  <div key={r.label} style={S.rcRow}>
-                    <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>{r.label}</span>
-                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 12, color: r.color }}>{r.val}</span>
                   </div>
                 ))}
               </div>

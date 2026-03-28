@@ -103,7 +103,7 @@ export default function NewsFeed({ onNavigate }) {
                       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, fontStyle: 'italic', color: 'var(--ink4)', lineHeight: 1.55 }}>
                         {a.snippet}
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--blue)', fontWeight: 500 }}>Read more →</div>
+                      {a.url && a.url !== '#' && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--blue)', fontWeight: 500 }}>Read more →</div>}
                     </div>
                   </div>
                 </div>
