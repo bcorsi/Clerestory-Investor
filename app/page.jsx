@@ -27,6 +27,7 @@ import Campaigns from '../components/Campaigns.jsx';
 import CompAnalytics from '../components/CompAnalytics.jsx';
 import LeaseCompDetail from '../components/LeaseCompDetail.jsx';
 import SaleCompDetail from '../components/SaleCompDetail.jsx';
+import CatalystView from '../components/CatalystView.js';
 
 /* ─── ErrorBoundary ──────────────────────────────────────────────── */
 class ErrorBoundary extends React.Component {
@@ -75,6 +76,7 @@ export default function App() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedLeaseComp, setSelectedLeaseComp] = useState(null);
   const [selectedSaleComp, setSelectedSaleComp] = useState(null);
+  const [selectedCatalystTag, setSelectedCatalystTag] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   /* ── Supabase data ── */
@@ -257,9 +259,10 @@ export default function App() {
     if (selectedAccount)   return <AccountDetailPage account={selectedAccount} onBack={() => setSelectedAccount(null)} onNavigate={navigate} onSelectContact={openContact} onSelectProperty={openProperty} onSelectDeal={openDeal} properties={properties} deals={deals} contacts={contacts} />;
     if (selectedContact)   return <ContactDetailPage contact={selectedContact} onBack={() => setSelectedContact(null)} onNavigate={navigate} onSelectAccount={openAccount} onSelectProperty={openProperty} onSelectDeal={openDeal} />;
     if (selectedTask)      return <TaskDetailPage   task={selectedTask} onBack={() => setSelectedTask(null)} onNavigate={navigate} />;
+    if (selectedCatalystTag) return <CatalystView tag={selectedCatalystTag} properties={properties} leads={leads} deals={deals} onPropertyClick={openProperty} onLeadClick={openLead} onDealClick={openDeal} onClear={() => setSelectedCatalystTag(null)} />;
 
     switch (page) {
-      case 'dashboard':    return <CommandCenter onNavigate={navigate} counts={counts} properties={properties} deals={deals} leads={leads} tasks={tasks} leaseComps={leaseComps} saleComps={saleComps} accounts={accounts} contacts={contacts} />;
+      case 'dashboard':    return <CommandCenter onNavigate={navigate} counts={counts} properties={properties} deals={deals} leads={leads} tasks={tasks} leaseComps={leaseComps} saleComps={saleComps} accounts={accounts} contacts={contacts} onCatalystClick={tag => setSelectedCatalystTag(tag)} />;
       case 'properties':   return <PropertiesList  {...dataProps} onSelectProperty={openProperty} />;
       case 'leads':        return <LeadGenList     {...dataProps} onSelectLead={openLead} onNavigate={navigate} />;
       case 'deals':        return <DealPipeline    {...dataProps} onSelectDeal={openDeal} />;

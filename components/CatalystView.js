@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CATALYST_URGENCY, STAGE_COLORS, LEAD_STAGE_COLORS, catalystTagClass, fmt } from '../lib/constants';
+import { getCatalystStyle, STAGE_COLORS, LEAD_STAGE_COLORS, fmt } from '../lib/constants';
 
 export default function CatalystView({
   tag, properties, leads, deals,
@@ -23,8 +23,8 @@ export default function CatalystView({
   , [deals, properties, tag]);
 
   const total = matchedProperties.length + matchedLeads.length + matchedDeals.length;
-  const urgency = CATALYST_URGENCY[tag] || 'medium';
-  const urgColor = { immediate: 'var(--rust)', high: 'var(--amber)', medium: 'var(--blue)', low: 'var(--ink3)' }[urgency];
+  const catStyle = getCatalystStyle(tag);
+  const urgColor = catStyle.color;
 
   return (
     <div>
@@ -33,7 +33,7 @@ export default function CatalystView({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-              <span className={`tag ${catalystTagClass(tag)}`} style={{ fontSize: '14px', padding: '4px 12px' }}>{tag}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '14px', padding: '4px 12px', borderRadius: 5, fontWeight: 600, fontFamily: "'DM Mono',monospace", background: catStyle.bg, border: `1px solid ${catStyle.bdr}`, color: catStyle.color }}>{catStyle.dot} {tag}</span>
               <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{total} records</span>
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>

@@ -11,7 +11,7 @@ function getGreeting() {
 
 const isAfternoon = () => new Date().getHours() >= 16;
 
-export default function CommandCenter({ onNavigate, counts = {}, properties = [], deals = [], leads = [], tasks = [], leaseComps = [], saleComps = [], accounts = [], contacts = [] }) {
+export default function CommandCenter({ onNavigate, counts = {}, properties = [], deals = [], leads = [], tasks = [], leaseComps = [], saleComps = [], accounts = [], contacts = [], onCatalystClick }) {
   const [briefType, setBriefType] = useState(null);
 
   // ── Computed metrics ──
@@ -199,7 +199,7 @@ export default function CommandCenter({ onNavigate, counts = {}, properties = []
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink2)' }}>{a.address || a.property.name}</div>
                           <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 8px', borderRadius: 4, fontSize: 10.5, fontWeight: 500, border: `1px solid ${a.style.bdr}`, background: a.style.bg, color: a.style.color, fontFamily: "'DM Mono',monospace" }}>
+                            <span onClick={e => { e.stopPropagation(); onCatalystClick?.(a.tag); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 8px', borderRadius: 4, fontSize: 10.5, fontWeight: 500, border: `1px solid ${a.style.bdr}`, background: a.style.bg, color: a.style.color, fontFamily: "'DM Mono',monospace", cursor: 'pointer' }}>
                               {a.style.dot} {a.tag}
                             </span>
                           </div>
@@ -283,7 +283,7 @@ export default function CommandCenter({ onNavigate, counts = {}, properties = []
                     </div>
                     {(l.catalyst_tags || []).slice(0, 1).map((tag, ti) => {
                       const cs = getCatalystStyle(tag);
-                      return <span key={ti} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '2px 6px', borderRadius: 4, fontSize: 9.5, fontWeight: 500, border: `1px solid ${cs.bdr}`, background: cs.bg, color: cs.color, fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>{cs.dot} {tag}</span>;
+                      return <span key={ti} onClick={e => { e.stopPropagation(); onCatalystClick?.(tag); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '2px 6px', borderRadius: 4, fontSize: 9.5, fontWeight: 500, border: `1px solid ${cs.bdr}`, background: cs.bg, color: cs.color, fontFamily: "'DM Mono',monospace", flexShrink: 0, cursor: 'pointer' }}>{cs.dot} {tag}</span>;
                     })}
                   </div>
                 );
