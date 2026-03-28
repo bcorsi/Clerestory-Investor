@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { insertProperty, insertRow } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 // ── Naming Normalization ──────────────────────────────────────
 // Standardizes company/owner/tenant names for consistency
@@ -70,18 +71,20 @@ const COL_MAP = {
   apn: ['apn', 'apn1', 'assessor parcel', 'parcel number', 'parcel'],
 
   // ── Lease Comps (full field set) ───────────────────
-  rate: ['rate', 'lease rate', 'asking rate', 'nnn rate', 'starting rate', 'base rate', 'rent/sf/mo', 'monthly rate', 'rate psf', 'rate (psf/mo)', '$/sf/mo'],
-  gross_equivalent: ['gross equivalent', 'gross equiv', 'gross_equivalent', 'gross rate', 'effective gross', 'all-in rate'],
-  total_expenses_psf: ['expenses', 'total expenses', 'total_expenses_psf', 'opex', 'expense load', 'cam', 'cam/sf', 'nnn expenses', 'nnn charges', 'operating expenses'],
-  term_months: ['term', 'term months', 'term_months', 'lease term', 'months', 'term (months)', 'lease term (mo)'],
-  start_date: ['start date', 'start_date', 'lease start', 'commencement', 'commence date', 'lease date', 'execution date', 'date', 'deal date', 'transaction date', 'lease commencement'],
-  end_date: ['end date', 'end_date', 'lease end', 'expiration', 'expiration date'],
-  free_rent_months: ['free rent', 'free_rent_months', 'free rent months', 'fr', 'fr months', 'abated rent', 'rent abatement', 'concession months'],
-  ti_psf: ['ti', 'ti psf', 'ti_psf', 'tenant improvements', 'ti/sf', 'ti per sf', 'tenant improvement', 'ti allowance', 'improvement allowance'],
-  escalation: ['escalation', 'escalations', 'annual escalation', 'bumps', 'annual increase', 'rent bumps', 'annual bump', 'escalation %'],
+  rate: ['rate', 'lease rate', 'asking rate', 'nnn rate', 'starting rate', 'base rate', 'rent/sf/mo', 'monthly rate', 'rate psf', 'rate (psf/mo)', '$/sf/mo', 'rate ($/sf/mo)', 'rent psf (monthly)', 'asking rent (psf/mo)', 'effective rent (psf/mo)'],
+  rate_annual: ['rate ($/sf/yr)', 'annual rate', 'asking rent ($/sf/yr)', 'rent/sf/yr', 'annual rent psf', 'starting rent (psf)', 'rent psf (annual)', 'effective rent ($/sf/yr)'],
+  gross_equivalent: ['gross equivalent', 'gross equiv', 'gross_equivalent', 'gross rate', 'effective gross', 'all-in rate', 'gross equivalent ($/sf/mo)', 'gross rate (psf/mo)', 'gross rent (psf/mo)'],
+  total_expenses_psf: ['expenses', 'total expenses', 'total_expenses_psf', 'opex', 'expense load', 'cam', 'cam/sf', 'nnn expenses', 'nnn charges', 'operating expenses', 'nnn expenses ($/sf/yr)', 'expense ratio (psf/yr)', 'opex ($/sf/yr)'],
+  term_months: ['term', 'term months', 'term_months', 'lease term', 'months', 'term (months)', 'lease term (mo)', 'lease term (months)'],
+  start_date: ['start date', 'start_date', 'lease start', 'commencement', 'commence date', 'lease date', 'execution date', 'date', 'deal date', 'transaction date', 'lease commencement', 'commencement date', 'execution date', 'lease execution date'],
+  end_date: ['end date', 'end_date', 'lease end', 'expiration', 'expiration date', 'lease expiration', 'lease expiration date'],
+  free_rent_months: ['free rent', 'free_rent_months', 'free rent months', 'fr', 'fr months', 'abated rent', 'rent abatement', 'concession months', 'free rent (months)', 'rent free period (months)'],
+  ti_psf: ['ti', 'ti psf', 'ti_psf', 'tenant improvements', 'ti/sf', 'ti per sf', 'tenant improvement', 'ti allowance', 'improvement allowance', 'ti ($/sf)', 'tenant improvement allowance ($/sf)', 'tia ($/sf)'],
+  escalation: ['escalation', 'escalations', 'annual escalation', 'bumps', 'annual increase', 'rent bumps', 'annual bump', 'escalation %', 'annual escalation (%)', 'annual bump (%)', 'rent escalation (%)'],
   deal_type: ['deal type', 'deal_type', 'transaction type', 'trans type', 'transaction', 'type of transaction', 'lease/sale'],
-  broker: ['broker', 'listing broker', 'broker name', 'leasing broker', 'rep broker'],
-  landlord: ['landlord', 'landlord name', 'lessor', 'll', 'owner/landlord'],
+  broker: ['broker', 'listing broker', 'broker name', 'leasing broker', 'rep broker', 'listing broker/company', 'tenant rep broker', 'broker/company', 'listing agent'],
+  landlord: ['landlord', 'landlord name', 'lessor', 'll', 'owner/landlord', 'landlord/lessor', 'lessor/landlord'],
+  rsf: ['rsf', 'leased sf', 'leased area', 'premises sf', 'leased square feet', 'leased sqft', 'space sf', 'suite sf', 'rentable area (sf)'],
   source: ['source', 'data source', 'comp source'],
 
   // ── Sale Comps ─────────────────────────────────────
@@ -92,6 +95,13 @@ const COL_MAP = {
   sale_type: ['sale type', 'sale_type', 'transaction type', 'deal type'],
   buyer: ['buyer', 'buyer name', 'purchaser', 'grantee', 'acquiring party'],
   seller: ['seller', 'seller name', 'vendor', 'grantor', 'disposing party'],
+
+  // ── Leads ──────────────────────────────────────────
+  lead_name: ['lead name', 'lead_name', 'lead', 'opportunity name', 'prospect name', 'company name', 'occupier', 'tenant name'],
+  decision_maker: ['decision maker', 'decision_maker', 'contact', 'owner contact', 'key contact', 'primary contact', 'dm'],
+  tier: ['tier', 'lead tier', 'priority tier', 'grade'],
+  stage: ['stage', 'lead stage', 'status', 'lead status', 'pipeline stage'],
+  score: ['score', 'lead score', 'priority score', 'signal score'],
 
   // ── Contacts ───────────────────────────────────────
   name: ['name', 'full name', 'contact name', 'person'],
@@ -170,7 +180,41 @@ export default function CsvUpload({ onClose, onDone }) {
       const headers = lines[0].split(',').map((h) => h.trim().replace(/^"/, '').replace(/"$/, ''));
       const colMapping = preview.colMapping;
 
+      // Build dedup fingerprint sets from existing records
+      const existingFingerprints = new Set();
+      const withinFileFingerprints = new Set();
+      try {
+        if (target === 'properties') {
+          const { data } = await supabase.from('properties').select('address,city');
+          (data || []).forEach(r => {
+            if (r.address) existingFingerprints.add((r.address + '|' + (r.city || '')).toLowerCase().replace(/\s+/g, ' ').trim());
+          });
+        } else if (target === 'lease_comps') {
+          const { data } = await supabase.from('lease_comps').select('address,tenant,start_date');
+          (data || []).forEach(r => {
+            existingFingerprints.add([r.address, r.tenant, r.start_date].join('|').toLowerCase().trim());
+          });
+        } else if (target === 'sale_comps') {
+          const { data } = await supabase.from('sale_comps').select('address,sale_date');
+          (data || []).forEach(r => {
+            existingFingerprints.add([r.address, r.sale_date].join('|').toLowerCase().trim());
+          });
+        } else if (target === 'contacts') {
+          const { data } = await supabase.from('contacts').select('email,name,company');
+          (data || []).forEach(r => {
+            if (r.email) existingFingerprints.add(r.email.toLowerCase().trim());
+            else existingFingerprints.add((r.name + '|' + (r.company || '')).toLowerCase().trim());
+          });
+        } else if (target === 'leads') {
+          const { data } = await supabase.from('leads').select('lead_name,address');
+          (data || []).forEach(r => {
+            existingFingerprints.add([r.lead_name, r.address].join('|').toLowerCase().trim());
+          });
+        }
+      } catch {}
+
       let imported = 0;
+      let skipped = 0;
       let errors = 0;
 
       for (let i = 1; i < lines.length; i++) {
@@ -212,28 +256,32 @@ export default function CsvUpload({ onClose, onDone }) {
             // Collect APNs from multiple columns
             const apns = [];
             if (mapped.apn) apns.push({ apn: mapped.apn, acres: parseNum(mapped.land_acres) });
-            // Check for APN2, APN3, etc.
             for (let a = 2; a <= 5; a++) {
               const apnKey = headers.find((h) => h.toLowerCase().trim() === `apn${a}`);
               const acreKey = headers.find((h) => h.toLowerCase().trim() === `acres${a}`);
-              if (apnKey && raw[apnKey]) {
-                apns.push({ apn: raw[apnKey], acres: acreKey ? parseNum(raw[acreKey]) : null });
-              }
+              if (apnKey && raw[apnKey]) apns.push({ apn: raw[apnKey], acres: acreKey ? parseNum(raw[acreKey]) : null });
             }
 
             if (propData.address) {
+              const fp = (propData.address + '|' + (propData.city || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+              if (existingFingerprints.has(fp) || withinFileFingerprints.has(fp)) { skipped++; continue; }
+              withinFileFingerprints.add(fp);
               await insertProperty(propData, apns);
               imported++;
             }
           } else if (target === 'lease_comps') {
+            // Handle CoStar annual $/SF/YR rate — convert to monthly
+            let rate = parseNum(mapped.rate);
+            if (!rate && mapped.rate_annual) rate = (parseNum(mapped.rate_annual) || 0) / 12 || null;
+
             const data = {
               address: normalizeAddress(mapped.address) || null,
               city: normalizeName(mapped.city) || null,
               submarket: mapped.submarket || null,
               tenant: normalizeName(mapped.tenant) || null,
               landlord: normalizeName(mapped.landlord || mapped.owner) || null,
-              rsf: parseNum(mapped.building_sf || mapped.rsf),
-              rate: parseNum(mapped.rate || mapped.in_place_rent),
+              rsf: parseNum(mapped.rsf || mapped.building_sf),
+              rate,
               gross_equivalent: parseNum(mapped.gross_equivalent),
               total_expenses_psf: parseNum(mapped.total_expenses_psf),
               lease_type: mapped.lease_type || null,
@@ -260,7 +308,12 @@ export default function CsvUpload({ onClose, onDone }) {
                 data.term_months = Math.round((e - s) / (1000 * 60 * 60 * 24 * 30.44));
               } catch {}
             }
-            if (data.address || data.tenant) { await insertRow('lease_comps', data); imported++; }
+            if (data.address || data.tenant) {
+              const fp = [data.address, data.tenant, data.start_date].join('|').toLowerCase().trim();
+              if (existingFingerprints.has(fp) || withinFileFingerprints.has(fp)) { skipped++; continue; }
+              withinFileFingerprints.add(fp);
+              await insertRow('lease_comps', data); imported++;
+            }
           } else if (target === 'sale_comps') {
             const data = {
               address: normalizeAddress(mapped.address) || null,
@@ -279,11 +332,15 @@ export default function CsvUpload({ onClose, onDone }) {
               seller: normalizeName(mapped.seller || mapped.owner) || null,
               notes: mapped.notes || null,
             };
-            // Auto-calculate $/SF if not provided
             if (!data.price_psf && data.sale_price && data.building_sf) {
               data.price_psf = Math.round(data.sale_price / data.building_sf);
             }
-            if (data.address) { await insertRow('sale_comps', data); imported++; }
+            if (data.address) {
+              const fp = [data.address, data.sale_date].join('|').toLowerCase().trim();
+              if (existingFingerprints.has(fp) || withinFileFingerprints.has(fp)) { skipped++; continue; }
+              withinFileFingerprints.add(fp);
+              await insertRow('sale_comps', data); imported++;
+            }
           } else if (target === 'contacts') {
             const data = {
               name: normalizeName(mapped.name || raw[headers[0]]) || null,
@@ -293,7 +350,12 @@ export default function CsvUpload({ onClose, onDone }) {
               contact_type: mapped.contact_type || null,
               notes: mapped.notes || null,
             };
-            if (data.name) { await insertRow('contacts', data); imported++; }
+            if (data.name) {
+              const fp = data.email ? data.email.toLowerCase().trim() : (data.name + '|' + (data.company || '')).toLowerCase().trim();
+              if (existingFingerprints.has(fp) || withinFileFingerprints.has(fp)) { skipped++; continue; }
+              withinFileFingerprints.add(fp);
+              await insertRow('contacts', data); imported++;
+            }
           } else if (target === 'leads') {
             const data = {
               lead_name: normalizeName(mapped.lead_name || mapped.name || mapped.company || raw[headers[0]]) || null,
@@ -311,7 +373,12 @@ export default function CsvUpload({ onClose, onDone }) {
               priority: mapped.priority || null,
               notes: mapped.notes || null,
             };
-            if (data.lead_name) { await insertRow('leads', data); imported++; }
+            if (data.lead_name) {
+              const fp = [data.lead_name, data.address].join('|').toLowerCase().trim();
+              if (existingFingerprints.has(fp) || withinFileFingerprints.has(fp)) { skipped++; continue; }
+              withinFileFingerprints.add(fp);
+              await insertRow('leads', data); imported++;
+            }
           } else if (target === 'deals') {
             const data = {
               deal_name: mapped.deal_name || mapped.name || raw[headers[0]] || null,
@@ -340,10 +407,10 @@ export default function CsvUpload({ onClose, onDone }) {
         }
       }
 
-      setResult({ imported, errors, total: lines.length - 1 });
+      setResult({ imported, skipped, errors, total: lines.length - 1 });
     } catch (err) {
       console.error('Import error:', err);
-      setResult({ imported: 0, errors: 1, total: 0 });
+      setResult({ imported: 0, skipped: 0, errors: 1, total: 0 });
     } finally {
       setImporting(false);
     }
@@ -442,8 +509,11 @@ export default function CsvUpload({ onClose, onDone }) {
               <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
                 {result.imported} of {result.total} rows imported
               </div>
+              {result.skipped > 0 && (
+                <div style={{ color: 'var(--ink3)', marginBottom: '4px' }}>{result.skipped} skipped (already exist)</div>
+              )}
               {result.errors > 0 && (
-                <div style={{  color: 'var(--red)' }}>{result.errors} errors (check console for details)</div>
+                <div style={{ color: 'var(--red)' }}>{result.errors} errors (check console for details)</div>
               )}
             </div>
           )}
