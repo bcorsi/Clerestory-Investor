@@ -100,7 +100,7 @@ const NAV = [
   { page: 'owner-search', label: 'Owner Search', icon: '◎' },
   { section: 'Operations' },
   { page: 'tasks', label: 'Tasks', icon: '□', count: 'tasks' },
-  { page: 'campaigns', label: 'Campaigns', icon: '◑' },
+  { page: 'campaigns', label: 'Research Campaigns', icon: '◑' },
 ];
 
 export default function Sidebar({ currentPage, onNavigate, counts = {}, onCollapseChange }) {

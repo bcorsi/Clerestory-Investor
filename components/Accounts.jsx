@@ -34,19 +34,35 @@ const TABS = [
 export default function Accounts({ onSelectAccount, accounts: propAccounts, loading, onRefresh, toast }) {
   const [activeTab, setActiveTab] = useState('all');
   const [showImport, setShowImport] = useState(false);
+  const [activeChips, setActiveChips] = useState([]);
 
   // Use Supabase data when available, fall back to mock
   const accounts = (propAccounts && propAccounts.length > 0) ? propAccounts : MOCK_ACCOUNTS;
   const matchTab = (a, tab) => {
-    const t = (a.account_type || a.type || a.tabKey || '').toLowerCase();
-    if (tab === 'owner-user') return t.includes('owner') && t.includes('user');
+    const t = (a.account_type || a.type || a.tabKey || '').toLowerCase().replace(/[\s_-]+/g, '');
+    if (tab === 'owner-user') return t.includes('owneruser') || t.includes('owner-user') || t === 'owneruser';
     if (tab === 'institutional') return t.includes('institution') || t.includes('reit');
     if (tab === 'family') return t.includes('family') || t.includes('private');
-    if (tab === 'buyers') return t.includes('buyer') || t.includes('investor') || t.includes('equity');
+    if (tab === 'buyers') return t.includes('buyer') || t.includes('investor') || t.includes('equity') || t.includes('corporate');
     if (tab === 'tenants') return t.includes('tenant') || t.includes('occupier');
     return t.includes(tab);
   };
-  const filteredAccounts = activeTab === 'all' ? accounts : accounts.filter(a => matchTab(a, activeTab));
+  const toggleChip = (c) => setActiveChips(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  let filteredAccounts = activeTab === 'all' ? accounts : accounts.filter(a => matchTab(a, activeTab));
+  if (activeChips.length > 0) {
+    filteredAccounts = filteredAccounts.filter(a => {
+      const loc = (a.city || a.location || a.market || '').toLowerCase();
+      const hasChip = c => {
+        if (c === 'SGV') return loc.includes('sgv') || loc.includes('industry') || loc.includes('baldwin') || loc.includes('el monte') || loc.includes('azusa');
+        if (c === 'IE West') return loc.includes('ie west') || loc.includes('ontario') || loc.includes('rancho') || loc.includes('fontana') || loc.includes('chino');
+        if (c === 'IE East') return loc.includes('ie east') || loc.includes('riverside') || loc.includes('moreno') || loc.includes('perris');
+        if (c === 'Has Active Deal') return a.deals > 0 || a.active_deals > 0;
+        if (c === 'Has Property') return a.props > 0 || a.property_count > 0;
+        return true;
+      };
+      return activeChips.every(hasChip);
+    });
+  }
 
   const handleImportComplete = async ({ importedAccounts }) => {
     for (const acct of (importedAccounts || [])) {
@@ -114,8 +130,8 @@ export default function Accounts({ onSelectAccount, accounts: propAccounts, load
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="#6E6860" strokeWidth="1.5"/><path d="M10.5 10.5L14 14" stroke="#6E6860" strokeWidth="1.5" strokeLinecap="round"/></svg>
               <input placeholder="Search accounts…" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--ink2)', width: '100%' }} />
             </div>
-            {['SGV', 'IE West', 'IE East', 'Has Active Deal', 'Has Property'].map((f, i) => (
-              <div key={f} style={{ ...S.fc, ...(i < 2 ? S.fcOn : {}) }}>{f}</div>
+            {['SGV', 'IE West', 'IE East', 'Has Active Deal', 'Has Property'].map((f) => (
+              <div key={f} style={{ ...S.fc, ...(activeChips.includes(f) ? S.fcOn : {}) }} onClick={() => toggleChip(f)}>{f}</div>
             ))}
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink4)' }}>Showing <strong style={{ color: 'var(--ink2)' }}>68</strong> accounts</span>
           </div>
