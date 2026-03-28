@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { getCatalystStyle, getScoreRing, fmt } from '../lib/constants';
 
 const TABS = ['Timeline', 'Buildings', 'APNs', 'Lease Comps', 'Sale Comps', 'Contacts', 'Deals', 'Leads', 'Buyer Matches', 'Files'];
 
@@ -10,7 +11,7 @@ const MOCK_BUYER_MATCHES = [
   { id: 10, company: 'Matrix Logistics Partners',    type: 'Private Equity Buyer', req: '150–250K SF · IE West · Dock-High · 28\'+ Clear', match: 74 },
 ];
 
-export default function PropertyDetail({ property, onBack, onNavigate, onSelectAccount, onConvertToDeal, deals, leads, contacts, leaseComps, saleComps, onRefresh, toast }) {
+export default function PropertyDetail({ property, onBack, onNavigate, onSelectAccount, onConvertToDeal, deals, leads, contacts, leaseComps, saleComps, onRefresh, toast, onCatalystClick }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [specsOpen, setSpecsOpen] = useState(false);
   const [synthOpen, setSynthOpen] = useState(true);
@@ -286,20 +287,27 @@ export default function PropertyDetail({ property, onBack, onNavigate, onSelectA
                         <div style={S.cardTitle}>Active Catalysts</div>
                         <span style={S.cardAction} onClick={() => {}}>+ Add</span>
                       </div>
-                      {(p.catalysts ?? MOCK_CATALYSTS).map((c, i) => (
-                        <div key={i} style={{ ...S.catRow, borderBottom: i < (p.catalysts ?? MOCK_CATALYSTS).length - 1 ? '1px solid var(--line2)' : 'none' }}>
-                          <span style={{ ...S.cat, background: CAT_BG[c.type], borderColor: CAT_BDR[c.type], color: CAT_COLOR[c.type] }}>{c.label}</span>
-                          <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>{c.desc}</span>
-                          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10.5, color: 'var(--ink4)' }}>{c.date}</span>
-                        </div>
-                      ))}
+                      {(p.catalyst_tags && p.catalyst_tags.length > 0) ? p.catalyst_tags.map((tag, i) => {
+                        const cs = getCatalystStyle(tag);
+                        return (
+                          <div key={i} style={{ ...S.catRow, borderBottom: i < p.catalyst_tags.length - 1 ? '1px solid var(--line2)' : 'none', cursor: 'pointer' }} onClick={() => onCatalystClick?.(tag)}>
+                            <span style={{ ...S.cat, background: cs.bg, borderColor: cs.bdr, color: cs.color }}>{cs.dot} {tag}</span>
+                            <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>{cs.priority} priority · +{cs.boost} pts</span>
+                          </div>
+                        );
+                      }) : (
+                        <div style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--ink4)', padding: '12px 0' }}>No catalysts detected — add manually or run AI auto-tag</div>
+                      )}
                     </div>
                     <div style={S.propSignal}>
                       <div style={S.propSignalHdr}><span style={{ fontSize: 13 }}>✦</span><span style={S.propSignalTitle}>AI Property Signal</span></div>
                       <div style={S.propSignalBody}>
-                        <strong style={{ color: 'var(--blue)' }}>Top-quartile SGV Mid-Valley asset.</strong> 32&apos; clear and 1.29 DH ratio rank in the top 15% of tracked SGV properties. At {p.inPlaceRent ?? '$1.28/SF'} NNN, rent is{' '}
-                        <span style={{ color: 'var(--green)', fontWeight: 600 }}>12% below market</span> ({p.marketRent ?? '$1.44–1.52'}), creating ~$300K/year NOI upside at renewal.{' '}
-                        <span style={{ color: 'var(--green)', fontWeight: 600 }}>Effectively irreplaceable at replacement cost ~$320/SF.</span>
+                        <strong style={{ color: 'var(--blue)' }}>{p.address}</strong> — {p.building_sf ? `${Number(p.building_sf).toLocaleString()} SF` : ''} {p.prop_type || p.type || 'Industrial'} in {p.submarket || p.city || '—'}.
+                        {p.in_place_rent ? ` In-place rent $${Number(p.in_place_rent).toFixed(2)}/SF NNN.` : ''}
+                        {p.lease_expiration ? ` Lease expires ${p.lease_expiration}.` : ''}
+                        {p.owner ? ` Owner: ${p.owner}${p.owner_type ? ` (${p.owner_type})` : ''}.` : ''}
+                        {(p.catalyst_tags || []).length > 0 ? <> Active catalysts: <strong style={{ color: 'var(--blue)' }}>{p.catalyst_tags.join(', ')}</strong>.</> : ' No catalysts detected.'}
+                        {p.ai_score ? <> Score: <strong style={{ color: getScoreRing(p.ai_score).color }}>{p.ai_score}</strong>.</> : ''}
                       </div>
                     </div>
                   </div>

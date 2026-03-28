@@ -185,7 +185,7 @@ function PropertyRow({ p, onSelect }) {
   const ring = getScoreRing(score);
   const tenant = p.tenant ?? p.tenant_name ?? '—';
   const leaseExp = p.leaseExp ?? p.lease_expiration ?? '—';
-  const status = p.status ?? (p.vacancy_status || '').toLowerCase().replace(/\s.*/, '') || '—';
+  const status = p.status ?? ((p.vacancy_status || '').toLowerCase().replace(/\s.*/, '') || '—');
   const st = STATUS_STYLE[status] ?? { bg: 'var(--blue-bg)', bdr: 'var(--blue-bdr)', color: 'var(--blue)', label: p.vacancy_status || status || '—' };
   const catalysts = p.catalysts || (p.catalyst_tags || []).map(t => ({ label: t, _tag: t }));
   const propType = p.type ?? p.prop_type ?? '—';

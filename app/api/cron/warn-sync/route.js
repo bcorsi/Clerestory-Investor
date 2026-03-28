@@ -4,10 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+  );
+}
 
 // CA EDD WARN report URL
 const EDD_WARN_URL = 'https://edd.ca.gov/siteassets/files/jobs_and_training/warn/warn_report.xlsx';
@@ -100,7 +102,7 @@ export async function GET(request) {
 
     if (withMarket.length > 0) {
       // Fetch existing filings to deduplicate
-      const { data: existing } = await supabase
+      const { data: existing } = await getSupabase()
         .from('warn_notices')
         .select('company, notice_date');
 
@@ -119,7 +121,7 @@ export async function GET(request) {
         // Insert in batches of 50
         for (let i = 0; i < newFilings.length; i += 50) {
           const batch = newFilings.slice(i, i + 50);
-          const { error } = await supabase.from('warn_notices').insert(batch);
+          const { error } = await getSupabase().from('warn_notices').insert(batch);
           if (error) {
             console.error('[warn-sync] insert error:', error);
           } else {
@@ -129,7 +131,7 @@ export async function GET(request) {
 
         // 6. Cross-reference company names against tenant names in properties table
         // Auto-create leads when a WARN filing matches a tenant in our database
-        const { data: props } = await supabase.from('properties').select('id, address, city, tenant, building_sf');
+        const { data: props } = await getSupabase().from('properties').select('id, address, city, tenant, building_sf');
         const tenantMap = {};
         (props || []).forEach(p => {
           if (p.tenant) tenantMap[p.tenant.toLowerCase().trim()] = p;
@@ -142,12 +144,12 @@ export async function GET(request) {
           const match = tenantMap[co] || Object.entries(tenantMap).find(([k]) => co.includes(k) || k.includes(co))?.[1];
           if (match) {
             // Check if lead already exists for this company
-            const { data: existingLead } = await supabase.from('leads')
+            const { data: existingLead } = await getSupabase().from('leads')
               .select('id')
               .ilike('lead_name', `%${filing.company}%`)
               .limit(1);
             if (!existingLead || existingLead.length === 0) {
-              const { error: leadErr } = await supabase.from('leads').insert({
+              const { error: leadErr } = await getSupabase().from('leads').insert({
                 lead_name: `${filing.company} — WARN Target`,
                 address: match.address || filing.address,
                 city: match.city || filing.city,
