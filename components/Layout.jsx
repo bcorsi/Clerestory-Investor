@@ -105,7 +105,7 @@ export default function Layout({ children }) {
         <div className="cl-logo-wrap">
           <Link href="/" className="cl-logo-link">
             <ClerestoryEye />
-            {!collapsed && <span className="cl-wordmark">clerestory<span className="cl-wordmark-dot">.</span></span>}
+            {!collapsed && <span className="cl-wordmark" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Clerestory</span>}
           </Link>
           <button className="cl-collapse-btn" onClick={() => setCollapsed(c => !c)}>
             {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
@@ -166,7 +166,7 @@ export default function Layout({ children }) {
 
 function ClerestoryEye() {
   return (
-    <svg className="cl-eye-mark" width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <svg className="cl-eye-mark" width="40" height="40" viewBox="0 0 32 32" fill="none">
       <circle cx="16" cy="16" r="15" fill="#293A52" />
       <defs>
         <linearGradient id="b1" x1="16" y1="6" x2="10" y2="22" gradientUnits="userSpaceOnUse">
