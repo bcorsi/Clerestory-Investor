@@ -141,11 +141,34 @@ export default function OwnerSearchPage() {
                         </p>
                       </div>
                     )}
-                    {result.content && (
-                      <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-                        {result.content}
-                      </div>
-                    )}
+                    {result.error ? (
+  <div style={{ color: 'var(--rust)', fontSize: 13 }}>{result.error}</div>
+) : result.result ? (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    {[
+      { label: 'ENTITY NAME',     value: result.result.name },
+      { label: 'TYPE',            value: result.result.type },
+      { label: 'HEADQUARTERS',    value: [result.result.city, result.result.state].filter(Boolean).join(', ') },
+      { label: 'PORTFOLIO SF',    value: result.result.portfolio_sf ? Number(result.result.portfolio_sf).toLocaleString() + ' SF' : null },
+      { label: 'PROPERTIES',      value: result.result.properties_count ? `~${result.result.properties_count} properties` : null },
+      { label: 'KNOWN MARKETS',   value: result.result.known_markets?.join(', ') },
+      { label: 'ACQ. STRATEGY',   value: result.result.acquisition_strategy },
+      { label: 'WEBSITE',         value: result.result.website },
+      { label: 'INTEL',           value: result.result.notes },
+    ].filter(r => r.value).map(row => (
+      <div key={row.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', width: 110, flexShrink: 0, paddingTop: 2 }}>
+          {row.label}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{row.value}</div>
+      </div>
+    ))}
+    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+      <button className="cl-btn cl-btn-primary cl-btn-sm">+ Create Lead from Research</button>
+      <button className="cl-btn cl-btn-secondary cl-btn-sm">📋 Save to Property</button>
+    </div>
+  </div>
+) : null}
                     <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
                       <button className="cl-btn cl-btn-primary cl-btn-sm">+ Create Lead from Research</button>
                       <button className="cl-btn cl-btn-secondary cl-btn-sm">📋 Save to Property</button>
