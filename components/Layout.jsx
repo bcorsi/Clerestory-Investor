@@ -156,12 +156,13 @@ export default function Layout({ children }) {
         )}
       </aside>
 
-      {/* Main column: topbar + content */}
-              <main className="cl-page-content">
-          {children}
-        </main>
-      </div>
+      {/* Main content */}
+      <main className="cl-page-content">
+        {children}
+      </main>
     </div>
+  );
+} 
   );
 }
 
