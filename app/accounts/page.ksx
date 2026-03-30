@@ -1,0 +1,391 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase';
+import SlideDrawer from '@/components/SlideDrawer';
+
+function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+function fmtM(n) { return n != null && n > 0 ? `$${(Number(n)/1000000).toFixed(1)}M` : '—'; }
+
+const TYPE_COLORS = {
+  'Owner/Investor':     'blue',
+  'Institutional REIT': 'purple',
+  'Private Equity':     'purple',
+  'Developer - Regional': 'amber',
+  'Developer - National': 'amber',
+  'Owner-User':         'rust',
+  'Tenant':             'amber',
+  'Broker':             'gray',
+  'Lender':             'green',
+  'Other':              'gray',
+};
+
+export default function AccountsPage() {
+  const [accounts, setAccounts]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [total, setTotal]             = useState(0);
+  const [selectedId, setSelectedId]   = useState(null);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+
+  const [search, setSearch]           = useState('');
+  const [typeFilter, setTypeFilter]   = useState('');
+  const [tab, setTab]                 = useState('all');
+  const [sortBy, setSortBy]           = useState('updated_at');
+  const [page, setPage]               = useState(0);
+  const PAGE_SIZE = 50;
+
+  useEffect(() => { loadAccounts(); }, [search, typeFilter, tab, sortBy, page]);
+
+  async function loadAccounts() {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      let query = supabase
+        .from('accounts')
+        .select('id, name, account_type, entity_type, buyer_type, city, market, phone, email, website, notes, min_sf, max_sf, min_price, max_price, deal_type_preference, product_preference, geographic_focus, buyer_activity_score, total_deals_closed, total_deal_value, slb_candidate, deal_count, source, created_at, updated_at', { count: 'exact' })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+        .order(sortBy, { ascending: false, nullsFirst: false });
+
+      if (search) query = query.or(`name.ilike.%${search}%,city.ilike.%${search}%,market.ilike.%${search}%`);
+      if (typeFilter) query = query.eq('account_type', typeFilter);
+      if (tab === 'buyers') query = query.not('buyer_type', 'is', null);
+      if (tab === 'slb') query = query.eq('slb_candidate', true);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      setAccounts(data || []);
+      setTotal(count || 0);
+    } catch(e) {
+      console.error('Accounts error:', e);
+      setAccounts([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="cl-page-header">
+        <div>
+          <h1 className="cl-page-title">Accounts</h1>
+          <p className="cl-page-subtitle">
+            {loading ? 'Loading…' : `${fmt(total)} account${total !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <div className="cl-page-actions">
+          <button className="cl-btn cl-btn-primary cl-btn-sm">+ New Account</button>
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="cl-filter-bar">
+        <input
+          className="cl-search-input"
+          placeholder="Search name, city, market…"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(0); }}
+          style={{ maxWidth: 320 }}
+        />
+        <div className="cl-tabs" style={{ margin: 0, border: 'none' }}>
+          {[
+            { k: 'all',    l: 'All' },
+            { k: 'buyers', l: 'Buyers' },
+            { k: 'slb',    l: 'SLB Targets' },
+          ].map(f => (
+            <button key={f.k} className={`cl-tab ${tab === f.k ? 'cl-tab--active' : ''}`}
+              onClick={() => { setTab(f.k); setPage(0); }} style={{ padding: '6px 12px' }}>
+              {f.l}
+            </button>
+          ))}
+        </div>
+        <select className="cl-select" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(0); }}>
+          <option value="">All Types</option>
+          {['Owner/Investor','Institutional REIT','Private Equity','Developer - Regional','Developer - National','Owner-User','Tenant','Broker','Lender','Other'].map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <select className="cl-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+          <option value="updated_at">Sort: Recent</option>
+          <option value="name">Sort: Name</option>
+          <option value="buyer_activity_score">Sort: Buyer Activity</option>
+          <option value="total_deal_value">Sort: Deal Value</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--card-border)', boxShadow: 'var(--card-shadow)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--card-bg)', fontSize: 14 }}>
+          <thead>
+            <tr>
+              {[
+                { label: 'Account',       width: null },
+                { label: 'Type',          width: 160 },
+                { label: 'City / Market', width: 150 },
+                { label: 'Buy Box',       width: 180 },
+                { label: 'Deal Prefs',    width: 160 },
+                { label: 'Deals Closed',  width: 110 },
+                { label: 'Total Value',   width: 120 },
+                { label: 'Source',        width: 100 },
+              ].map(col => (
+                <th key={col.label} style={{
+                  width: col.width || undefined,
+                  background: 'rgba(0,0,0,0.025)',
+                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500,
+                  letterSpacing: '0.1em', color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase', padding: '12px 14px',
+                  textAlign: 'left', borderBottom: '1px solid var(--card-border)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={8}>
+                <div className="cl-loading" style={{ padding: 40 }}><div className="cl-spinner" />Loading accounts…</div>
+              </td></tr>
+            ) : accounts.length === 0 ? (
+              <tr><td colSpan={8}>
+                <div className="cl-empty" style={{ padding: 48 }}>
+                  <div className="cl-empty-label">No accounts found</div>
+                  <div className="cl-empty-sub">Import from CoStar or add manually</div>
+                </div>
+              </td></tr>
+            ) : accounts.map(acct => {
+              const hasBuyBox = acct.min_sf || acct.max_sf || acct.min_price || acct.max_price;
+              return (
+                <tr key={acct.id}
+                  onClick={() => { setSelectedId(acct.id); setSelectedAccount(acct); }}
+                  style={{
+                    background: selectedId === acct.id ? 'rgba(78,110,150,0.06)' : undefined,
+                    borderBottom: '1px solid rgba(0,0,0,0.04)',
+                    cursor: 'pointer', transition: 'background 120ms',
+                  }}
+                  onMouseEnter={e => { if (selectedId !== acct.id) e.currentTarget.style.background = 'rgba(78,110,150,0.03)'; }}
+                  onMouseLeave={e => { if (selectedId !== acct.id) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  {/* Account name */}
+                  <td style={{ padding: '12px 14px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--blue)' }}>{acct.name}</div>
+                    {acct.entity_type && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{acct.entity_type}</div>}
+                    {acct.slb_candidate && <span className="cl-badge cl-badge-amber" style={{ fontSize: 9, marginTop: 4, display: 'inline-block' }}>SLB</span>}
+                  </td>
+
+                  {/* Type */}
+                  <td style={{ padding: '12px 14px' }}>
+                    {acct.account_type ? (
+                      <span className={`cl-badge cl-badge-${TYPE_COLORS[acct.account_type] || 'gray'}`} style={{ fontSize: 11 }}>
+                        {acct.account_type}
+                      </span>
+                    ) : '—'}
+                  </td>
+
+                  {/* City / Market */}
+                  <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {[acct.city, acct.market].filter(Boolean).join(' · ') || '—'}
+                  </td>
+
+                  {/* Buy Box */}
+                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                    {hasBuyBox ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {(acct.min_sf || acct.max_sf) && (
+                          <span>{acct.min_sf ? `${fmt(acct.min_sf)}` : '0'} – {acct.max_sf ? `${fmt(acct.max_sf)} SF` : 'any SF'}</span>
+                        )}
+                        {(acct.min_price || acct.max_price) && (
+                          <span>{acct.min_price ? fmtM(acct.min_price) : '$0'} – {acct.max_price ? fmtM(acct.max_price) : 'any'}</span>
+                        )}
+                      </div>
+                    ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  </td>
+
+                  {/* Deal prefs */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {[acct.deal_type_preference, acct.product_preference].filter(Boolean).join(' · ') || '—'}
+                  </td>
+
+                  {/* Deals closed */}
+                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 13,
+                    color: (acct.total_deals_closed || 0) > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    fontWeight: (acct.total_deals_closed || 0) > 0 ? 600 : 400,
+                  }}>
+                    {acct.total_deals_closed || 0}
+                  </td>
+
+                  {/* Total value */}
+                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {fmtM(acct.total_deal_value)}
+                  </td>
+
+                  {/* Source */}
+                  <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)' }}>
+                    {acct.source || '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)' }}>
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {fmt(total)}
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="cl-btn cl-btn-secondary cl-btn-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
+            <button className="cl-btn cl-btn-secondary cl-btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer */}
+      <SlideDrawer
+        open={!!selectedId}
+        onClose={() => { setSelectedId(null); setSelectedAccount(null); }}
+        fullPageHref={selectedId ? `/accounts/${selectedId}` : undefined}
+        title={selectedAccount?.name || 'Account'}
+        subtitle={[selectedAccount?.account_type, selectedAccount?.city].filter(Boolean).join(' · ')}
+        badge={selectedAccount?.account_type ? { label: selectedAccount.account_type, color: TYPE_COLORS[selectedAccount.account_type] || 'gray' } : undefined}
+      >
+        {selectedAccount && <AccountDetail account={selectedAccount} />}
+      </SlideDrawer>
+    </div>
+  );
+}
+
+// ── ACCOUNT DETAIL (drawer) ───────────────────────────────
+function AccountDetail({ account }) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const TABS = ['overview', 'buy box', 'contacts', 'deals'];
+
+  const hasBuyBox = account.min_sf || account.max_sf || account.min_price || account.max_price ||
+    account.deal_type_preference || account.product_preference || account.geographic_focus;
+
+  return (
+    <div>
+      {/* Quick stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+        {[
+          { label: 'TYPE',         value: account.account_type || '—' },
+          { label: 'DEALS CLOSED', value: account.total_deals_closed || '0' },
+          { label: 'TOTAL VALUE',  value: fmtM(account.total_deal_value) },
+        ].map(kpi => (
+          <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        {account.phone && <a href={`tel:${account.phone}`} className="cl-btn cl-btn-secondary cl-btn-sm">📞 Call</a>}
+        {account.email && <a href={`mailto:${account.email}`} className="cl-btn cl-btn-secondary cl-btn-sm">✉️ Email</a>}
+        {account.website && <a href={account.website} target="_blank" rel="noreferrer" className="cl-btn cl-btn-secondary cl-btn-sm">🌐 Website</a>}
+        <button className="cl-btn cl-btn-primary cl-btn-sm">Match to Deal →</button>
+      </div>
+
+      {/* Tabs */}
+      <div className="cl-tabs">
+        {TABS.map(tab => (
+          <button key={tab} className={`cl-tab ${activeTab === tab ? 'cl-tab--active' : ''}`} onClick={() => setActiveTab(tab)}>
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="cl-card" style={{ padding: '14px 16px' }}>
+            <div className="cl-card-title" style={{ marginBottom: 10 }}>ACCOUNT INFO</div>
+            {[
+              { label: 'Entity Type',  value: account.entity_type },
+              { label: 'Buyer Type',   value: account.buyer_type },
+              { label: 'City',         value: account.city },
+              { label: 'Market',       value: account.market },
+              { label: 'Phone',        value: account.phone, href: `tel:${account.phone}` },
+              { label: 'Email',        value: account.email, href: `mailto:${account.email}` },
+              { label: 'Website',      value: account.website, href: account.website },
+              { label: 'Source',       value: account.source },
+            ].filter(r => r.value).map(row => (
+              <div key={row.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 8 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', width: 90, flexShrink: 0, paddingTop: 2 }}>
+                  {row.label.toUpperCase()}
+                </div>
+                {row.href ? (
+                  <a href={row.href} target={row.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer"
+                    style={{ fontSize: 13, color: 'var(--blue)', textDecoration: 'none' }}>
+                    {row.value}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{row.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {account.notes && (
+            <div className="cl-card" style={{ padding: '14px 16px' }}>
+              <div className="cl-card-title" style={{ marginBottom: 8 }}>NOTES</div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{account.notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'buy box' && (
+        <div>
+          {hasBuyBox ? (
+            <div className="cl-card" style={{ padding: '14px 16px' }}>
+              <div className="cl-card-title" style={{ marginBottom: 10 }}>ACQUISITION CRITERIA</div>
+              {[
+                { label: 'SF Range',      value: (account.min_sf || account.max_sf) ? `${account.min_sf ? fmt(account.min_sf) : '0'} – ${account.max_sf ? fmt(account.max_sf) + ' SF' : 'any'}` : null },
+                { label: 'Price Range',   value: (account.min_price || account.max_price) ? `${account.min_price ? fmtM(account.min_price) : '$0'} – ${account.max_price ? fmtM(account.max_price) : 'any'}` : null },
+                { label: 'Deal Type',     value: account.deal_type_preference },
+                { label: 'Product',       value: account.product_preference },
+                { label: 'Geo Focus',     value: account.geographic_focus },
+                { label: 'Yield Target',  value: account.yield_target ? `${account.yield_target}%` : null },
+                { label: 'IRR Target',    value: account.irr_target ? `${account.irr_target}%` : null },
+                { label: 'Min Clear Ht',  value: account.min_clear_height ? `${account.min_clear_height}'` : null },
+                { label: 'Timing',        value: account.acquisition_timing },
+              ].filter(r => r.value).map(row => (
+                <div key={row.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', width: 90, flexShrink: 0, paddingTop: 2 }}>
+                    {row.label.toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="cl-empty" style={{ padding: 40 }}>
+              <div className="cl-empty-label">No buy box defined</div>
+              <div className="cl-empty-sub">Add acquisition criteria to enable buyer matching</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'contacts' && (
+        <div className="cl-empty" style={{ padding: 40 }}>
+          <div className="cl-empty-label">No contacts linked</div>
+          <div className="cl-empty-sub">Link contacts to this account</div>
+        </div>
+      )}
+
+      {activeTab === 'deals' && (
+        <div className="cl-empty" style={{ padding: 40 }}>
+          <div className="cl-empty-label">No deals linked</div>
+          <div className="cl-empty-sub">Link deals to this account</div>
+        </div>
+      )}
+    </div>
+  );
+}
