@@ -29,14 +29,14 @@ const STATUS_COLORS = {
 };
 
 const COLUMNS = [
-  { key: 'score',          label: 'Score',      width: 64,  sortable: true },
+  { key: 'ai_score',          label: 'Score',      width: 64,  sortable: true },
   { key: 'address',        label: 'Address',    width: null, sortable: true },
   { key: 'city',           label: 'City',       width: 120, sortable: true },
-  { key: 'size_sf',        label: 'SF',         width: 90,  sortable: true },
+  { key: 'building_sf',        label: 'SF',         width: 90,  sortable: true },
   { key: 'tenant',         label: 'Tenant',     width: 160, sortable: true },
-  { key: 'lease_expiry',   label: 'Exp.',       width: 88,  sortable: true },
-  { key: 'asking_rent',    label: '$/SF',       width: 72,  sortable: true },
-  { key: 'status',         label: 'Status',     width: 90,  sortable: false },
+  { key: 'lease_expiration',   label: 'Exp.',       width: 88,  sortable: true },
+  { key: 'in_place_rent',    label: '$/SF',       width: 72,  sortable: true },
+  { key: 'vacancy_status',         label: 'Status',     width: 90,  sortable: false },
   { key: 'catalyst_tags',  label: 'Catalysts',  width: 160, sortable: false },
 ];
 
@@ -51,7 +51,7 @@ export default function PropertiesPage() {
   const [search, setSearch]     = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [statusFilter, setStatus]   = useState('');
-  const [sortBy, setSortBy]         = useState('score');
+  const [sortBy, setSortBy]         = useState('ai_score');
   const [sortDir, setSortDir]       = useState('desc');
 
   // Pagination
@@ -68,14 +68,14 @@ export default function PropertiesPage() {
       const supabase = createClient();
       let query = supabase
         .from('properties')
-        .select('id, address, city, state, size_sf, tenant, lease_expiry, asking_rent, status, score, catalyst_tags, year_built, clear_height_ft, zoning', { count: 'exact' })
+        .select('id, address, city, zip, building_sf, tenant, lease_expiration, in_place_rent, vacancy_status, ai_score, catalyst_tags, year_built, clear_height, zoning, owner, prop_type', { count: 'exact' })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (search) {
         query = query.or(`address.ilike.%${search}%,tenant.ilike.%${search}%,city.ilike.%${search}%`);
       }
       if (cityFilter) query = query.eq('city', cityFilter);
-      if (statusFilter) query = query.eq('status', statusFilter);
+      if (statusFilter) query = query.eq('vacancy_status', statusFilter);
 
       // Sort
       query = query.order(sortBy, { ascending: sortDir === 'asc', nullsFirst: false });
@@ -246,7 +246,7 @@ export default function PropertiesPage() {
         fullPageHref={selectedId ? `/properties/${selectedId}` : undefined}
         title={selectedProp?.address || ''}
         subtitle={selectedProp ? `${selectedProp.city}${selectedProp.size_sf ? ` · ${Number(selectedProp.size_sf).toLocaleString()} SF` : ''}` : ''}
-        badge={selectedProp?.status ? { label: selectedProp.status, color: STATUS_COLORS[selectedProp.status] || 'gray' } : undefined}
+        badge={selectedProp?.vacancy_status ? { label: selectedProp.vacancy_status, color: STATUS_COLORS[selectedProp.vacancy_status] || 'gray' } : undefined}
       >
         {selectedId && <PropertyDetail id={selectedId} inline />}
       </SlideDrawer>
@@ -258,8 +258,8 @@ export default function PropertiesPage() {
 function PropertyRow({ prop, selected, onClick }) {
   const tags = Array.isArray(prop.catalyst_tags) ? prop.catalyst_tags : [];
 
-  const leaseExpiry = prop.lease_expiry
-    ? new Date(prop.lease_expiry)
+  const leaseExpiry = prop.lease_expiration
+    ? new Date(prop.lease_expiration)
     : null;
   const monthsToExpiry = leaseExpiry
     ? Math.round((leaseExpiry - new Date()) / (1000 * 60 * 60 * 24 * 30))
@@ -277,7 +277,7 @@ function PropertyRow({ prop, selected, onClick }) {
     >
       {/* Score */}
       <td>
-        <ScoreRing score={prop.score} />
+        <ScoreRing score={prop.ai_score} />
       </td>
 
       {/* Address */}
@@ -294,7 +294,7 @@ function PropertyRow({ prop, selected, onClick }) {
 
       {/* SF */}
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
-        {prop.size_sf ? Number(prop.size_sf).toLocaleString() : '—'}
+        {prop.building_sf ? Number(prop.building_sf).toLocaleString() : '—'}
       </td>
 
       {/* Tenant */}
@@ -323,14 +323,14 @@ function PropertyRow({ prop, selected, onClick }) {
 
       {/* Rent */}
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
-        {prop.asking_rent ? `$${Number(prop.asking_rent).toFixed(2)}` : '—'}
+        {prop.in_place_rent ? `$${Number(prop.in_place_rent).toFixed(2)}` : '—'}
       </td>
 
       {/* Status */}
       <td>
-        {prop.status ? (
-          <span className={`cl-badge cl-badge-${STATUS_COLORS[prop.status] || 'gray'}`}>
-            {prop.status}
+        {prop.vacancy_status ? (
+          <span className={`cl-badge cl-badge-${STATUS_COLORS[prop.vacancy_status] || 'gray'}`}>
+            {prop.vacancy_status}
           </span>
         ) : '—'}
       </td>
