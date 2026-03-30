@@ -102,7 +102,7 @@ export default function CommandCenter() {
         supabase.from('properties').select('*', { count: 'exact', head: true }),
         supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('deals').select('*', { count: 'exact', head: true }).not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
-        supabase.from('deals').select('id,name,stage,asking_price,commission_est,updated_at').not('stage', 'in', '("Closed Won","Closed Lost","Dead")').order('updated_at', { ascending: false }).limit(6),
+        supabase.from('deals').select('id,deal_name,stage,deal_value,commission_est,updated_at').not('stage', 'in', '("Closed Won","Closed Lost","Dead")').order('updated_at', { ascending: false }).limit(6),
         supabase.from('tasks').select('id,title,due_date,priority,status').neq('status','done').lte('due_date', tomorrow).order('due_date', { ascending: true }).limit(6),
         supabase.from('leads').select('id,company_name,score,catalyst_tags').eq('status','active').order('score', { ascending: false, nullsFirst: false }).limit(5),
         supabase.from('properties').select('id,address,city,catalyst_tags,score').not('catalyst_tags','eq','[]').not('catalyst_tags','is',null).order('score', { ascending: false, nullsFirst: false }).limit(4),
@@ -337,10 +337,10 @@ export default function CommandCenter() {
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {deal.name}
+                        {deal.deal_name}
                       </div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                        {deal.stage}{deal.asking_price ? ` · ${fmtM(deal.asking_price)}` : ''}
+                        {deal.stage}{deal.deal_value ? ` · ${fmtM(deal.deal_value)}` : ''}
                       </div>
                     </div>
                     {showComm && deal.commission_est && (
