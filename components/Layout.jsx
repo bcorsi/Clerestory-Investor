@@ -157,16 +157,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main column: topbar + content */}
-      <div className="cl-main-inner">
-        <div className="cl-topbar">
-          <nav className="cl-breadcrumb">
-            <span>Clerestory</span>
-            {meta.parent && <><span className="cl-breadcrumb-sep">›</span><span>{meta.parent}</span></>}
-            <span className="cl-breadcrumb-sep">›</span>
-            <span className="cl-breadcrumb-current">{meta.title}</span>
-          </nav>
-        </div>
-        <main className="cl-page-content">
+              <main className="cl-page-content">
           {children}
         </main>
       </div>
