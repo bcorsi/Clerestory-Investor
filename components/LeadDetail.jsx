@@ -42,16 +42,34 @@ const CAT_BG = { lease: 'var(--amber-bg)', broker: 'var(--blue-bg)', warn: 'var(
 const CAT_BDR = { lease: 'var(--amber-bdr)', broker: 'var(--blue-bdr)', warn: 'var(--rust-bdr)' };
 const CAT_COLOR = { lease: 'var(--amber)', broker: 'var(--blue)', warn: 'var(--rust)' };
 
-export default function LeadDetail({ lead, onBack, onNavigate, onConvertToDeal, onCreateProperty, deals, contacts, leaseComps, saleComps, onRefresh, toast }) {
+export default function LeadDetail({ lead, leadId, onBack, onNavigate, onConvertToDeal, onCreateProperty, deals, contacts, leaseComps, saleComps, onRefresh, toast }) {
   const [activeTab, setActiveTab] = useState('Timeline');
   const [synthOpen, setSynthOpen] = useState(true);
   const [specsOpen, setSpecsOpen] = useState(false);
   const [logPanel, setLogPanel] = useState(null);
   const [logText, setLogText] = useState('');
+  const [fetchedLead, setFetchedLead] = useState(null);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
-  const l = lead ?? MOCK_LEAD;
+  useEffect(() => {
+    if (leadId && !lead) {
+      setFetchLoading(true);
+      import('@/lib/supabase').then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.from('leads').select('*').eq('id', leadId).single()
+          .then(({ data, error }) => {
+            if (!error && data) setFetchedLead(data);
+            setFetchLoading(false);
+          });
+      });
+    }
+  }, [leadId]);
+
+  const l = lead ?? fetchedLead ?? MOCK_LEAD;
+
+  if (fetchLoading) return <div className="cl-loading"><div className="cl-spinner" />Loading lead…</div>;
 
   useEffect(() => {
     if (typeof window === 'undefined' || mapInstanceRef.current) return;
