@@ -379,8 +379,9 @@ export default function WarnIntelPage() {
       <SlideDrawer
         open={!!selectedId}
         onClose={() => { setSelectedId(null); setSelectedNotice(null); }}
+        fullPageHref={selectedId ? `/warn-intel/${selectedId}` : undefined}
         title={selectedNotice?.company || 'WARN Filing'}
-        subtitle={selectedNotice ? [selectedNotice.address, selectedNotice.city].filter(Boolean).join(' · ') : ''}
+        subtitle={selectedNotice ? [selectedNotice.address, selectedNotice.county].filter(Boolean).join(' · ') : ''}
         badge={{ label: 'WARN', color: 'rust' }}
       >
         {selectedNotice && <WarnDetail notice={selectedNotice} onCreateLead={createLead} onSearchProperty={searchPropertyDatabase} onClose={() => { setSelectedId(null); setSelectedNotice(null); }} />}
