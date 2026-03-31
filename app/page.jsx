@@ -100,11 +100,11 @@ export default function CommandCenter() {
         { data: warnData },
       ] = await Promise.all([
         supabase.from('properties').select('*', { count: 'exact', head: true }),
-        supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('leads').select('*', { count: 'exact', head: true }).not('stage', 'in' '("Converted", "Killed")' ),
         supabase.from('deals').select('*', { count: 'exact', head: true }).not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
         supabase.from('deals').select('id,deal_name,stage,deal_value,commission_est,updated_at').not('stage', 'in', '("Closed Won","Closed Lost","Dead")').order('updated_at', { ascending: false }).limit(6),
         supabase.from('tasks').select('id,title,due_date,priority,status').neq('status','done').lte('due_date', tomorrow).order('due_date', { ascending: true }).limit(6),
-        supabase.from('leads').select('id,company_name,score,catalyst_tags').eq('status','active').order('score', { ascending: false, nullsFirst: false }).limit(5),
+        supabase.from('leads').select('id,lead_name,company,score,catalyst_tags').not('stage','in','("Converted","Killed")').order('score', { ascending: false, nullsFirst: false }).limit(5),
         supabase.from('properties').select('id,address,city,catalyst_tags,score').not('catalyst_tags','eq','[]').not('catalyst_tags','is',null).order('score', { ascending: false, nullsFirst: false }).limit(4),
         supabase.from('warn_notices').select('id,company_name,city,layoff_count,notice_date,lead_created').order('notice_date', { ascending: false }).limit(4),
       ]);
@@ -387,7 +387,7 @@ export default function CommandCenter() {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {lead.company_name || 'Unnamed Lead'}
+                        {lead.lead_name || lead.company || 'Unnamed Lead'}
                       </div>
                       <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                         {tags.map((tag, i) => {
