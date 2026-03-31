@@ -147,6 +147,8 @@ export default function WarnIntelPage() {
     loadNotices();
     e.target.value = '';
   }
+
+  async function searchPropertyDatabase(notice) {
     const supabase = createClient();
     const streetAddress = (notice.address || '').split(',')[0];
     const { data } = await supabase
