@@ -340,12 +340,14 @@ export default function WarnIntelPage() {
         <CreateLeadFromWarnModal
           notice={warnModalNotice}
           onClose={() => setWarnModalNotice(null)}
-          onSuccess={() => {
-            setWarnModalNotice(null);
-            setSelectedId(null);
-            setSelectedNotice(null);
-            loadNotices();
-          }}
+      onSuccess={(leadId) => {
+  setWarnModalNotice(null);
+  setSelectedId(null);
+  setSelectedNotice(null);
+  setNotices(prev => prev.map(n =>
+    n.id === warnModalNotice?.id ? { ...n, converted_lead_id: leadId } : n
+  ));
+}}
         />
       )}
     </div>
