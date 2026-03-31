@@ -168,37 +168,56 @@ export default function OwnerSearchPage() {
                     {(() => {
                       const r = result.result || result;
                       const fields = [
-                        { label: 'Entity Name',         value: r.name },
-                        { label: 'Entity Type',         value: r.type },
-                        { label: 'City / Location',     value: r.city },
-                        { label: 'Website',             value: r.website },
-                        { label: 'Principals',          value: Array.isArray(r.principals) ? r.principals.join(', ') : r.principals },
-                        { label: 'Known Markets',       value: Array.isArray(r.known_markets) ? r.known_markets.join(', ') : r.known_markets },
-                        { label: 'Portfolio SF',        value: r.portfolio_sf ? Number(r.portfolio_sf).toLocaleString() + ' SF' : null },
-                        { label: 'Acquisition Strategy', value: r.acquisition_strategy },
-                        { label: 'Recent Activity',     value: r.recent_activity },
-                        { label: 'Sell Signals',        value: Array.isArray(r.sell_signals) ? r.sell_signals.join(', ') : r.sell_signals },
+                        { label: 'Entity Name',       value: r.name },
+                        { label: 'Entity Type',       value: r.type },
+                        { label: 'Decision Maker',    value: r.decision_maker, highlight: true },
+                        { label: 'Direct Phone',      value: r.direct_phone, highlight: true },
+                        { label: 'Direct Email',      value: r.direct_email, highlight: true },
+                        { label: 'LinkedIn',          value: r.linkedin },
+                        { label: 'City',              value: r.city },
+                        { label: 'Website',           value: r.website },
+                        { label: 'Principals',        value: Array.isArray(r.principals) ? r.principals.join(', ') : r.principals },
+                        { label: 'Known Markets',     value: Array.isArray(r.known_markets) ? r.known_markets.join(', ') : r.known_markets },
+                        { label: 'Portfolio SF',      value: r.portfolio_sf ? Number(r.portfolio_sf).toLocaleString() + ' SF' : null },
+                        { label: 'Hold Period',       value: r.hold_period_years ? `~${r.hold_period_years} years` : null },
+                        { label: 'SGV/IE Properties', value: Array.isArray(r.sgv_ie_properties) ? r.sgv_ie_properties.join('; ') : r.sgv_ie_properties },
+                        { label: 'Acquisition Style', value: r.acquisition_strategy },
+                        { label: 'Recent Activity',   value: r.recent_activity },
+                        { label: 'WARN Context',      value: r.warn_context },
+                        { label: 'Sell Signals',      value: Array.isArray(r.sell_signals) ? r.sell_signals.join(', ') : r.sell_signals, highlight: true },
                       ].filter(f => f.value);
 
                       return (
                         <>
-                          {r.notes && (
+                          {r.outreach_angle && (
+                            <div style={{ borderLeft: '3px solid var(--rust)', paddingLeft: 14, marginBottom: 18, background: 'rgba(184,55,20,0.04)', padding: '12px 14px', borderRadius: '0 8px 8px 0' }}>
+                              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--rust)', marginBottom: 6, textTransform: 'uppercase' }}>Outreach Angle</div>
+                              <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)', fontWeight: 500 }}>
+                                {r.outreach_angle}
+                              </p>
+                            </div>
+                          )}
+                          {r.notes && !r.outreach_angle && (
                             <div style={{ borderLeft: '3px solid var(--blue)', paddingLeft: 14, marginBottom: 18 }}>
-                              <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
+                              <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)', fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
                                 {r.notes}
                               </p>
                             </div>
                           )}
                           {fields.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
                               {fields.map(f => (
                                 <div key={f.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-tertiary)', width: 140, flexShrink: 0, paddingTop: 2, textTransform: 'uppercase' }}>
                                     {f.label}
                                   </div>
-                                  <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                                    {f.label === 'Website'
+                                  <div style={{ fontSize: 13, color: f.highlight ? 'var(--text-primary)' : 'var(--text-secondary)', lineHeight: 1.5, fontWeight: f.highlight ? 500 : 400 }}>
+                                    {f.label === 'Website' || f.label === 'LinkedIn'
                                       ? <a href={f.value.startsWith('http') ? f.value : `https://${f.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)' }}>{f.value}</a>
+                                      : f.label === 'Direct Phone'
+                                      ? <a href={`tel:${f.value}`} style={{ color: 'var(--blue)' }}>{f.value}</a>
+                                      : f.label === 'Direct Email'
+                                      ? <a href={`mailto:${f.value}`} style={{ color: 'var(--blue)' }}>{f.value}</a>
                                       : f.value
                                     }
                                   </div>
@@ -206,9 +225,27 @@ export default function OwnerSearchPage() {
                               ))}
                             </div>
                           )}
-                          {fields.length === 0 && !r.notes && (
-                            <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic', marginBottom: 16 }}>
-                              No structured data returned. The AI may have returned a narrative — check the raw response.
+                          {r.news_articles && r.news_articles.length > 0 && (
+                            <div style={{ marginBottom: 18 }}>
+                              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 10 }}>
+                                News & Press Releases ({r.news_articles.length})
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {r.news_articles.map((article, i) => (
+                                  <div key={i} style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.025)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                                        {article.url
+                                          ? <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'none' }}>{article.headline}</a>
+                                          : article.headline}
+                                      </div>
+                                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', flexShrink: 0 }}>{article.date}</div>
+                                    </div>
+                                    {article.source && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 3 }}>{article.source}</div>}
+                                    {article.summary && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{article.summary}</div>}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </>
