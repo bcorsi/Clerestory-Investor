@@ -165,18 +165,55 @@ export default function OwnerSearchPage() {
                   <div style={{ color: 'var(--rust)', fontSize: 13 }}>{result.error}</div>
                 ) : (
                   <>
-                    {result.summary && (
-                      <div style={{ borderLeft: '3px solid var(--blue)', paddingLeft: 14, marginBottom: 18 }}>
-                        <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
-                          {result.summary}
-                        </p>
-                      </div>
-                    )}
-                    {result.content && (
-                      <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-                        {result.content}
-                      </div>
-                    )}
+                    {(() => {
+                      const r = result.result || result;
+                      const fields = [
+                        { label: 'Entity Name',         value: r.name },
+                        { label: 'Entity Type',         value: r.type },
+                        { label: 'City / Location',     value: r.city },
+                        { label: 'Website',             value: r.website },
+                        { label: 'Principals',          value: Array.isArray(r.principals) ? r.principals.join(', ') : r.principals },
+                        { label: 'Known Markets',       value: Array.isArray(r.known_markets) ? r.known_markets.join(', ') : r.known_markets },
+                        { label: 'Portfolio SF',        value: r.portfolio_sf ? Number(r.portfolio_sf).toLocaleString() + ' SF' : null },
+                        { label: 'Acquisition Strategy', value: r.acquisition_strategy },
+                        { label: 'Recent Activity',     value: r.recent_activity },
+                        { label: 'Sell Signals',        value: Array.isArray(r.sell_signals) ? r.sell_signals.join(', ') : r.sell_signals },
+                      ].filter(f => f.value);
+
+                      return (
+                        <>
+                          {r.notes && (
+                            <div style={{ borderLeft: '3px solid var(--blue)', paddingLeft: 14, marginBottom: 18 }}>
+                              <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
+                                {r.notes}
+                              </p>
+                            </div>
+                          )}
+                          {fields.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                              {fields.map(f => (
+                                <div key={f.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-tertiary)', width: 140, flexShrink: 0, paddingTop: 2, textTransform: 'uppercase' }}>
+                                    {f.label}
+                                  </div>
+                                  <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                                    {f.label === 'Website'
+                                      ? <a href={f.value.startsWith('http') ? f.value : `https://${f.value}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)' }}>{f.value}</a>
+                                      : f.value
+                                    }
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {fields.length === 0 && !r.notes && (
+                            <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic', marginBottom: 16 }}>
+                              No structured data returned. The AI may have returned a narrative — check the raw response.
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
                       <button className="cl-btn cl-btn-primary cl-btn-sm">+ Create Lead from Research</button>
                       <button className="cl-btn cl-btn-secondary cl-btn-sm">📋 Save to Property</button>
