@@ -392,20 +392,72 @@ export default function WarnIntelPage() {
 // ── WARN DETAIL (drawer) ──────────────────────────────────
 function WarnDetail({ notice, onCreateLead, onSearchProperty, onClose }) {
   const [editing, setEditing] = useState(false);
-  const [notes, setNotes] = useState(notice.research_notes || '');
   const [saving, setSaving] = useState(false);
+  const [propResults, setPropResults] = useState(null);
+  const [propSearching, setPropSearching] = useState(false);
+  const [form, setForm] = useState({
+    company:        notice.company || '',
+    address:        notice.address || '',
+    county:         notice.county || '',
+    employees:      notice.employees || '',
+    notice_date:    notice.notice_date || '',
+    effective_date: notice.effective_date || '',
+    is_industrial:  notice.is_industrial || false,
+    is_in_market:   notice.is_in_market || false,
+    research_notes: notice.research_notes || '',
+  });
+
   const days = daysSince(notice.notice_date);
   const window60 = notice.effective_date ? Math.floor((new Date(notice.effective_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
 
-  async function saveNotes() {
+  function setField(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function searchProperties() {
+    setPropSearching(true);
+    setPropResults(null);
+    try {
+      const supabase = createClient();
+      const streetAddress = (notice.address || '').split(',')[0];
+      const { data } = await supabase
+        .from('properties')
+        .select('id, address, city, tenant, owner, building_sf, vacancy_status')
+        .or(`address.ilike.%${streetAddress}%,tenant.ilike.%${notice.company}%,owner.ilike.%${notice.company}%`)
+        .limit(5);
+      setPropResults(data || []);
+    } catch(e) { console.error(e); setPropResults([]); }
+    finally { setPropSearching(false); }
+  }
+
+  async function saveEdit() {
     setSaving(true);
     try {
       const supabase = createClient();
-      await supabase.from('warn_notices').update({ research_notes: notes }).eq('id', notice.id);
+      await supabase.from('warn_notices').update({
+        company:        form.company,
+        address:        form.address,
+        county:         form.county,
+        employees:      parseInt(form.employees) || null,
+        notice_date:    form.notice_date || null,
+        effective_date: form.effective_date || null,
+        is_industrial:  form.is_industrial,
+        is_in_market:   form.is_in_market,
+        research_notes: form.research_notes,
+      }).eq('id', notice.id);
       setEditing(false);
     } catch(e) { console.error(e); }
     finally { setSaving(false); }
   }
+
+  const inputStyle = {
+    width: '100%', padding: '7px 10px',
+    background: 'rgba(0,0,0,0.025)', border: '1px solid var(--card-border)',
+    borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-ui)', fontSize: 13,
+    color: 'var(--text-primary)', outline: 'none',
+  };
+  const labelStyle = {
+    fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em',
+    color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4, display: 'block',
+  };
 
   return (
     <div>
@@ -430,95 +482,139 @@ function WarnDetail({ notice, onCreateLead, onSearchProperty, onClose }) {
       )}
 
       {/* KPI grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
-        {[
-          { label: 'WORKERS',     value: notice.employees ? fmt(notice.employees) : '—' },
-          { label: 'NOTICE DATE', value: fmtDate(notice.notice_date) },
-          { label: 'EFFECTIVE',   value: fmtDate(notice.effective_date) },
-        ].map(kpi => (
-          <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{kpi.value}</div>
-          </div>
-        ))}
-      </div>
+      {!editing && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+          {[
+            { label: 'WORKERS',     value: notice.employees ? fmt(notice.employees) : '—' },
+            { label: 'NOTICE DATE', value: fmtDate(notice.notice_date) },
+            { label: 'EFFECTIVE',   value: fmtDate(notice.effective_date) },
+          ].map(kpi => (
+            <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{kpi.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {!notice.converted_lead_id && (
+        {!notice.converted_lead_id && !editing && (
           <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={() => { onCreateLead(notice); onClose(); }}>
             ⚡ Create Lead from Filing
           </button>
         )}
-        <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => onSearchProperty(notice)}>🔍 Search Property Database</button>
-        <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => window.location.href = `/owner-search?q=${encodeURIComponent(notice.company)}`}>📋 Research Company</button>
-        <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => setEditing(e => !e)}>✏️ {editing ? 'Cancel' : 'Edit Notes'}</button>
-      </div>
-
-      {/* Details */}
-      <div className="cl-card" style={{ padding: '14px 16px', marginBottom: 12 }}>
-        <div className="cl-card-title" style={{ marginBottom: 10 }}>FILING DETAILS</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[
-            { label: 'Company', value: notice.company },
-            { label: 'Address', value: notice.address || '—' },
-            { label: 'City', value: notice.city || '—' },
-            { label: 'Workers Affected', value: notice.employees ? fmt(notice.employees) : '—' },
-            { label: 'Notice Date', value: fmtDate(notice.notice_date) },
-            { label: 'Effective Date', value: fmtDate(notice.effective_date) },
-            { label: 'Days Since Filing', value: days !== null ? `${days} days ago` : '—' },
-          ].map(row => (
-            <div key={row.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)', width: 120, flexShrink: 0, paddingTop: 2 }}>
-                {row.label.toUpperCase()}
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{row.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Research Notes */}
-      <div className="cl-card" style={{ padding: '14px 16px', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div className="cl-card-title">RESEARCH NOTES</div>
-        </div>
-        {editing ? (
-          <div>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Add notes about this filing — matched property, outreach status, owner intel..."
-              style={{
-                width: '100%', minHeight: 100, padding: '8px 10px',
-                background: 'rgba(0,0,0,0.025)', border: '1px solid var(--card-border)',
-                borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-ui)', fontSize: 13,
-                color: 'var(--text-primary)', resize: 'vertical', outline: 'none',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={saveNotes} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Notes'}
-              </button>
-              <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => setEditing(false)}>Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <p style={{ fontSize: 13, color: notes ? 'var(--text-secondary)' : 'var(--text-tertiary)', lineHeight: 1.6, fontStyle: notes ? 'normal' : 'italic' }}>
-            {notes || 'No notes yet. Click Edit Notes to add research.'}
-          </p>
+        {!editing && <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={searchProperties}>
+          {propSearching ? '🔍 Searching…' : '🔍 Search Property Database'}
+        </button>}
+        {!editing && <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => window.open(`/owner-search?q=${encodeURIComponent(notice.company)}`, '_blank')}>📋 Research Company</button>}
+        <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => setEditing(e => !e)}>
+          ✏️ {editing ? 'Cancel Edit' : 'Edit Filing'}
+        </button>
+        {editing && (
+          <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={saveEdit} disabled={saving}>
+            {saving ? 'Saving…' : '✓ Save Changes'}
+          </button>
         )}
       </div>
 
-      {/* Why this matters */}
-      <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--purple)' }}>
-        <div className="cl-card-title" style={{ marginBottom: 8 }}>WHY THIS MATTERS</div>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
-          A WARN filing means this tenant is contracting. If they occupy the building, the owner may face vacancy in 60 days.
-          That creates a window to approach the owner before the building hits the market — when you have an information edge
-          every other broker lacks.
-        </p>
-      </div>
+      {/* EDIT FORM */}
+      {editing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Company</label>
+              <input style={inputStyle} value={form.company} onChange={e => setField('company', e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>County</label>
+              <input style={inputStyle} value={form.county} onChange={e => setField('county', e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Address</label>
+            <input style={inputStyle} value={form.address} onChange={e => setField('address', e.target.value)} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Employees Affected</label>
+              <input style={inputStyle} type="number" value={form.employees} onChange={e => setField('employees', e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>Notice Date</label>
+              <input style={inputStyle} type="date" value={form.notice_date} onChange={e => setField('notice_date', e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>Effective Date</label>
+              <input style={inputStyle} type="date" value={form.effective_date} onChange={e => setField('effective_date', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.is_industrial} onChange={e => setField('is_industrial', e.target.checked)} />
+              <span style={{ color: 'var(--text-secondary)' }}>Industrial Property</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.is_in_market} onChange={e => setField('is_in_market', e.target.checked)} />
+              <span style={{ color: 'var(--text-secondary)' }}>In My Market</span>
+            </label>
+          </div>
+          <div>
+            <label style={labelStyle}>Research Notes</label>
+            <textarea
+              value={form.research_notes}
+              onChange={e => setField('research_notes', e.target.value)}
+              placeholder="Matched property, outreach status, owner intel..."
+              style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Read-only details */}
+          <div className="cl-card" style={{ padding: '14px 16px', marginBottom: 12 }}>
+            <div className="cl-card-title" style={{ marginBottom: 10 }}>FILING DETAILS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { label: 'Company',          value: notice.company },
+                { label: 'Address',          value: notice.address || '—' },
+                { label: 'County',           value: notice.county || '—' },
+                { label: 'Workers Affected', value: notice.employees ? fmt(notice.employees) : '—' },
+                { label: 'Notice Date',      value: fmtDate(notice.notice_date) },
+                { label: 'Effective Date',   value: fmtDate(notice.effective_date) },
+                { label: 'Days Since',       value: days !== null ? `${days} days ago` : '—' },
+                { label: 'Industrial',       value: notice.is_industrial ? 'Yes' : 'No' },
+                { label: 'In Market',        value: notice.is_in_market ? 'Yes' : 'No' },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)', width: 130, flexShrink: 0, paddingTop: 2 }}>
+                    {row.label.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{row.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Research Notes */}
+          <div className="cl-card" style={{ padding: '14px 16px', marginBottom: 12 }}>
+            <div className="cl-card-title" style={{ marginBottom: 8 }}>RESEARCH NOTES</div>
+            <p style={{ fontSize: 13, color: notice.research_notes ? 'var(--text-secondary)' : 'var(--text-tertiary)', lineHeight: 1.6, fontStyle: notice.research_notes ? 'normal' : 'italic' }}>
+              {notice.research_notes || 'No notes yet. Click Edit Filing to add research.'}
+            </p>
+          </div>
+
+          {/* Why this matters */}
+          <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--purple)' }}>
+            <div className="cl-card-title" style={{ marginBottom: 8 }}>WHY THIS MATTERS</div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: 'var(--font-editorial)', fontStyle: 'italic' }}>
+              A WARN filing means this tenant is contracting. If they occupy the building, the owner may face vacancy in 60 days.
+              That creates a window to approach the owner before the building hits the market — when you have an information edge
+              every other broker lacks.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
