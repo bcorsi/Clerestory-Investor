@@ -424,6 +424,10 @@ function WarnDetail({ notice, onCreateLead, onSearchProperty, onClose }) {
         .or(`address.ilike.%${streetAddress}%,tenant.ilike.%${notice.company}%,owner.ilike.%${notice.company}%`)
         .limit(5);
       setPropResults(data || []);
+      // Auto-link first match to the notice
+      if (data && data.length > 0 && !notice.matched_property_id) {
+        await supabase.from('warn_notices').update({ matched_property_id: data[0].id }).eq('id', notice.id);
+      }
     } catch(e) { console.error(e); setPropResults([]); }
     finally { setPropSearching(false); }
   }
@@ -655,11 +659,13 @@ function WarnDetail({ notice, onCreateLead, onSearchProperty, onClose }) {
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>{notice.matched_property_id ? '✅' : '🔎'}</span>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{notice.matched_property_id || (propResults && propResults.length > 0) ? '✅' : '🔎'}</span>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {notice.matched_property_id
-                    ? `This filing is matched to a property in your database. Create a lead to start tracking outreach.`
-                    : `This property is not yet in your database. Use Search Property Database above to check, or create a lead and research the owner directly.`
+                  {notice.matched_property_id || (propResults && propResults.length > 0)
+                    ? `Matched to ${propResults && propResults.length > 0 ? propResults[0].address : 'a tracked property'} in your database. Create a lead to start tracking outreach.`
+                    : propResults !== null && propResults.length === 0
+                    ? `No match found in your property database. This tenant may be at an untracked location — research the owner and consider adding the property.`
+                    : `Click Search Property Database above to check if this address is in your tracked database.`
                   }
                 </p>
               </div>
