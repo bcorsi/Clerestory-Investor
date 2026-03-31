@@ -80,7 +80,7 @@ export default function WarnIntelPage() {
         city: notice.county,
         stage: 'New',
         priority: 'Medium',
-        catalyst_tags: [{ tag: 'WARN Act Filing', category: 'owner', priority: 'high' }],
+        catalyst_tags: JSON.stringify([{ tag: 'WARN Act Filing', category: 'owner', priority: 'high' }],
         notes: `WARN filing: ${fmt(notice.employees)} workers affected. Notice: ${fmtDate(notice.notice_date)}. Effective: ${fmtDate(notice.effective_date)}.${matchedPropertyId ? ' Matched to tracked property.' : ''}`,
         ...(matchedPropertyId ? { property_id: matchedPropertyId } : {}),
       }).select('id').single();
