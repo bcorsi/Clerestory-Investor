@@ -1,542 +1,316 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
-import SlideDrawer from '@/components/SlideDrawer';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 
-// ── CONSTANTS ─────────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+
 const STAGES = [
-  { key: 'Tracking',            color: 'var(--text-tertiary)', bg: 'rgba(0,0,0,0.04)',    short: 'Tracking' },
-  { key: 'Underwriting',        color: 'var(--blue)',          bg: 'var(--blue-bg)',       short: 'UW' },
-  { key: 'Off-Market Outreach', color: 'var(--blue)',          bg: 'var(--blue-bg)',       short: 'Off-Mkt' },
-  { key: 'Marketing',           color: 'var(--purple)',        bg: 'var(--purple-bg)',     short: 'Marketing' },
-  { key: 'LOI',                 color: 'var(--amber)',         bg: 'var(--amber-bg)',      short: 'LOI' },
-  { key: 'LOI Accepted',        color: 'var(--amber)',         bg: 'var(--amber-bg)',      short: 'Accepted' },
-  { key: 'PSA Negotiation',     color: 'var(--amber)',         bg: 'var(--amber-bg)',      short: 'PSA' },
-  { key: 'Due Diligence',       color: 'var(--green)',         bg: 'var(--green-bg)',      short: 'DD' },
-  { key: 'Non-Contingent',      color: 'var(--green)',         bg: 'var(--green-bg)',      short: 'Non-Cont' },
-  { key: 'Closed Won',          color: 'var(--green)',         bg: 'var(--green-bg)',      short: 'Closed' },
-  { key: 'Closed Lost',         color: 'var(--rust)',          bg: 'var(--rust-bg)',       short: 'Lost' },
-  { key: 'Dead',                color: 'var(--text-tertiary)', bg: 'rgba(0,0,0,0.04)',    short: 'Dead' },
+  'Tracking',
+  'Underwriting',
+  'Off-Market Outreach',
+  'Marketing',
+  'LOI',
+  'LOI Accepted',
+  'PSA Negotiation',
+  'Due Diligence',
+  'Non-Contingent',
+  'Closed Won',
+  'Closed Lost',
+  'Dead',
 ];
 
-const COMMISSION_STAGES = ['LOI Accepted','PSA Negotiation','Due Diligence','Non-Contingent','Closed Won'];
-const ACTIVE_STAGES = STAGES.filter(s => !['Closed Won','Closed Lost','Dead'].includes(s.key));
+const ACTIVE_STAGES = STAGES.filter(s => !['Closed Won','Closed Lost','Dead'].includes(s));
 
-function stageConfig(stage) {
-  return STAGES.find(s => s.key === stage) || { color: 'var(--text-tertiary)', bg: 'rgba(0,0,0,0.04)', short: stage };
-}
-function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
-function fmtM(n) { return n != null ? `$${(Number(n)/1000000).toFixed(2)}M` : null; }
-function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+const COMMISSION_STAGES = new Set([
+  'LOI Accepted','PSA Negotiation','Due Diligence','Non-Contingent','Closed Won',
+]);
 
-// ── CARD COMPONENTS ───────────────────────────────────────
-function Card({ children, style }) {
-  return (
-    <div style={{
-      background: '#FAFAF8', border: '1px solid rgba(0,0,0,0.08)',
-      borderRadius: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-      overflow: 'hidden', ...style,
-    }}>
-      {children}
-    </div>
-  );
+const STAGE_COLOR = (stage) => {
+  if (['Closed Won'].includes(stage))                          return 'green';
+  if (['Closed Lost','Dead'].includes(stage))                  return 'rust';
+  if (['LOI Accepted','PSA Negotiation','Non-Contingent'].includes(stage)) return 'amber';
+  if (['Due Diligence'].includes(stage))                       return 'purple';
+  if (['LOI'].includes(stage))                                 return 'blue';
+  return 'gray';
+};
+
+const PRIORITY_COLOR = { High: 'rust', Medium: 'amber', Low: 'gray' };
+
+function fmtM(n) {
+  if (!n) return '—';
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
+  return `$${n}`;
 }
 
-function CardHeader({ title, action, actionHref }) {
-  return (
-    <div style={{
-      background: '#EDE8E0', borderBottom: '1px solid rgba(0,0,0,0.07)',
-      padding: '10px 18px', display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between', minHeight: 38,
-    }}>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#78726A' }}>
-        {title}
-      </span>
-      {action && actionHref && (
-        <Link href={actionHref} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', color: 'var(--blue)', textDecoration: 'none' }}>
-          {action}
-        </Link>
-      )}
-    </div>
-  );
+function fmtSF(n) {
+  if (!n) return '—';
+  return Number(n).toLocaleString() + ' SF';
 }
 
-// ── PAGE ──────────────────────────────────────────────────
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
+
 export default function DealsPage() {
-  const [deals, setDeals]             = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [selectedId, setSelectedId]   = useState(null);
-  const [selectedDeal, setSelectedDeal] = useState(null);
-  const [view, setView]               = useState('pipeline');
-  const [stageFilter, setStageFilter] = useState('active');
-  const [search, setSearch]           = useState('');
+  const [deals, setDeals]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [stageFilter, setStage]   = useState('active');   // 'active' | stage name | 'all'
+  const [search, setSearch]       = useState('');
+  const [sortBy, setSortBy]       = useState('updated_at');
+  const [sortDir, setSortDir]     = useState('desc');
+  const [kpis, setKpis]           = useState(null);
 
-  useEffect(() => { loadDeals(); }, [stageFilter, search]);
+  useEffect(() => { loadDeals(); }, [stageFilter, search, sortBy, sortDir]);
 
   async function loadDeals() {
     setLoading(true);
     try {
       const supabase = createClient();
+
+      // KPIs — always load regardless of filter
+      const [
+        { count: totalActive },
+        { data: valueData },
+        { data: commData },
+      ] = await Promise.all([
+        supabase.from('deals').select('*', { count: 'exact', head: true })
+          .not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
+        supabase.from('deals').select('deal_value')
+          .not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
+        supabase.from('deals').select('commission_est')
+          .in('stage', [...COMMISSION_STAGES]),
+      ]);
+
+      const pipeline_value = (valueData || []).reduce((a, d) => a + (d.deal_value || 0), 0);
+      const commission_pipeline = (commData || []).reduce((a, d) => a + (d.commission_est || 0), 0);
+      setKpis({ totalActive, pipeline_value, commission_pipeline });
+
+      // Deals list
       let query = supabase
         .from('deals')
-        .select('id, deal_name, stage, deal_type, strategy, deal_value, commission_est, commission_rate, address, submarket, priority, close_date, notes, tenant_name, buyer, seller, probability, created_at, updated_at')
-        .order('updated_at', { ascending: false });
+        .select(`
+          id, deal_name, stage, deal_type, priority,
+          deal_value, commission_est, probability,
+          close_date, updated_at, created_at,
+          address, city, building_sf,
+          property_id, lead_id
+        `)
+        .order(sortBy, { ascending: sortDir === 'asc' });
 
       if (stageFilter === 'active') {
         query = query.not('stage', 'in', '("Closed Won","Closed Lost","Dead")');
-      } else if (stageFilter === 'closed') {
-        query = query.in('stage', ['Closed Won', 'Closed Lost']);
+      } else if (stageFilter !== 'all') {
+        query = query.eq('stage', stageFilter);
       }
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,tenant.ilike.%${search}%`);
+        query = query.or(`deal_name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%`);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.limit(200);
       if (error) throw error;
       setDeals(data || []);
-    } catch (e) {
-      console.error('Deals load error:', e);
-      setDeals([]);
+    } catch (err) {
+      console.error('loadDeals error:', err);
     } finally {
       setLoading(false);
     }
   }
 
-  const dealsByStage = STAGES.reduce((acc, s) => {
-    acc[s.key] = deals.filter(d => d.stage === s.key);
-    return acc;
-  }, {});
-
-  const totalValue = deals.filter(d => d.deal_value).reduce((s, d) => s + Number(d.deal_value), 0);
-  const totalCommission = deals.filter(d => COMMISSION_STAGES.includes(d.stage) && d.commission_est).reduce((s, d) => s + Number(d.commission_est), 0);
-  const activeCount = deals.filter(d => !['Closed Won','Closed Lost','Dead'].includes(d.stage)).length;
-
-  function handleSelect(deal) {
-    setSelectedId(deal.id);
-    setSelectedDeal(deal);
+  function handleSort(col) {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('desc'); }
   }
 
+  const stageCounts = STAGES.reduce((acc, s) => {
+    acc[s] = deals.filter(d => d.stage === s).length;
+    return acc;
+  }, {});
+  const activeCount = deals.filter(d => !['Closed Won','Closed Lost','Dead'].includes(d.stage)).length;
+
+  // ── RENDER ────────────────────────────────────────────────
   return (
-    <div>
-      {/* Header */}
+    <div className="cl-page">
+
+      {/* ── PAGE HEADER ── */}
       <div className="cl-page-header">
         <div>
           <h1 className="cl-page-title">Deal Pipeline</h1>
-          <p className="cl-page-subtitle">
-            {loading ? 'Loading…' : `${activeCount} active deal${activeCount !== 1 ? 's' : ''}${totalValue > 0 ? ` · ${fmtM(totalValue)} total value` : ''}`}
+          <p className="cl-page-sub">
+            {loading ? '...' : `${kpis?.totalActive ?? 0} active · ${fmtM(kpis?.pipeline_value)} pipeline value`}
           </p>
         </div>
-        <div className="cl-page-actions">
-          {/* View toggle */}
-          <div style={{ display: 'flex', gap: 2, background: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-md)', padding: 3 }}>
-            {[{k:'pipeline',l:'⬛ Pipeline'},{k:'list',l:'☰ List'}].map(v => (
-              <button key={v.k} onClick={() => setView(v.k)} style={{
-                padding: '5px 12px', borderRadius: 'var(--radius-sm)',
-                fontSize: 11, fontFamily: 'var(--font-ui)', fontWeight: 500,
-                border: 'none', cursor: 'pointer',
-                background: view === v.k ? 'white' : 'transparent',
-                color: view === v.k ? 'var(--blue)' : 'var(--text-tertiary)',
-                boxShadow: view === v.k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 150ms ease',
-              }}>
-                {v.l}
-              </button>
-            ))}
-          </div>
-          <button className="cl-btn cl-btn-primary cl-btn-sm">+ New Deal</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="cl-search"
+            placeholder="Search deals…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: 220 }}
+          />
+          <Link href="/deals/new" className="cl-btn cl-btn--primary">+ New Deal</Link>
         </div>
       </div>
 
-      {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'Active Deals', value: fmt(activeCount) },
-          { label: 'Pipeline Value', value: totalValue > 0 ? fmtM(totalValue) : '—', small: true },
-          { label: 'Commission Tracked', value: totalCommission > 0 ? fmtM(totalCommission) : '—', small: true, color: 'var(--green)' },
-          { label: 'In Due Diligence+', value: fmt(deals.filter(d => ['Due Diligence','Non-Contingent','Closed Won'].includes(d.stage)).length), color: 'var(--amber)' },
-        ].map(kpi => (
-          <Card key={kpi.label}>
-            <div style={{ background: '#EDE8E0', borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '8px 16px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#78726A' }}>{kpi.label}</span>
-            </div>
-            <div style={{ padding: '14px 16px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: kpi.small ? 24 : 36, fontWeight: 700, color: kpi.color || 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {kpi.value}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filter bar */}
-      <div className="cl-filter-bar">
-        <input
-          className="cl-search-input"
-          placeholder="Search deals…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ maxWidth: 300 }}
-        />
-        <div className="cl-tabs" style={{ margin: 0, border: 'none' }}>
-          {[{k:'active',l:'Active'},{k:'all',l:'All'},{k:'closed',l:'Closed'}].map(f => (
-            <button key={f.k} className={`cl-tab ${stageFilter === f.k ? 'cl-tab--active' : ''}`}
-              onClick={() => setStageFilter(f.k)} style={{ padding: '6px 12px' }}>
-              {f.l}
-            </button>
-          ))}
+      {/* ── KPI STRIP ── */}
+      <div className="cl-kpi-strip" style={{ marginBottom: 20 }}>
+        <div className="cl-kpi">
+          <div className="cl-kpi-label">Active Deals</div>
+          <div className="cl-kpi-value">{loading ? '—' : kpis?.totalActive ?? 0}</div>
         </div>
-      </div>
-
-      {/* ── PIPELINE VIEW ── */}
-      {view === 'pipeline' && (
-        <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
-          {loading ? (
-            <div className="cl-loading"><div className="cl-spinner" />Loading deals…</div>
-          ) : (
-            <div style={{ display: 'flex', gap: 12, minWidth: 'max-content', alignItems: 'flex-start', paddingTop: 4 }}>
-              {ACTIVE_STAGES.map(stage => {
-                const stageDeals = dealsByStage[stage.key] || [];
-                return (
-                  <div key={stage.key} style={{ width: 224, flexShrink: 0 }}>
-                    {/* Column header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 2px' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                        {stage.key}
-                      </span>
-                      {stageDeals.length > 0 && (
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, background: stage.bg, color: stage.color, padding: '1px 6px', borderRadius: 'var(--radius-pill)' }}>
-                          {stageDeals.length}
-                        </span>
-                      )}
-                    </div>
-                    {/* Cards */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 80 }}>
-                      {stageDeals.map(deal => (
-                        <DealCard key={deal.id} deal={deal} selected={selectedId === deal.id} onClick={() => handleSelect(deal)} />
-                      ))}
-                      {stageDeals.length === 0 && (
-                        <div style={{ border: '1.5px dashed rgba(0,0,0,0.08)', borderRadius: 'var(--radius-md)', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'rgba(0,0,0,0.18)' }}>EMPTY</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── LIST VIEW ── */}
-      {view === 'list' && (
-        <div className="cl-table-wrap">
-          <table className="cl-table">
-            <thead>
-              <tr>
-                <th>Deal Name</th>
-                <th>Stage</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Value</th>
-                <th>Commission</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7}><div className="cl-loading"><div className="cl-spinner" />Loading…</div></td></tr>
-              ) : deals.length === 0 ? (
-                <tr><td colSpan={7}>
-                  <div className="cl-empty">
-                    <div className="cl-empty-label">No deals found</div>
-                    <div className="cl-empty-sub">Create your first deal to start tracking</div>
-                  </div>
-                </td></tr>
-              ) : deals.map(deal => {
-                const sc = stageConfig(deal.stage);
-                const showComm = COMMISSION_STAGES.includes(deal.stage);
-                return (
-                  <tr key={deal.id} onClick={() => handleSelect(deal)}
-                    style={{ background: selectedId === deal.id ? 'rgba(78,110,150,0.05)' : undefined }}>
-                    <td>
-                      <div style={{ fontWeight: 500, fontSize: 13 }}>{deal.deal_name}</div>
-                      {deal.address && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>{deal.address}{deal.submarket ? `, ${deal.submarket}` : ''}</div>}
-                    </td>
-                    <td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, padding: '3px 7px', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
-                        {deal.stage}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{deal.deal_type || '—'}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
-                      {deal.building_sf ? `${fmt(deal.building_sf)} SF` : '—'}
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{deal.deal_value ? fmtM(deal.deal_value) : '—'}</td>
-                    <td>
-                      {showComm && deal.commission_est ? (
-                        <span className="cl-commission">{fmtM(deal.commission_est)}</span>
-                      ) : '—'}
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-                      {fmtDate(deal.updated_at)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Slide Drawer */}
-      <SlideDrawer
-        open={!!selectedId}
-        onClose={() => { setSelectedId(null); setSelectedDeal(null); }}
-        fullPageHref={selectedId ? `/deals/${selectedId}` : undefined}
-        title={selectedDeal?.deal_name || ''}
-        subtitle={selectedDeal ? [selectedDeal.address, selectedDeal.city].filter(Boolean).join(' · ') : ''}
-        badge={selectedDeal?.stage ? { label: selectedDeal.stage, color: 'blue' } : undefined}
-      >
-        {selectedId && <DealDetail deal={selectedDeal} id={selectedId} onRefresh={loadDeals} />}
-      </SlideDrawer>
-    </div>
-  );
-}
-
-// ── DEAL CARD (kanban) ────────────────────────────────────
-function DealCard({ deal, selected, onClick }) {
-  const sc = stageConfig(deal.stage);
-  const showComm = COMMISSION_STAGES.includes(deal.stage);
-
-  return (
-    <div onClick={onClick} style={{
-      background: selected ? 'rgba(78,110,150,0.06)' : '#FAFAF8',
-      border: `1px solid ${selected ? 'rgba(78,110,150,0.25)' : 'rgba(0,0,0,0.08)'}`,
-      borderRadius: 'var(--radius-md)', padding: '12px 14px',
-      cursor: 'pointer', boxShadow: selected ? '0 2px 8px rgba(78,110,150,0.12)' : '0 2px 6px rgba(0,0,0,0.06)',
-      transition: 'all 150ms ease',
-    }}
-    onMouseEnter={e => { if (!selected) e.currentTarget.style.boxShadow = '0 3px 10px rgba(0,0,0,0.1)'; }}
-    onMouseLeave={e => { if (!selected) e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)'; }}
-    >
-      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, lineHeight: 1.3, color: 'var(--text-primary)' }}>
-        {deal.deal_name}
-      </div>
-      {(deal.address || deal.submarket) && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.03em' }}>
-          {deal.submarket || deal.address}
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-        {deal.deal_value && (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)' }}>
-            {fmtM(deal.deal_value)}
-          </span>
-        )}
-        {showComm && deal.commission_est && (
-          <span className="cl-commission" style={{ fontSize: 9 }}>
-            {fmtM(deal.commission_est)}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── DEAL DETAIL (inside drawer) ───────────────────────────
-function DealDetail({ deal, id, onRefresh }) {
-  const [full, setFull]           = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [activities, setActivities] = useState([]);
-  const [contacts, setContacts]   = useState([]);
-  const [comps, setComps]         = useState([]);
-
-  const TABS = ['overview','timeline','contacts','comps','files'];
-
-  useEffect(() => { if (id) loadDeal(id); }, [id]);
-
-  async function loadDeal(dealId) {
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const [
-        { data: dealData },
-        { data: actData },
-        { data: ctctData },
-      ] = await Promise.all([
-        supabase.from('deals').select('*').eq('id', dealId).single(),
-        supabase.from('activities').select('*').eq('deal_id', dealId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('deal_contacts').select('contact_id, role, contacts(id, first_name, last_name, title, phone, email)').eq('deal_id', dealId),
-      ]);
-      setFull(dealData);
-      setActivities(actData || []);
-      setContacts(ctctData || []);
-    } catch(e) { console.error(e); }
-    finally { setLoading(false); }
-  }
-
-  const d = full || deal;
-  if (loading) return <div className="cl-loading"><div className="cl-spinner" />Loading deal…</div>;
-  if (!d) return <div className="cl-empty"><div className="cl-empty-label">Deal not found</div></div>;
-
-  const sc = stageConfig(d.stage);
-  const showComm = COMMISSION_STAGES.includes(d.stage);
-
-  return (
-    <div>
-      {/* Stage track */}
-      <div className="cl-stage-track" style={{ marginBottom: 20 }}>
-        {STAGES.slice(0, 10).map((s, i) => {
-          const stageIdx = STAGES.findIndex(x => x.key === d.stage);
-          const thisIdx = i;
-          const isDone   = thisIdx < stageIdx;
-          const isActive = thisIdx === stageIdx;
-          return (
-            <div key={s.key} className={`cl-stage-step ${isActive ? 'cl-stage-step--active' : isDone ? 'cl-stage-step--done' : ''}`}>
-              <span className="cl-stage-label">{s.short}</span>
-              {i < 9 && <span className="cl-stage-arrow" />}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* KPI mini strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
-        {[
-          { label: 'TYPE',       value: d.deal_type || '—' },
-          { label: 'SIZE',       value: d.building_sf ? `${fmt(d.building_sf)} SF` : '—' },
-          { label: 'VALUE',      value: d.deal_value ? fmtM(d.deal_value) : '—' },
-          { label: 'COMMISSION', value: showComm && d.commission_est ? fmtM(d.commission_est) : '—', color: showComm ? 'var(--green)' : undefined },
-        ].map(kpi => (
-          <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: kpi.color || 'var(--text-primary)' }}>{kpi.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick actions */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['Log Call','Log Email','Add Note','+ Task'].map(a => (
-          <button key={a} className="cl-btn cl-btn-secondary cl-btn-sm">{a}</button>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="cl-tabs">
-        {TABS.map(tab => (
-          <button key={tab} className={`cl-tab ${activeTab === tab ? 'cl-tab--active' : ''}`} onClick={() => setActiveTab(tab)}>
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Property info */}
-          {d.address && (
-            <div className="cl-card" style={{ padding: '14px 16px' }}>
-              <div className="cl-card-title" style={{ marginBottom: 10 }}>PROPERTY</div>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{d.address}</div>
-              {d.city && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{d.city}</div>}
-              {d.tenant && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>Tenant: {d.tenant}</div>}
-            </div>
-          )}
-          {/* Notes */}
-          {d.notes && (
-            <div className="cl-card" style={{ padding: '14px 16px' }}>
-              <div className="cl-card-title" style={{ marginBottom: 8 }}>NOTES</div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{d.notes}</p>
-            </div>
-          )}
-          {/* Underwriting placeholder */}
-          <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--blue3)' }}>
-            <div className="cl-card-title" style={{ marginBottom: 8 }}>UNDERWRITING</div>
-            <p style={{ fontFamily: 'var(--font-editorial)', fontStyle: 'italic', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
-              {d.deal_value
-                ? `Deal value ${fmtM(d.deal_value)}${d.building_sf ? ` · ${(Number(d.deal_value)/Number(d.building_sf)).toFixed(0)}/SF implied` : ''}. Run full underwriting model to analyze returns.`
-                : 'No underwriting data yet. Add deal value to begin analysis.'}
-            </p>
-            <button className="cl-btn cl-btn-secondary cl-btn-sm">Export Excel Model</button>
+        <div className="cl-kpi">
+          <div className="cl-kpi-label">Pipeline Value</div>
+          <div className="cl-kpi-value" style={{ color: 'var(--blue2)' }}>
+            {loading ? '—' : fmtM(kpis?.pipeline_value)}
           </div>
         </div>
-      )}
-
-      {activeTab === 'timeline' && (
-        <div>
-          {activities.length === 0 ? (
-            <div className="cl-empty">
-              <div className="cl-empty-label">No activity yet</div>
-              <div className="cl-empty-sub">Log a call or note to start the timeline</div>
-            </div>
-          ) : activities.map((act, i) => (
-            <div key={act.id} style={{ display: 'flex', gap: 12, paddingBottom: 16, borderLeft: '2px solid var(--card-border)', marginLeft: 8, paddingLeft: 16, position: 'relative' }}>
-              <div style={{ position: 'absolute', left: -5, top: 4, width: 8, height: 8, borderRadius: '50%', background: 'var(--blue3)', border: '2px solid var(--bg)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>{act.subject || act.activity_type}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
-                    {new Date(act.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                </div>
-                {act.body && <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{act.body}</p>}
-              </div>
-            </div>
-          ))}
+        <div className="cl-kpi">
+          <div className="cl-kpi-label">Commission Pipeline</div>
+          <div className="cl-kpi-value" style={{ color: 'var(--green)' }}>
+            {loading ? '—' : fmtM(kpis?.commission_pipeline)}
+          </div>
         </div>
-      )}
+        <div className="cl-kpi">
+          <div className="cl-kpi-label">Avg Deal Size</div>
+          <div className="cl-kpi-value">
+            {loading || !kpis?.totalActive ? '—'
+              : fmtM((kpis.pipeline_value || 0) / (kpis.totalActive || 1))}
+          </div>
+        </div>
+      </div>
 
-      {activeTab === 'contacts' && (
-        <div>
-          {contacts.length === 0 ? (
-            <div className="cl-empty">
-              <div className="cl-empty-label">No contacts linked</div>
-              <div className="cl-empty-sub">Add contacts to this deal</div>
-            </div>
-          ) : contacts.map((dc, i) => {
-            const c = dc.contacts;
-            if (!c) return null;
+      {/* ── STAGE PIPELINE TRACK ── */}
+      <div className="cl-card" style={{ padding: '14px 16px', marginBottom: 16, overflowX: 'auto' }}>
+        <div className="cl-stage-track" style={{ display: 'flex', gap: 0, minWidth: 700 }}>
+          {ACTIVE_STAGES.map((s, i) => {
+            const count = stageCounts[s] || 0;
+            const isActive = stageFilter === s;
             return (
-              <div key={i} className="cl-card" style={{ padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--blue-bg)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-                  {(c.first_name?.[0] || '') + (c.last_name?.[0] || '')}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{c.title}{dc.role ? ` · ${dc.role}` : ''}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {c.phone && <a href={`tel:${c.phone}`} className="cl-btn cl-btn-ghost cl-btn-sm">📞</a>}
-                  {c.email && <a href={`mailto:${c.email}`} className="cl-btn cl-btn-ghost cl-btn-sm">✉️</a>}
-                </div>
-              </div>
+              <button
+                key={s}
+                onClick={() => setStage(isActive ? 'active' : s)}
+                className={`cl-stage-step ${isActive ? 'cl-stage-step--active' : ''}`}
+                style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                <div className="cl-stage-label" style={{ fontSize: 10, whiteSpace: 'nowrap' }}>{s}</div>
+                <div style={{
+                  fontSize: 18, fontWeight: 700, color: isActive ? 'var(--blue2)' : count > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  fontFamily: 'var(--font-mono)',
+                }}>{count}</div>
+                {i < ACTIVE_STAGES.length - 1 && <div className="cl-stage-arrow" />}
+              </button>
             );
           })}
         </div>
-      )}
+      </div>
 
-      {activeTab === 'comps' && (
-        <div className="cl-empty">
-          <div className="cl-empty-label">No comps linked</div>
-          <div className="cl-empty-sub">Link lease or sale comps to this deal</div>
-        </div>
-      )}
+      {/* ── STAGE FILTER TABS ── */}
+      <div className="cl-tabs" style={{ marginBottom: 12 }}>
+        {[
+          { key: 'active', label: `Active (${loading ? '…' : activeCount})` },
+          { key: 'all',    label: 'All Deals' },
+          { key: 'Closed Won',  label: `Closed Won (${stageCounts['Closed Won'] || 0})` },
+          { key: 'Closed Lost', label: `Closed Lost (${stageCounts['Closed Lost'] || 0})` },
+          { key: 'Dead',        label: `Dead (${stageCounts['Dead'] || 0})` },
+        ].map(t => (
+          <button
+            key={t.key}
+            className={`cl-tab ${stageFilter === t.key ? 'cl-tab--active' : ''}`}
+            onClick={() => setStage(t.key)}
+          >{t.label}</button>
+        ))}
+      </div>
 
-      {activeTab === 'files' && (
-        <div className="cl-empty">
-          <div className="cl-empty-label">No files</div>
-          <div className="cl-empty-sub">Upload BOVs, PSAs, inspection reports</div>
-        </div>
-      )}
+      {/* ── TABLE ── */}
+      <div className="cl-table-wrap">
+        <table className="cl-table">
+          <thead>
+            <tr>
+              {[
+                { key: 'deal_name',   label: 'Deal Name' },
+                { key: 'stage',       label: 'Stage' },
+                { key: 'deal_value',  label: 'Value' },
+                { key: 'commission_est', label: 'Commission' },
+                { key: 'probability', label: 'Prob.' },
+                { key: 'address',     label: 'Address' },
+                { key: 'building_sf', label: 'SF' },
+                { key: 'close_date',  label: 'Close Date' },
+                { key: 'updated_at',  label: 'Updated' },
+              ].map(col => (
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                >
+                  {col.label}
+                  {sortBy === col.key && (
+                    <span style={{ marginLeft: 4, opacity: 0.5 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>Loading…</td></tr>
+            ) : deals.length === 0 ? (
+              <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>No deals found</td></tr>
+            ) : deals.map(deal => {
+              const showComm = COMMISSION_STAGES.has(deal.stage);
+              const sc = STAGE_COLOR(deal.stage);
+              const daysOld = deal.updated_at
+                ? Math.floor((Date.now() - new Date(deal.updated_at)) / 864e5)
+                : null;
+              return (
+                <tr key={deal.id}>
+                  <td>
+                    <Link href={`/deals/${deal.id}`} className="cl-table-link" style={{ fontWeight: 600 }}>
+                      {deal.deal_name || deal.address || '(untitled)'}
+                    </Link>
+                    {deal.deal_type && (
+                      <span className="cl-badge cl-badge-gray" style={{ marginLeft: 6, fontSize: 9 }}>
+                        {deal.deal_type}
+                      </span>
+                    )}
+                    {deal.priority === 'High' && (
+                      <span style={{ marginLeft: 4, color: 'var(--rust)', fontSize: 11 }}>!!</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`cl-badge cl-badge-${sc}`}>{deal.stage}</span>
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {deal.deal_value ? fmtM(deal.deal_value) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {showComm && deal.commission_est ? (
+                      <span className="cl-commission">{fmtM(deal.commission_est)}</span>
+                    ) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {deal.probability != null ? `${deal.probability}%` : '—'}
+                  </td>
+                  <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {deal.address || '—'}
+                    {deal.city && <span style={{ color: 'var(--text-tertiary)' }}> · {deal.city}</span>}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                    {fmtSF(deal.building_sf)}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {deal.close_date ? new Date(deal.close_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'}
+                  </td>
+                  <td style={{ fontSize: 11, color: daysOld > 14 ? 'var(--amber)' : 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                    {daysOld != null ? `${daysOld}d ago` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
     </div>
   );
 }
