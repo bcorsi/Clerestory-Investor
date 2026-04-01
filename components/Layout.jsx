@@ -9,7 +9,8 @@ const NAV_SECTIONS = [
     label: 'INTELLIGENCE',
     items: [
       { href: '/',             icon: GridIcon,     label: 'Command Center' },
-      { href: '/warn-intel',   icon: BoltIcon,     label: 'WARN Intel',   badge: 'warn' },
+      { href: '/warn-intel',      icon: BoltIcon,     label: 'WARN Intel',      badge: 'warn' },
+      { href: '/bankruptcy-radar', icon: ScaleIcon,    label: 'Bankruptcy Radar' },
       { href: '/news',         icon: NewsIcon,     label: 'News Feed' },
       { href: '/research',     icon: SearchIcon,   label: 'Research' },
       { href: '/owner-search', icon: BuildingIcon, label: 'Owner Search' },
@@ -59,6 +60,7 @@ const PAGE_META = {
   '/analytics':    { title: 'Comp Analytics', parent: 'Analytics' },
   '/map':          { title: 'Map View',       parent: 'Analytics' },
   '/settings':     { title: 'Settings',       parent: null },
+  '/bankruptcy-radar': { title: 'Bankruptcy Radar', parent: 'Intelligence' },
 };
 
 export default function Layout({ children }) {
@@ -228,3 +230,4 @@ function MapIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill
 function SettingsIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
 function ChevronLeftIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ChevronRightIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 11l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function ScaleIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M4 14h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M2 6l2-3 2 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 6l2-3 2 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 6h4M10 6h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
