@@ -4,13 +4,11 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import SlideDrawer from '@/components/SlideDrawer';
 import LeadDetail from '@/components/LeadDetail';
-import { getCatalystStyle, getScoreRing, CATALYST_TAGS } from '@/lib/catalyst-constants';
+import { getCatalystStyle, getScoreRing, CATALYST_TAGS, STAGE_COLORS, PRIORITY_COLORS } from '@/lib/catalyst-constants';
 
-// ── PARSE CATALYSTS — handles all storage formats including double-encoded ──
+// ── PARSE CATALYSTS ───────────────────────────────────────
 function parseCatalysts(raw) {
   if (!raw) return [];
-
-  // Already an array
   if (Array.isArray(raw)) {
     return raw.flatMap(c => {
       if (typeof c === 'string') {
@@ -23,7 +21,6 @@ function parseCatalysts(raw) {
       return typeof c === 'object' && c !== null && c.tag ? [c] : [{ tag: String(c) }];
     });
   }
-
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
     try {
@@ -42,16 +39,12 @@ function parseCatalysts(raw) {
       }
       if (typeof p === 'object' && p !== null && p.tag) return [p];
       if (typeof p === 'string') return [{ tag: p }];
-    } catch {
-      return [{ tag: trimmed }];
-    }
+    } catch { return [{ tag: trimmed }]; }
   }
-
   if (typeof raw === 'object' && raw !== null && raw.tag) return [raw];
   return [];
 }
 
-// Normalize stage — "Lead" is not a valid stage
 function normalizeStage(stage) {
   if (!stage || stage === 'Lead') return 'New';
   return stage;
@@ -59,37 +52,20 @@ function normalizeStage(stage) {
 
 const STAGE_TABS = ['All', 'New', 'Researching', 'Decision Maker Identified', 'Contacted', 'Converted'];
 
-const PRIORITY_COLORS = {
-  Critical: { bg: 'rgba(184,55,20,0.12)', color: 'var(--rust)',          border: 'rgba(184,55,20,0.25)' },
-  High:     { bg: 'rgba(168,112,16,0.10)', color: 'var(--amber)',         border: 'rgba(168,112,16,0.25)' },
-  Medium:   { bg: 'rgba(78,110,150,0.10)', color: 'var(--blue)',          border: 'rgba(78,110,150,0.2)'  },
-  Low:      { bg: 'rgba(0,0,0,0.05)',      color: 'var(--text-tertiary)', border: 'rgba(0,0,0,0.1)'       },
-};
-
-const STAGE_COLORS = {
-  'New':                      { background: 'rgba(0,0,0,0.05)',       color: '#78726A',  border: '1px solid rgba(0,0,0,0.12)'       },
-  'Researching':               { background: 'rgba(88,56,160,0.08)',   color: '#5838A0',  border: '1px solid rgba(88,56,160,0.2)'     },
-  'Decision Maker Identified': { background: 'rgba(14,124,123,0.08)',  color: '#0E7C7B',  border: '1px solid rgba(14,124,123,0.2)'    },
-  'Contacted':                 { background: 'rgba(212,98,42,0.10)',   color: '#D4622A',  border: '1px solid rgba(212,98,42,0.25)'    },
-  'Converted':                 { background: 'rgba(24,112,66,0.08)',   color: '#187042',  border: '1px solid rgba(24,112,66,0.2)'     },
-};
-
 export default function LeadsPage() {
   const router = useRouter();
-
   const [leads, setLeads]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [total, setTotal]               = useState(0);
   const [selectedId, setSelectedId]     = useState(null);
   const [selectedLead, setSelectedLead] = useState(null);
   const [kpis, setKpis]                 = useState({ total: 0, hot: 0, pipeline: 0 });
-
-  const [stageTab, setStageTab]                     = useState('All');
-  const [search, setSearch]                         = useState('');
+  const [stageTab, setStageTab]         = useState('All');
+  const [search, setSearch]             = useState('');
   const [activeCatalystFilter, setActiveCatalystFilter] = useState(null);
-  const [sortBy, setSortBy]                         = useState('score');
-  const [sortDir, setSortDir]                       = useState('desc');
-  const [page, setPage]                             = useState(0);
+  const [sortBy, setSortBy]             = useState('score');
+  const [sortDir, setSortDir]           = useState('desc');
+  const [page, setPage]                 = useState(0);
   const PAGE_SIZE = 50;
 
   useEffect(() => { loadLeads(); }, [stageTab, search, activeCatalystFilter, sortBy, sortDir, page]);
@@ -174,12 +150,8 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="cl-page-actions">
-          <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => alert('Import CSV coming soon — check back next build')}>
-            Import CSV
-          </button>
-          <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={() => router.push('/leads/new')}>
-            + New Lead
-          </button>
+          <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => alert('Import CSV — coming soon')}>Import CSV</button>
+          <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={() => router.push('/leads/new')}>+ New Lead</button>
         </div>
       </div>
 
@@ -187,8 +159,8 @@ export default function LeadsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
           { label: 'Active Leads',    value: kpis.total,    color: 'var(--text-primary)', sub: 'Excluding converted' },
-          { label: 'Hot (Score ≥70)', value: kpis.hot,      color: 'var(--rust)',         sub: 'High catalyst signal' },
-          { label: 'In Pipeline',     value: kpis.pipeline, color: 'var(--blue)',         sub: 'DM found or contacted' },
+          { label: 'Hot (Score ≥70)', value: kpis.hot,      color: '#C0392B',             sub: 'High catalyst signal' },
+          { label: 'In Pipeline',     value: kpis.pipeline, color: '#4E6E96',             sub: 'DM found or contacted' },
           { label: 'Showing',         value: leads.length,  color: 'var(--text-primary)', sub: activeCatalystFilter ? `"${activeCatalystFilter}"` : stageTab === 'All' ? 'All stages' : stageTab },
         ].map(kpi => (
           <div key={kpi.label} className="cl-kpi">
@@ -199,37 +171,47 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      {/* ACTIVE CATALYST FILTER BANNER */}
+      {/* CATALYST FILTER BANNER */}
       {activeCatalystFilter && (() => {
         const cs = getCatalystStyle(activeCatalystFilter);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', marginBottom: 12, background: cs.bg, border: `1px solid ${cs.bdr}`, borderRadius: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: cs.color, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Catalyst Filter:
-            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: cs.color, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Catalyst Filter:</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: cs.color, fontFamily: 'var(--font-mono)' }}>{activeCatalystFilter}</span>
             <span style={{ fontSize: 12, color: cs.color, opacity: 0.65 }}>— {leads.length} lead{leads.length !== 1 ? 's' : ''} matched</span>
-            <button
-              onClick={() => setActiveCatalystFilter(null)}
-              style={{ marginLeft: 'auto', fontSize: 11, color: cs.color, background: 'none', border: `1px solid ${cs.bdr}`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
-            >
-              ✕ Clear
-            </button>
+            <button onClick={() => setActiveCatalystFilter(null)} style={{ marginLeft: 'auto', fontSize: 11, color: cs.color, background: 'none', border: `1px solid ${cs.bdr}`, borderRadius: 5, padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}>✕ Clear</button>
           </div>
         );
       })()}
 
-      {/* STAGE FILTER TABS */}
-      <div className="cl-tabs">
-        {STAGE_TABS.map(tab => (
-          <button
-            key={tab}
-            className={`cl-tab ${stageTab === tab ? 'cl-tab--active' : ''}`}
-            onClick={() => { setStageTab(tab); setPage(0); }}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* STAGE TABS */}
+      <div className="cl-tabs" style={{ marginBottom: 12 }}>
+        {STAGE_TABS.map(tab => {
+          const isActive = stageTab === tab;
+          const stageStyle = tab !== 'All' ? STAGE_COLORS[tab] : null;
+          return (
+            <button
+              key={tab}
+              onClick={() => { setStageTab(tab); setPage(0); }}
+              style={{
+                padding: '8px 14px',
+                fontSize: 13,
+                fontWeight: 400,
+                fontFamily: 'var(--font-ui)',
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+                borderBottom: isActive ? `2px solid ${stageStyle ? stageStyle.color : 'var(--blue)'}` : '2px solid transparent',
+                color: isActive ? (stageStyle ? stageStyle.color : 'var(--blue)') : 'var(--text-tertiary)',
+                marginBottom: -1,
+                whiteSpace: 'nowrap',
+                transition: 'color 120ms ease, border-color 120ms ease',
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
 
       {/* SEARCH */}
@@ -241,9 +223,7 @@ export default function LeadsPage() {
           onChange={e => { setSearch(e.target.value); setPage(0); }}
         />
         {(search || activeCatalystFilter) && (
-          <button className="cl-btn cl-btn-ghost cl-btn-sm" onClick={() => { setSearch(''); setActiveCatalystFilter(null); setPage(0); }}>
-            Clear all
-          </button>
+          <button className="cl-btn cl-btn-ghost cl-btn-sm" onClick={() => { setSearch(''); setActiveCatalystFilter(null); setPage(0); }}>Clear all</button>
         )}
       </div>
 
@@ -256,17 +236,17 @@ export default function LeadsPage() {
                 { key: 'score',          label: 'Score',    width: 72,  sortable: true  },
                 { key: 'lead_name',      label: 'Lead',     width: null, sortable: true  },
                 { key: 'city',           label: 'City',     width: 110, sortable: true  },
-                { key: 'stage',          label: 'Stage',    width: 180, sortable: true  },
+                { key: 'stage',          label: 'Stage',    width: 190, sortable: true  },
                 { key: 'building_sf',    label: 'Bldg SF',  width: 90,  sortable: true  },
                 { key: 'land_acres',     label: 'Land AC',  width: 76,  sortable: true  },
                 { key: 'clear_height',   label: 'Clear Ht', width: 74,  sortable: true  },
                 { key: 'dock_doors',     label: 'DH Doors', width: 74,  sortable: true  },
-                { key: 'priority',       label: 'Priority', width: 86,  sortable: false },
+                { key: 'priority',       label: 'Priority', width: 90,  sortable: false },
                 { key: 'catalyst_tags',  label: 'Catalysts',width: 220, sortable: false },
                 { key: 'follow_up_date', label: 'Next F/U', width: 88,  sortable: true  },
               ].map(col => (
                 <th key={col.key}
-                  style={{ width: col.width || undefined, cursor: col.sortable ? 'pointer' : 'default', background: 'rgba(0,0,0,0.025)', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 500, letterSpacing: '0.1em', color: 'var(--text-tertiary)', textTransform: 'uppercase', padding: '11px 14px', textAlign: 'left', borderBottom: '1px solid var(--card-border)', whiteSpace: 'nowrap', userSelect: 'none' }}
+                  style={{ width: col.width || undefined, cursor: col.sortable ? 'pointer' : 'default', background: 'rgba(0,0,0,0.02)', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text-tertiary)', textTransform: 'uppercase', padding: '11px 14px', textAlign: 'left', borderBottom: '1px solid var(--card-border)', whiteSpace: 'nowrap', userSelect: 'none' }}
                   onClick={() => col.sortable && handleSort(col.key)}
                 >
                   {col.label}{col.sortable && sortBy === col.key && <span style={{ marginLeft: 4, opacity: 0.5 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
@@ -295,8 +275,8 @@ export default function LeadsPage() {
 
       {/* PAGINATION */}
       {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, padding: '0 2px' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)' }}>
             {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total.toLocaleString()}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -327,19 +307,20 @@ export default function LeadsPage() {
   );
 }
 
-// ── LEAD ROW ──────────────────────────────────────────────────────────────
+// ── LEAD ROW ──────────────────────────────────────────────
 function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClick }) {
   const catalysts = parseCatalysts(lead.catalyst_tags);
   const { color: scoreColor, grade } = getScoreRing(lead.score || 0);
   const score = lead.score || 0;
   const stage = normalizeStage(lead.stage);
   const isOverdue = lead.follow_up_date && new Date(lead.follow_up_date) < new Date();
-  const priStyle = PRIORITY_COLORS[lead.priority] || PRIORITY_COLORS.Medium;
+  const stageStyle = STAGE_COLORS[stage] || STAGE_COLORS['New'];
+  const priStyle = PRIORITY_COLORS[lead.priority] || PRIORITY_COLORS['Medium'];
 
   return (
     <tr onClick={onClick}
-      style={{ background: selected ? 'rgba(78,110,150,0.06)' : undefined, outline: selected ? '1px solid rgba(78,110,150,0.2)' : undefined, outlineOffset: -1, borderBottom: '1px solid rgba(0,0,0,0.04)', transition: 'background 120ms ease', cursor: 'pointer' }}
-      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'rgba(78,110,150,0.03)'; }}
+      style={{ background: selected ? 'rgba(78,110,150,0.05)' : undefined, borderBottom: '1px solid rgba(0,0,0,0.04)', cursor: 'pointer', transition: 'background 120ms ease' }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'rgba(78,110,150,0.025)'; }}
       onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}
     >
       {/* Score */}
@@ -367,17 +348,17 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
 
       {/* Stage */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: 5, fontSize: 10.5, fontWeight: 500, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', ...STAGE_COLORS[stage] || STAGE_COLORS.New }}>
-  {stage}
-</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 5, fontSize: 10.5, fontWeight: 500, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', ...stageStyle }}>
+          {stage}
+        </span>
       </td>
 
-      {/* SF */}
+      {/* Bldg SF */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
         {lead.building_sf ? Number(lead.building_sf).toLocaleString() : '—'}
       </td>
 
-      {/* Land */}
+      {/* Land AC */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
         {lead.land_acres ? Number(lead.land_acres).toFixed(2) : '—'}
       </td>
@@ -395,7 +376,7 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
       {/* Priority */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle' }}>
         {lead.priority && (
-          <span style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: priStyle.bg, color: priStyle.color, border: `1px solid ${priStyle.border}`, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)', ...priStyle }}>
             {lead.priority}
           </span>
         )}
@@ -406,14 +387,13 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {catalysts.slice(0, 3).map((c, i) => {
             const tagName = (c?.tag || String(c)).trim();
-            // Skip any that still look like raw JSON
             if (!tagName || tagName.startsWith('{') || tagName.startsWith('[')) return null;
             const cs = getCatalystStyle(tagName);
             const isActive = activeCatalystFilter === tagName;
             return (
               <span key={i} onClick={() => onCatalystClick(tagName)}
                 title={`Filter by "${tagName}"`}
-                style={{ display: 'inline-flex', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 500, border: `1px solid ${cs.bdr}`, background: isActive ? cs.color : cs.bg, color: isActive ? '#fff' : cs.color, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 120ms ease' }}
+                style={{ display: 'inline-flex', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', cursor: 'pointer', transition: 'all 120ms ease', border: `1px solid ${cs.bdr}`, background: isActive ? cs.color : cs.bg, color: isActive ? '#fff' : cs.color }}
               >
                 {tagName}
               </span>
@@ -431,7 +411,7 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
       {/* Next F/U */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle' }}>
         {lead.follow_up_date ? (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isOverdue ? 'var(--rust)' : 'var(--text-secondary)', fontWeight: isOverdue ? 600 : 400 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: isOverdue ? '#C0392B' : 'var(--text-secondary)', fontWeight: isOverdue ? 600 : 400 }}>
             {isOverdue && '⚠ '}{new Date(lead.follow_up_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         ) : <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>—</span>}
@@ -440,14 +420,14 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
   );
 }
 
-// ── SCORE RING ─────────────────────────────────────────────────────────────
+// ── SCORE RING ────────────────────────────────────────────
 function ScoreRing({ score }) {
   const { color } = getScoreRing(score);
   const r = 13, circ = 2 * Math.PI * r, filled = (score / 100) * circ;
   return (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34 }}>
       <svg width="34" height="34" viewBox="0 0 34 34">
-        <circle cx="17" cy="17" r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="2.5" />
+        <circle cx="17" cy="17" r={r} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="2.5" />
         <circle cx="17" cy="17" r={r} fill="none" stroke={color} strokeWidth="2.5"
           strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round" transform="rotate(-90 17 17)" />
       </svg>
