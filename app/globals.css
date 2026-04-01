@@ -576,9 +576,8 @@ button {
 }
 
 .cl-tab--active {
-  color: var(--blue);
-  border-bottom-color: var(--blue);
-  font-weight: 600;
+  .cl-tab--active {
+  font-weight: 500;
 }
 
 /* ── EMPTY STATE ─────────────────────────────────────────── */
