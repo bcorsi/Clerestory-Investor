@@ -66,6 +66,14 @@ const PRIORITY_COLORS = {
   Low:      { bg: 'rgba(0,0,0,0.05)',      color: 'var(--text-tertiary)', border: 'rgba(0,0,0,0.1)'       },
 };
 
+const STAGE_COLORS = {
+  'New':                      { background: 'rgba(0,0,0,0.05)',       color: '#78726A',  border: '1px solid rgba(0,0,0,0.12)'       },
+  'Researching':               { background: 'rgba(88,56,160,0.08)',   color: '#5838A0',  border: '1px solid rgba(88,56,160,0.2)'     },
+  'Decision Maker Identified': { background: 'rgba(14,124,123,0.08)',  color: '#0E7C7B',  border: '1px solid rgba(14,124,123,0.2)'    },
+  'Contacted':                 { background: 'rgba(212,98,42,0.10)',   color: '#D4622A',  border: '1px solid rgba(212,98,42,0.25)'    },
+  'Converted':                 { background: 'rgba(24,112,66,0.08)',   color: '#187042',  border: '1px solid rgba(24,112,66,0.2)'     },
+};
+
 export default function LeadsPage() {
   const router = useRouter();
 
@@ -359,9 +367,9 @@ function LeadRow({ lead, selected, activeCatalystFilter, onClick, onCatalystClic
 
       {/* Stage */}
       <td style={{ padding: '10px 14px', verticalAlign: 'middle' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: 5, fontSize: 10.5, fontWeight: 500, background: 'rgba(78,110,150,0.08)', color: 'var(--blue)', border: '1px solid rgba(78,110,150,0.15)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-          {stage}
-        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: 5, fontSize: 10.5, fontWeight: 500, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', ...STAGE_COLORS[stage] || STAGE_COLORS.New }}>
+  {stage}
+</span>
       </td>
 
       {/* SF */}
