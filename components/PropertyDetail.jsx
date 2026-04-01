@@ -3,35 +3,33 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 
-// ─── TABS ─────────────────────────────────────────────────
 const TABS = [
-  { key: 'overview',   label: 'Overview' },
-  { key: 'timeline',   label: 'Timeline' },
-  { key: 'comps',      label: 'Comps' },
-  { key: 'contacts',   label: 'Contacts' },
-  { key: 'deals',      label: 'Deals' },
-  { key: 'leads',      label: 'Leads' },
-  { key: 'files',      label: 'Files' },
+  { key: 'overview',  label: 'Overview' },
+  { key: 'timeline',  label: 'Timeline' },
+  { key: 'comps',     label: 'Comps' },
+  { key: 'contacts',  label: 'Contacts' },
+  { key: 'deals',     label: 'Deals' },
+  { key: 'leads',     label: 'Leads' },
+  { key: 'files',     label: 'Files' },
 ];
 
 const SCORE_FACTORS = [
-  { key: 'lease_expiry_score',   label: 'Lease Expiry',   color: 'var(--rust)' },
-  { key: 'hold_period_score',    label: 'Hold Period',    color: 'var(--amber)' },
-  { key: 'building_age_score',   label: 'Building Age',   color: 'var(--blue)' },
-  { key: 'vacancy_score',        label: 'Vacancy',        color: 'var(--purple)' },
-  { key: 'market_score',         label: 'Market Signal',  color: 'var(--green)' },
-  { key: 'owner_score',          label: 'Owner Profile',  color: 'var(--amber)' },
+  { key: 'lease_expiry_score', label: 'Lease Expiry',  color: 'var(--rust)' },
+  { key: 'hold_period_score',  label: 'Hold Period',   color: 'var(--amber)' },
+  { key: 'building_age_score', label: 'Building Age',  color: 'var(--blue)' },
+  { key: 'vacancy_score',      label: 'Vacancy',       color: 'var(--purple)' },
+  { key: 'market_score',       label: 'Market Signal', color: 'var(--green)' },
+  { key: 'owner_score',        label: 'Owner Profile', color: 'var(--amber)' },
 ];
 
 export default function PropertyDetail({ id, inline = false }) {
-  const [warnNotice, setWarnNotice] = useState(null);
-  const [property, setProperty]   = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [property, setProperty]     = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [activeTab, setActiveTab]   = useState('overview');
   const [activities, setActivities] = useState([]);
-  const [contacts, setContacts]   = useState([]);
-  const [deals, setDeals]         = useState([]);
-  const [leads, setLeads]         = useState([]);
+  const [contacts, setContacts]     = useState([]);
+  const [deals, setDeals]           = useState([]);
+  const [leads, setLeads]           = useState([]);
   const [leaseComps, setLeaseComps] = useState([]);
   const [warnNotice, setWarnNotice] = useState(null);
 
@@ -44,7 +42,6 @@ export default function PropertyDetail({ id, inline = false }) {
     try {
       const supabase = createClient();
 
-      // Main property record
       const { data: prop, error } = await supabase
         .from('properties')
         .select('*')
@@ -53,7 +50,6 @@ export default function PropertyDetail({ id, inline = false }) {
       if (error) throw error;
       setProperty(prop);
 
-      // Activities / timeline
       const { data: acts } = await supabase
         .from('activities')
         .select('*')
@@ -62,7 +58,6 @@ export default function PropertyDetail({ id, inline = false }) {
         .limit(20);
       setActivities(acts || []);
 
-      // Contacts via deal_contacts or direct
       const { data: ctcts } = await supabase
         .from('contacts')
         .select('id, first_name, last_name, title, company, phone, email')
@@ -70,7 +65,6 @@ export default function PropertyDetail({ id, inline = false }) {
         .limit(10);
       setContacts(ctcts || []);
 
-      // Deals
       const { data: dls } = await supabase
         .from('deals')
         .select('id, name, stage, asking_price, commission_est, created_at')
@@ -79,7 +73,6 @@ export default function PropertyDetail({ id, inline = false }) {
         .limit(5);
       setDeals(dls || []);
 
-      // Leads
       const { data: lds } = await supabase
         .from('leads')
         .select('id, lead_name, company, stage, score, catalyst_tags')
@@ -87,16 +80,6 @@ export default function PropertyDetail({ id, inline = false }) {
         .limit(5);
       setLeads(lds || []);
 
-    // Linked WARN notice
-const { data: warnMatch } = await supabase
-  .from('warn_notices')
-  .select('id, company, notice_date, effective_date, employees')
-  .eq('matched_property_id', propId)
-  .limit(1)
-  .single();
-if (warnMatch) setWarnNotice(warnMatch);
-      
-      // Nearby lease comps (same city)
       if (prop?.city) {
         const { data: comps } = await supabase
           .from('lease_comps')
@@ -106,6 +89,16 @@ if (warnMatch) setWarnNotice(warnMatch);
           .limit(6);
         setLeaseComps(comps || []);
       }
+
+      // Linked WARN notice
+      const { data: warnMatch } = await supabase
+        .from('warn_notices')
+        .select('id, company, notice_date, effective_date, employees')
+        .eq('matched_property_id', propId)
+        .limit(1)
+        .single();
+      if (warnMatch) setWarnNotice(warnMatch);
+
     } catch (e) {
       console.error('PropertyDetail load error:', e);
     } finally {
@@ -121,7 +114,6 @@ if (warnMatch) setWarnNotice(warnMatch);
   return (
     <div style={{ fontFamily: 'var(--font-ui)' }}>
 
-      {/* ── OVERVIEW STRIP ── */}
       {!inline && (
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.02em', marginBottom: 4 }}>
@@ -133,69 +125,43 @@ if (warnMatch) setWarnNotice(warnMatch);
         </div>
       )}
 
-      {/* ── KPI MINI STRIP ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-        gap: 10,
-        marginBottom: 20,
-      }}>
+      {/* KPI strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10, marginBottom: 20 }}>
         {[
-          { label: 'SIZE',         value: property.size_sf ? `${Number(property.size_sf).toLocaleString()} SF` : '—' },
-          { label: 'YEAR BUILT',   value: property.year_built || '—' },
-          { label: 'CLEAR HT',     value: property.clear_height_ft ? `${property.clear_height_ft}'` : '—' },
-          { label: 'ZONING',       value: property.zoning || '—' },
-          { label: 'ASKING RENT',  value: property.asking_rent ? `$${Number(property.asking_rent).toFixed(2)}/SF` : '—' },
-          { label: 'LEASE EXP',    value: property.lease_expiry ? new Date(property.lease_expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
+          { label: 'SIZE',        value: property.size_sf ? `${Number(property.size_sf).toLocaleString()} SF` : '—' },
+          { label: 'YEAR BUILT',  value: property.year_built || '—' },
+          { label: 'CLEAR HT',    value: property.clear_height_ft ? `${property.clear_height_ft}'` : '—' },
+          { label: 'ZONING',      value: property.zoning || '—' },
+          { label: 'ASKING RENT', value: property.asking_rent ? `$${Number(property.asking_rent).toFixed(2)}/SF` : '—' },
+          { label: 'LEASE EXP',   value: property.lease_expiry ? new Date(property.lease_expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
         ].map(kpi => (
-          <div key={kpi.label} style={{
-            background: 'rgba(0,0,0,0.025)',
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 12px',
-            border: '1px solid var(--card-border)',
-          }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>
-              {kpi.label}
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>
-              {kpi.value}
-            </div>
+          <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{kpi.value}</div>
           </div>
         ))}
       </div>
 
-      {/* ── BUILDING SCORE ── */}
+      {/* Building score */}
       {property.score != null && (
         <div className="cl-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span className="cl-card-title">BUILDING SCORE</span>
-            <span style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 22,
-              fontWeight: 700,
-              color: property.score >= 75 ? 'var(--rust)' : property.score >= 50 ? 'var(--amber)' : 'var(--blue)',
-            }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: property.score >= 75 ? 'var(--rust)' : property.score >= 50 ? 'var(--amber)' : 'var(--blue)' }}>
               {property.score}
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {SCORE_FACTORS.map(factor => {
-              const val = property[factor.key] ?? Math.floor(Math.random() * 20); // fallback visual
+              const val = property[factor.key] ?? Math.floor(Math.random() * 20);
               return (
                 <div key={factor.key}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>
-                      {factor.label.toUpperCase()}
-                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>{factor.label.toUpperCase()}</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>{val}</span>
                   </div>
                   <div style={{ height: 3, background: 'rgba(0,0,0,0.07)', borderRadius: 99 }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${Math.min(val, 100)}%`,
-                      background: factor.color,
-                      borderRadius: 99,
-                    }} />
+                    <div style={{ height: '100%', width: `${Math.min(val, 100)}%`, background: factor.color, borderRadius: 99 }} />
                   </div>
                 </div>
               );
@@ -204,7 +170,7 @@ if (warnMatch) setWarnNotice(warnMatch);
         </div>
       )}
 
-      {/* ── CATALYST TAGS ── */}
+      {/* Catalyst tags */}
       {tags.length > 0 && (
         <div className="cl-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
           <div className="cl-card-title" style={{ marginBottom: 10 }}>ACTIVE CATALYSTS</div>
@@ -215,8 +181,7 @@ if (warnMatch) setWarnNotice(warnMatch);
               const pri = typeof tag === 'object' ? tag.priority : null;
               return (
                 <span key={i} className={`cl-catalyst cl-catalyst--${cat || 'asset'}`} style={{ fontSize: 10, padding: '3px 8px' }}>
-                  {pri === 'high' && '⚡ '}
-                  {lbl}
+                  {pri === 'high' && '⚡ '}{lbl}
                 </span>
               );
             })}
@@ -224,77 +189,61 @@ if (warnMatch) setWarnNotice(warnMatch);
         </div>
       )}
 
-      {/* ── QUICK ACTIONS ── */}
+      {/* Quick actions */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {['Log Call', 'Log Email', 'Add Note', '+ Task', 'Create Lead'].map(action => (
-          <button key={action} className="cl-btn cl-btn-secondary cl-btn-sm">
-            {action}
-          </button>
+          <button key={action} className="cl-btn cl-btn-secondary cl-btn-sm">{action}</button>
         ))}
       </div>
 
-      {/* ── TABS ── */}
+      {/* Tabs */}
       <div className="cl-tabs">
         {TABS.map(tab => (
-          <button
-            key={tab.key}
-            className={`cl-tab ${activeTab === tab.key ? 'cl-tab--active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
+          <button key={tab.key} className={`cl-tab ${activeTab === tab.key ? 'cl-tab--active' : ''}`} onClick={() => setActiveTab(tab.key)}>
             {tab.label}
             {tab.key === 'timeline' && activities.length > 0 && (
-              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>
-                {activities.length}
-              </span>
+              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>{activities.length}</span>
             )}
             {tab.key === 'contacts' && contacts.length > 0 && (
-              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>
-                {contacts.length}
-              </span>
+              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>{contacts.length}</span>
             )}
           </button>
         ))}
       </div>
 
-      {/* ── TAB CONTENT ── */}
+      {/* Tab content */}
       <div style={{ minHeight: 200 }}>
-        {activeTab === 'overview' && <OverviewTab property={property} warnNotice={warnNotice} />}
-        {activeTab === 'timeline' && <TimelineTab activities={activities} />}
-        {activeTab === 'comps' && <CompsTab comps={leaseComps} />}
-        {activeTab === 'contacts' && <ContactsTab contacts={contacts} />}
-        {activeTab === 'deals' && <DealsTab deals={deals} />}
-        {activeTab === 'leads' && <LeadsTab leads={leads} />}
-        {activeTab === 'files' && <FilesTab propertyId={id} />}
+        {activeTab === 'overview'  && <OverviewTab property={property} warnNotice={warnNotice} />}
+        {activeTab === 'timeline'  && <TimelineTab activities={activities} />}
+        {activeTab === 'comps'     && <CompsTab comps={leaseComps} />}
+        {activeTab === 'contacts'  && <ContactsTab contacts={contacts} />}
+        {activeTab === 'deals'     && <DealsTab deals={deals} />}
+        {activeTab === 'leads'     && <LeadsTab leads={leads} />}
+        {activeTab === 'files'     && <FilesTab propertyId={id} />}
       </div>
     </div>
   );
 }
 
-// ─── TAB PANELS ───────────────────────────────────────────
-
 function OverviewTab({ property, warnNotice }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+      {/* WARN notice link */}
       {warnNotice && (
-        <div style={{ background: 'var(--rust-bg)', border: '1px solid var(--rust-bdr)', borderRadius: 10, padding: '14px 18px', borderLeft: '3px solid var(--rust)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 18 }}>⚡</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rust)', marginBottom: 3 }}>Linked WARN Filing</div>
-            <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{warnNotice.company}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {warnNotice.employees ? `${Number(warnNotice.employees).toLocaleString()} workers` : ''}
-              {warnNotice.notice_date ? ` · Filed ${new Date(warnNotice.notice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
-            </div>
+        <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--rust)' }}>
+          <div className="cl-card-title" style={{ marginBottom: 10 }}>⚡ LINKED WARN FILING</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{warnNotice.company}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            {warnNotice.employees ? `${Number(warnNotice.employees).toLocaleString()} workers affected` : ''}
+            {warnNotice.notice_date ? ` · Filed ${new Date(warnNotice.notice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
           </div>
-          <a href={`/warn-intel/${warnNotice.id}`} style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
-            View Filing →
+          <a href={`/warn-intel/${warnNotice.id}`} style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>
+            View WARN Filing →
           </a>
         </div>
       )}
-      
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
       {property.notes && (
         <div className="cl-card" style={{ padding: '14px 16px' }}>
           <div className="cl-card-title" style={{ marginBottom: 8 }}>NOTES</div>
@@ -302,7 +251,6 @@ function OverviewTab({ property, warnNotice }) {
         </div>
       )}
 
-      {/* AI signal placeholder */}
       <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--blue3)' }}>
         <div className="cl-card-title" style={{ marginBottom: 8 }}>AI PROPERTY SIGNAL</div>
         <p style={{ fontFamily: 'var(--font-editorial)', fontStyle: 'italic', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
@@ -312,24 +260,21 @@ function OverviewTab({ property, warnNotice }) {
         </p>
       </div>
 
-      {/* Property details grid */}
       <div className="cl-card" style={{ padding: '14px 16px' }}>
         <div className="cl-card-title" style={{ marginBottom: 12 }}>PROPERTY DETAILS</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
           {[
-            ['APN', property.apn],
-            ['Owner', property.owner_name],
+            ['APN',        property.apn],
+            ['Owner',      property.owner_name],
             ['Dock Doors', property.dock_doors],
-            ['Grade Level', property.grade_level_doors],
+            ['Grade Level',property.grade_level_doors],
             ['Sprinklers', property.sprinklers],
-            ['Power', property.power_amps ? `${property.power_amps}A` : null],
-            ['Lot SF', property.lot_sf ? Number(property.lot_sf).toLocaleString() : null],
-            ['Parking', property.parking_spaces ? `${property.parking_spaces} stalls` : null],
+            ['Power',      property.power_amps ? `${property.power_amps}A` : null],
+            ['Lot SF',     property.lot_sf ? Number(property.lot_sf).toLocaleString() : null],
+            ['Parking',    property.parking_spaces ? `${property.parking_spaces} stalls` : null],
           ].filter(([, v]) => v != null).map(([label, value]) => (
             <div key={label}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 2 }}>
-                {label.toUpperCase()}
-              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 2 }}>{label.toUpperCase()}</div>
               <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{value}</div>
             </div>
           ))}
@@ -346,23 +291,12 @@ function TimelineTab({ activities }) {
       <div className="cl-empty-sub">Log a call or note to start the timeline</div>
     </div>
   );
-
   const ACT_ICONS = { call: '📞', email: '✉️', note: '📝', meeting: '🤝', task: '✓', default: '·' };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {activities.map((act, i) => (
-        <div key={act.id} style={{
-          display: 'flex', gap: 12, paddingBottom: 16,
-          borderLeft: '2px solid var(--card-border)',
-          marginLeft: 8, paddingLeft: 16, position: 'relative',
-        }}>
-          {/* Dot */}
-          <div style={{
-            position: 'absolute', left: -5, top: 4,
-            width: 8, height: 8, borderRadius: '50%',
-            background: 'var(--blue3)', border: '2px solid var(--bg)',
-          }} />
+      {activities.map((act) => (
+        <div key={act.id} style={{ display: 'flex', gap: 12, paddingBottom: 16, borderLeft: '2px solid var(--card-border)', marginLeft: 8, paddingLeft: 16, position: 'relative' }}>
+          <div style={{ position: 'absolute', left: -5, top: 4, width: 8, height: 8, borderRadius: '50%', background: 'var(--blue3)', border: '2px solid var(--bg)' }} />
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
               <span style={{ fontSize: 12 }}>{ACT_ICONS[act.activity_type] || ACT_ICONS.default}</span>
@@ -371,9 +305,7 @@ function TimelineTab({ activities }) {
                 {new Date(act.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
             </div>
-            {act.body && (
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{act.body}</p>
-            )}
+            {act.body && <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{act.body}</p>}
           </div>
         </div>
       ))}
@@ -392,9 +324,7 @@ function CompsTab({ comps }) {
     <div className="cl-table-wrap">
       <table className="cl-table">
         <thead>
-          <tr>
-            <th>Address</th><th>Tenant</th><th>SF</th><th>Rate</th><th>Type</th><th>Date</th>
-          </tr>
+          <tr><th>Address</th><th>Tenant</th><th>SF</th><th>Rate</th><th>Type</th><th>Date</th></tr>
         </thead>
         <tbody>
           {comps.map(c => (
@@ -402,9 +332,7 @@ function CompsTab({ comps }) {
               <td style={{ fontSize: 12 }}>{c.address}</td>
               <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.tenant || '—'}</td>
               <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{c.size_sf ? Number(c.size_sf).toLocaleString() : '—'}</td>
-              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--blue)' }}>
-                {c.lease_rate ? `$${Number(c.lease_rate).toFixed(2)}` : '—'}
-              </td>
+              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--blue)' }}>{c.lease_rate ? `$${Number(c.lease_rate).toFixed(2)}` : '—'}</td>
               <td><span className="cl-badge cl-badge-gray" style={{ fontSize: 9 }}>{c.lease_type || 'NNN'}</span></td>
               <td style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)' }}>
                 {c.lease_date ? new Date(c.lease_date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}
@@ -428,12 +356,7 @@ function ContactsTab({ contacts }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {contacts.map(c => (
         <div key={c.id} className="cl-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: 'var(--blue-bg)', color: 'var(--blue)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, flexShrink: 0,
-          }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--blue-bg)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
             {(c.first_name?.[0] || '') + (c.last_name?.[0] || '')}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -457,10 +380,7 @@ function DealsTab({ deals }) {
       <div className="cl-empty-sub">Convert a lead or create a deal from this property</div>
     </div>
   );
-  const DEAL_STAGE_COLORS = {
-    'Tracking': 'gray', 'LOI': 'amber', 'LOI Accepted': 'amber',
-    'Due Diligence': 'blue', 'Closed Won': 'green', 'Closed Lost': 'rust',
-  };
+  const DEAL_STAGE_COLORS = { 'Tracking': 'gray', 'LOI': 'amber', 'LOI Accepted': 'amber', 'Due Diligence': 'blue', 'Closed Won': 'green', 'Closed Lost': 'rust' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {deals.map(d => (
@@ -468,9 +388,7 @@ function DealsTab({ deals }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{d.name}</span>
             <span className={`cl-badge cl-badge-${DEAL_STAGE_COLORS[d.stage] || 'gray'}`}>{d.stage}</span>
-            {d.commission_est && (
-              <span className="cl-commission">${Number(d.commission_est).toLocaleString()}</span>
-            )}
+            {d.commission_est && <span className="cl-commission">${Number(d.commission_est).toLocaleString()}</span>}
           </div>
         </div>
       ))}
@@ -491,11 +409,7 @@ function LeadsTab({ leads }) {
         <div key={l.id} className="cl-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{l.lead_name || l.company || 'Unnamed Lead'}</span>
           <span className={`cl-badge cl-badge-${l.stage === 'New' || l.stage === 'Contacted' ? 'blue' : l.stage === 'Converted' ? 'green' : 'gray'}`}>{l.stage || '—'}</span>
-          {l.score != null && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)' }}>
-              Score: {l.score}
-            </span>
-          )}
+          {l.score != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)' }}>Score: {l.score}</span>}
         </div>
       ))}
     </div>
@@ -503,7 +417,7 @@ function LeadsTab({ leads }) {
 }
 
 function FilesTab({ propertyId }) {
-  const [files, setFiles] = useState([]);
+  const [files, setFiles]   = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -529,7 +443,6 @@ function FilesTab({ propertyId }) {
       <div className="cl-empty-sub">Upload BOVs, flyers, inspection reports, leases</div>
     </div>
   );
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {files.map(f => (
@@ -540,9 +453,7 @@ function FilesTab({ propertyId }) {
             {new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
           {f.file_url && (
-            <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="cl-btn cl-btn-secondary cl-btn-sm">
-              Open
-            </a>
+            <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="cl-btn cl-btn-secondary cl-btn-sm">Open</a>
           )}
         </div>
       ))}
