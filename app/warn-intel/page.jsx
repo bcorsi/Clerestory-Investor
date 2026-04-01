@@ -366,12 +366,17 @@ export default function WarnIntelPage() {
         badge={{ label: 'WARN', color: 'rust' }}
       >
         {selectedNotice && (
-          <WarnDetail
-            notice={selectedNotice}
-            onCreateLead={() => setWarnModalNotice(selectedNotice)}
-            onSearchProperty={searchPropertyDatabase}
-            onClose={() => { setSelectedId(null); setSelectedNotice(null); }}
-          />
+        <WarnDetail
+  notice={selectedNotice}
+  onCreateLead={() => setWarnModalNotice(selectedNotice)}
+  onPropertyMatched={(propertyId) => {
+    setNotices(prev => prev.map(n =>
+      n.id === selectedNotice?.id ? { ...n, matched_property_id: propertyId } : n
+    ));
+  }}
+  onSearchProperty={searchPropertyDatabase}
+  onClose={() => { setSelectedId(null); setSelectedNotice(null); }}
+/>
         )}
       </SlideDrawer>
 
