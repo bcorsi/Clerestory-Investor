@@ -83,6 +83,81 @@ export default function OwnerSearchPage() {
     }
   }
 
+async function createLeadFromResearch(r) {
+  try {
+    const supabase = createClient();
+    const { data: lead, error } = await supabase.from('leads').insert({
+      lead_name:     r.name || query,
+      company:       r.name || query,
+      address:       address || null,
+      city:          r.city || null,
+      stage:         'New',
+      priority:      'High',
+      source:        'Owner Search',
+      notes:         [
+        r.outreach_angle && `Outreach angle: ${r.outreach_angle}`,
+        r.acquisition_strategy && `Strategy: ${r.acquisition_strategy}`,
+        r.recent_activity && `Recent activity: ${r.recent_activity}`,
+        r.sell_signals && `Sell signals: ${Array.isArray(r.sell_signals) ? r.sell_signals.join(', ') : r.sell_signals}`,
+      ].filter(Boolean).join('\n'),
+      decision_maker: r.decision_maker || null,
+      phone:          r.direct_phone || null,
+      email:          r.direct_email || null,
+      catalyst_tags:  JSON.stringify(
+        r.sell_signals
+          ? (Array.isArray(r.sell_signals) ? r.sell_signals : [r.sell_signals]).map(s => ({ tag: s, category: 'owner', priority: 'high' }))
+          : []
+      ),
+    }).select('id').single();
+    if (error) throw error;
+    alert(`Lead created for ${r.name || query}!`);
+  } catch(e) {
+    console.error(e);
+    alert('Error creating lead: ' + e.message);
+  }
+}
+
+async function saveToProperty(r) {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from('properties').insert({
+      address:    address || r.name || query,
+      owner:      r.name || query,
+      owner_type: r.type || null,
+      city:       r.city || null,
+      notes:      r.notes || r.outreach_angle || null,
+    });
+    if (error) throw error;
+    alert(`Property saved for ${r.name || query}!`);
+  } catch(e) {
+    console.error(e);
+    alert('Error saving property: ' + e.message);
+  }
+}
+
+async function saveToWarnTarget(r) {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from('warn_notices').insert({
+      company:        r.name || query,
+      address:        address || null,
+      county:         r.city || null,
+      is_industrial:  true,
+      is_in_market:   true,
+      research_notes: [
+        r.outreach_angle && `Outreach angle: ${r.outreach_angle}`,
+        r.sell_signals && `Sell signals: ${Array.isArray(r.sell_signals) ? r.sell_signals.join(', ') : r.sell_signals}`,
+        r.recent_activity && `Recent activity: ${r.recent_activity}`,
+      ].filter(Boolean).join('\n'),
+    });
+    if (error) throw error;
+    alert(`${r.name || query} saved as WARN target!`);
+  } catch(e) {
+    console.error(e);
+    alert('Error saving WARN target: ' + e.message);
+  }
+}
+  
   return (
     <div>
       <div className="cl-page-header">
@@ -251,14 +326,17 @@ export default function OwnerSearchPage() {
                         </>
                       );
                     })()}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                      <button className="cl-btn cl-btn-primary cl-btn-sm">+ Create Lead from Research</button>
-                      <button className="cl-btn cl-btn-secondary cl-btn-sm">📋 Save to Property</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+                   <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+  <button className="cl-btn cl-btn-primary cl-btn-sm" onClick={() => createLeadFromResearch(r)}>
+    + Create Lead from Research
+  </button>
+  <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => saveToProperty(r)}>
+    📋 Save to Property
+  </button>
+  <button className="cl-btn cl-btn-secondary cl-btn-sm" onClick={() => saveToWarnTarget(r)}>
+    ⚡ Save to WARN Target
+  </button>
+</div>
           )}
 
           {!loading && !result && (
