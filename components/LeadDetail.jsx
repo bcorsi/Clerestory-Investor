@@ -282,9 +282,13 @@ Write a concise intelligence synthesis with these EXACT sections:
 
 Be direct. Reference actual data. 200 words max.`;
 
-      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, mode: 'synthesis' }) });
-      const data = await res.json();
-      const text = data.result || data.content || 'Synthesis unavailable.';
+      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+  model: 'claude-sonnet-4-20250514',
+  max_tokens: 1000,
+  messages: [{ role: 'user', content: prompt }],
+}) });
+const data = await res.json();
+const text = data.content?.[0]?.text || 'Synthesis unavailable.';
       setSynth(text); setSynthTs(new Date().toISOString());
       const sb = createClient();
       await sb.from('leads').update({ ai_synthesis: text, ai_synthesis_at: new Date().toISOString() }).eq('id', l.id);
