@@ -75,9 +75,9 @@ export default function DealsPage() {
         { data: commData },
       ] = await Promise.all([
         supabase.from('deals').select('*', { count: 'exact', head: true })
-          .not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
+          .neq('stage', 'Closed Won').neq('stage', 'Closed Lost').neq('stage', 'Dead'),
         supabase.from('deals').select('deal_value')
-          .not('stage', 'in', '("Closed Won","Closed Lost","Dead")'),
+          .neq('stage', 'Closed Won').neq('stage', 'Closed Lost').neq('stage', 'Dead'),
         supabase.from('deals').select('commission_est')
           .in('stage', [...COMMISSION_STAGES]),
       ]);
@@ -99,7 +99,11 @@ export default function DealsPage() {
         .order(sortBy, { ascending: sortDir === 'asc' });
 
       if (stageFilter === 'active') {
-        query = query.not('stage', 'in', '("Closed Won","Closed Lost","Dead")');
+        // Filter out closed stages — use filter() for reliable Supabase v2 behavior
+        query = query
+          .neq('stage', 'Closed Won')
+          .neq('stage', 'Closed Lost')
+          .neq('stage', 'Dead');
       } else if (stageFilter !== 'all') {
         query = query.eq('stage', stageFilter);
       }
