@@ -388,7 +388,7 @@ Be direct. Reference actual data. 200 words max.`;
     if (!confirm(`Convert "${l.lead_name || l.company}" to active deal?`)) return;
     try {
       const sb = createClient();
-      const { data: deal, error } = await sb.from('deals').insert({ deal_name: l.lead_name || l.company, address: l.address, city: l.city, market: l.market, stage: 'Tracking', lead_id: l.id, notes: l.notes }).select('id').single();
+      const { data: deal, error } = await sb.from('deals').insert({ deal_name: l.lead_name || l.company, address: l.address, market: l.market, stage: 'Tracking', lead_id: l.id, notes: l.notes }).select('id').single();
       if (error) throw error;
       await sb.from('leads').update({ stage: 'Converted', converted_deal_id: deal.id }).eq('id', l.id);
       onRefresh?.(); router.push(`/deals/${deal.id}`);
@@ -940,15 +940,25 @@ Be direct. Reference actual data. 200 words max.`;
                     <div
                       key={stage}
                       onClick={() => updateStage(stage)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', cursor: 'pointer', transition: 'background 100ms ease' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(78,110,150,0.04)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', cursor: 'pointer', transition: 'background 100ms ease', background: isActive ? 'rgba(168,112,16,0.04)' : 'transparent' }}
+                      onMouseEnter={e => e.currentTarget.style.background = isActive ? 'rgba(168,112,16,0.08)' : 'rgba(78,110,150,0.04)'}
+                      onMouseLeave={e => e.currentTarget.style.background = isActive ? 'rgba(168,112,16,0.04)' : 'transparent'}
                       title={`Set stage to "${stage}"`}
                     >
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, background: isDone ? 'var(--green-bg)' : isActive ? 'var(--amber-bg)' : 'rgba(0,0,0,0.04)', border: `1px solid ${isDone ? 'rgba(24,112,66,0.25)' : isActive ? 'rgba(168,112,16,0.25)' : 'rgba(0,0,0,0.1)'}`, color: isDone ? 'var(--green)' : isActive ? 'var(--amber)' : 'var(--text-tertiary)' }}>
-                        {isDone ? '✓' : isActive ? '◉' : '○'}
+                      <div style={{ position: 'relative', width: 22, height: 22, flexShrink: 0 }}>
+                        {isActive && (
+                          <div style={{
+                            position: 'absolute', inset: -3, borderRadius: '50%',
+                            border: '1.5px solid rgba(168,112,16,0.4)',
+                            animation: 'cl-pulse 1.8s ease-in-out infinite',
+                          }} />
+                        )}
+                        <div style={{ width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: isDone ? 'var(--green-bg)' : isActive ? 'var(--amber-bg)' : 'rgba(0,0,0,0.04)', border: `1.5px solid ${isDone ? 'rgba(24,112,66,0.35)' : isActive ? 'rgba(168,112,16,0.45)' : 'rgba(0,0,0,0.1)'}`, color: isDone ? 'var(--green)' : isActive ? 'var(--amber)' : 'var(--text-tertiary)' }}>
+                          {isDone ? '✓' : isActive ? '●' : '○'}
+                        </div>
                       </div>
                       <span style={{ fontSize: 13, color: isActive ? 'var(--amber)' : isDone ? 'var(--text-tertiary)' : 'var(--text-secondary)', fontWeight: isActive ? 600 : 400 }}>{stage}</span>
+                      {isActive && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--amber)', opacity: 0.7, letterSpacing: '0.08em' }}>CURRENT</span>}
                     </div>
                   );
                 })}
