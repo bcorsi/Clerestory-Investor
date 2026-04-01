@@ -24,7 +24,18 @@ function getCatalystColor(tag) {
 function parseCatalysts(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
-  try { return JSON.parse(raw); } catch { return []; }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      return [parsed];
+    } catch {
+      // Plain string tag
+      return [{ tag: raw }];
+    }
+  }
+  if (typeof raw === 'object') return [raw];
+  return [];
 }
 
 export default function LeadsPage() {
