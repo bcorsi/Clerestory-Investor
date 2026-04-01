@@ -1,93 +1,109 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 
-const TABS = ['Timeline', 'APNs', 'Lease Comps', 'Contacts', 'Properties', 'Files'];
+const TABS = ['Timeline', 'Building Specs', 'Contacts', 'APNs', 'Comps', 'Files'];
 
-const MOCK_LEAD = {
-  company: 'Leegin Creative Leather Products',
-  address: '14022 Nelson Ave E',
-  city: 'Baldwin Park',
-  market: 'SGV · Mid Valley',
-  lat: 34.0887, lng: -117.9712,
-  buildingSF: 186400,
-  score: 95,
-  grade: 'A+',
-  ownerType: 'Owner-User',
-  leaseExpiry: 'Aug 2027',
-  ownerName: 'Leegin Creative Leather Inc.',
-  ownerContact: 'Bob Rosenthall',
-  ownerSince: '2009',
-  catalystCount: 3,
-  source: 'Broker intel',
-  lastContact: 'Never',
-};
+function parseCatalysts(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw); } catch { return []; }
+}
 
-const MOCK_ACTIVITIES = [
-  { type: 'alert', text: '<strong>WARN Filing Detected</strong> — 287 workers affected, permanent closure. Source: CA EDD.', meta: 'System · Auto-generated catalyst', date: 'Mar 20' },
-  { type: 'note', text: '<strong>Research Note:</strong> CoStar confirms no broker listed. Owner-user per assessor records.', meta: 'Briana Corso', date: 'Mar 21' },
-  { type: 'call', text: '<strong>Called Jodie (Colliers IE)</strong> — Left voicemail re: displacement signal. Waiting for callback.', meta: 'Briana Corso', date: 'Mar 22' },
-  { type: 'email', text: '<strong>Lead created from Broker Intel</strong> — Score computed at 95/A+.', meta: 'System · Lead Gen module', date: 'Mar 20' },
-];
+function getCatalystStyle(tag) {
+  const t = (tag?.tag || tag || '').toLowerCase();
+  if (t.includes('warn') || t.includes('distress') || t.includes('nod') || t.includes('bankruptcy'))
+    return { bg: 'var(--rust-bg)', bdr: 'var(--rust-bdr)', color: 'var(--rust)', category: 'owner' };
+  if (t.includes('lease') || t.includes('expir') || t.includes('capex') || t.includes('vacancy'))
+    return { bg: 'rgba(140,90,4,0.1)', bdr: 'rgba(140,90,4,0.25)', color: 'var(--amber)', category: 'occupier' };
+  if (t.includes('slb') || t.includes('sale-lease') || t.includes('owner-user') || t.includes('long hold') || t.includes('absentee'))
+    return { bg: 'rgba(78,110,150,0.1)', bdr: 'rgba(78,110,150,0.25)', color: 'var(--blue)', category: 'owner' };
+  if (t.includes('m&a') || t.includes('acquisition') || t.includes('infrastructure') || t.includes('bess') || t.includes('restructur'))
+    return { bg: 'rgba(88,56,160,0.1)', bdr: 'rgba(88,56,160,0.25)', color: 'var(--purple)', category: 'market' };
+  if (t.includes('hiring') || t.includes('expansion') || t.includes('relocation'))
+    return { bg: 'rgba(140,90,4,0.1)', bdr: 'rgba(140,90,4,0.25)', color: 'var(--amber)', category: 'occupier' };
+  return { bg: 'rgba(78,110,150,0.08)', bdr: 'rgba(78,110,150,0.2)', color: 'var(--blue)', category: 'owner' };
+}
 
-const MOCK_CATALYSTS = [
-  { type: 'lease', label: 'Lease Exp Aug \'27', desc: '17 months remaining', date: '8/27' },
-  { type: 'broker', label: 'Broker Intel', desc: 'Owner exploring SLB', date: 'Mar 21' },
-  { type: 'warn', label: 'Displacement Signal', desc: 'Owner-user relocation risk', date: 'est.' },
-];
+const ICON_BG   = { call: 'var(--blue-bg)', note: 'rgba(140,90,4,0.1)', alert: 'var(--rust-bg)', email: 'rgba(88,56,160,0.1)', task: 'rgba(24,112,66,0.1)' };
+const ICON_COLOR = { call: 'var(--blue)', note: 'var(--amber)', alert: 'var(--rust)', email: 'var(--purple)', task: 'var(--green)' };
+const ICON_EMOJI = { call: '📞', note: '📝', alert: '⚠', email: '✉', task: '✓' };
 
-const ICON_BG = { call: 'var(--blue-bg)', note: 'var(--amber-bg)', alert: 'var(--rust-bg)', email: 'var(--purple-bg)' };
-const ICON_COLOR = { call: 'var(--blue)', note: 'var(--amber)', alert: 'var(--rust)', email: 'var(--purple)' };
-const ICON_EMOJI = { call: '📞', note: '📝', alert: '⚠', email: '✉' };
-const CAT_BG = { lease: 'var(--amber-bg)', broker: 'var(--blue-bg)', warn: 'var(--rust-bg)' };
-const CAT_BDR = { lease: 'var(--amber-bdr)', broker: 'var(--blue-bdr)', warn: 'var(--rust-bdr)' };
-const CAT_COLOR = { lease: 'var(--amber)', broker: 'var(--blue)', warn: 'var(--rust)' };
-
-export default function LeadDetail({ lead, leadId, onBack, onNavigate, onConvertToDeal, onCreateProperty, deals, contacts, leaseComps, saleComps, onRefresh, toast }) {
+export default function LeadDetail({ lead, onClose, onRefresh, fullPage = false }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('Timeline');
   const [synthOpen, setSynthOpen] = useState(true);
-  const [specsOpen, setSpecsOpen] = useState(false);
+  const [synth, setSynth] = useState('');
+  const [synthLoading, setSynthLoading] = useState(false);
+  const [synthTimestamp, setSynthTimestamp] = useState(null);
   const [logPanel, setLogPanel] = useState(null);
-  const [logText, setLogText] = useState('');
-  const [fetchedLead, setFetchedLead] = useState(null);
-  const [fetchLoading, setFetchLoading] = useState(false);
+  const [logText, setLogText] = useState(null);
+  const [logContact, setLogContact] = useState('');
+  const [activities, setActivities] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [apns, setApns] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [cadence, setCadence] = useState(lead?.cadence || '');
+  const [followUpDate, setFollowUpDate] = useState(lead?.follow_up_date || '');
+  const [editForm, setEditForm] = useState({
+    lead_name: lead?.lead_name || '',
+    company: lead?.company || '',
+    address: lead?.address || '',
+    city: lead?.city || '',
+    market: lead?.market || '',
+    building_sf: lead?.building_sf || '',
+    clear_height_ft: lead?.clear_height_ft || '',
+    dock_doors: lead?.dock_doors || '',
+    grade_doors: lead?.grade_doors || '',
+    year_built: lead?.year_built || '',
+    zoning: lead?.zoning || '',
+    power_amps: lead?.power_amps || '',
+    land_acres: lead?.land_acres || '',
+    parking_spaces: lead?.parking_spaces || '',
+    stage: lead?.stage || 'New',
+    priority: lead?.priority || 'Medium',
+    owner_type: lead?.owner_type || '',
+    source: lead?.source || '',
+    score: lead?.score || '',
+    notes: lead?.notes || '',
+    decision_maker: lead?.decision_maker || '',
+    phone: lead?.phone || '',
+    email: lead?.email || '',
+  });
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
-  const [warnNotice, setWarnNotice] = useState(null);
+  const l = lead || {};
+  const catalysts = parseCatalysts(l.catalyst_tags);
+  const score = l.score || 0;
+  const grade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B+' : score >= 60 ? 'B' : 'C';
 
-useEffect(() => {
-  if (leadId && !lead) {
-    setFetchLoading(true);
-    import('@/lib/supabase').then(({ createClient }) => {
-      const supabase = createClient();
-      supabase.from('leads').select('*').eq('id', leadId).single()
-        .then(({ data, error }) => {
-          if (!error && data) {
-            setFetchedLead(data);
-            // Fetch linked WARN notice
-            supabase.from('warn_notices')
-              .select('id, company, notice_date, effective_date, employees')
-              .eq('converted_lead_id', leadId)
-              .limit(1)
-              .single()
-              .then(({ data: warn }) => { if (warn) setWarnNotice(warn); });
-          }
-          setFetchLoading(false);
-        });
-    });
-  }
-}, [leadId]);
+  // Load data on mount
+  useEffect(() => {
+    if (l.id) {
+      loadActivities();
+      loadContacts();
+      loadApns();
+      loadSynth();
+    }
+  }, [l.id]);
 
-  const l = lead ?? fetchedLead ?? MOCK_LEAD;
-
-  if (fetchLoading) return <div className="cl-loading"><div className="cl-spinner" />Loading lead…</div>;
-
+  // Init Leaflet map
   useEffect(() => {
     if (typeof window === 'undefined' || mapInstanceRef.current) return;
-    import('leaflet').then(L => {
-      L = L.default;
+    if (!mapRef.current) return;
+
+    import('leaflet').then(Lmod => {
+      const L = Lmod.default || Lmod;
+      if (mapInstanceRef.current) return;
+
+      const lat = l.lat ?? 34.0887;
+      const lng = l.lng ?? -117.9712;
+
       const map = L.map(mapRef.current, {
-        center: [l.lat ?? 34.0887, l.lng ?? -117.9712],
+        center: [lat, lng],
         zoom: 16,
         zoomControl: false,
         scrollWheelZoom: false,
@@ -95,19 +111,23 @@ useEffect(() => {
         doubleClickZoom: false,
         attributionControl: false,
       });
+
       L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         { maxZoom: 20 }
       ).addTo(map);
+
       const icon = L.divIcon({
         className: '',
         html: '<div style="width:14px;height:14px;border-radius:50%;background:#B83714;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
         iconSize: [14, 14],
         iconAnchor: [7, 7],
       });
-      L.marker([l.lat ?? 34.0887, l.lng ?? -117.9712], { icon }).addTo(map);
+
+      L.marker([lat, lng], { icon }).addTo(map);
       mapInstanceRef.current = map;
-    });
+    }).catch(err => console.error('Leaflet error:', err));
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -116,527 +136,646 @@ useEffect(() => {
     };
   }, []);
 
-  function toggleLog(type) {
-    setLogPanel(prev => prev === type ? null : type);
-    setLogText('');
+  async function loadActivities() {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('lead_id', l.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setActivities(data || []);
+    } catch(e) { console.error(e); }
   }
 
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+  async function loadContacts() {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('lead_id', l.id);
+      setContacts(data || []);
+    } catch(e) { console.error(e); }
+  }
 
-      {/* TOPBAR */}
-      <div style={S.topbar}>
-        <div style={S.topbarInner}>
-          <div style={S.bc}>
-            <span style={{ cursor: 'pointer', color: 'var(--ink4)' }} onClick={onBack}>Lead Gen</span>
-            <span style={{ opacity: .4, margin: '0 4px' }}>›</span>
-            <span style={{ color: 'var(--ink2)', fontWeight: 500 }}>{l.company}</span>
+  async function loadApns() {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('property_apns')
+        .select('*')
+        .eq('lead_id', l.id);
+      setApns(data || []);
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadSynth() {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('leads')
+        .select('ai_synthesis, ai_synthesis_at')
+        .eq('id', l.id)
+        .single();
+      if (data?.ai_synthesis) {
+        setSynth(data.ai_synthesis);
+        setSynthTimestamp(data.ai_synthesis_at);
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  async function runSynthesis() {
+    setSynthLoading(true);
+    try {
+      const prompt = `You are a senior CRE broker analyzing a lead for industrial real estate in Southern California.
+
+LEAD DATA:
+Company: ${l.lead_name || l.company}
+Address: ${l.address || 'Unknown'}, ${l.city || ''}
+Market: ${l.market || 'Unknown'}
+Building SF: ${l.building_sf ? Number(l.building_sf).toLocaleString() + ' SF' : 'Unknown'}
+Owner Type: ${l.owner_type || 'Unknown'}
+Stage: ${l.stage || 'New'}
+Score: ${score}/100 (${grade})
+Catalyst Tags: ${catalysts.map(c => c?.tag || c).join(', ') || 'None'}
+Notes: ${l.notes || 'None'}
+Decision Maker: ${l.decision_maker || 'Unknown'}
+Source: ${l.source || 'Unknown'}
+Recent Activities: ${activities.slice(0,5).map(a => `${a.type}: ${a.notes}`).join(' | ') || 'None'}
+
+Write a concise intelligence synthesis with these sections:
+1. CURRENT SITUATION (2-3 bullet points about this lead's status and opportunity)
+2. KEY CONTACTS / OWNER (1-2 bullets about who to reach)
+3. RECOMMENDED NEXT STEPS (3 numbered action items with timing - Today, 48hrs, Week 1)
+4. CRITICAL INSIGHT (1 sentence urgency or key insight)
+
+Be specific, actionable, and direct. Reference actual data points from above.`;
+
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, mode: 'synthesis' }),
+      });
+      const data = await res.json();
+      const text = data.result || data.content || '';
+
+      setSynth(text);
+      setSynthTimestamp(new Date().toISOString());
+
+      // Persist to Supabase
+      const supabase = createClient();
+      await supabase.from('leads').update({
+        ai_synthesis: text,
+        ai_synthesis_at: new Date().toISOString(),
+      }).eq('id', l.id);
+
+    } catch(e) {
+      console.error('Synthesis error:', e);
+      setSynth('Unable to generate synthesis. Check your AI API connection.');
+    } finally {
+      setSynthLoading(false);
+    }
+  }
+
+  async function logActivity(type) {
+    if (!logText?.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      await supabase.from('activities').insert({
+        lead_id: l.id,
+        type,
+        notes: logText,
+        contact_name: logContact || null,
+        created_at: new Date().toISOString(),
+      });
+      setLogPanel(null);
+      setLogText('');
+      setLogContact('');
+      loadActivities();
+      onRefresh?.();
+    } catch(e) { alert('Error saving activity: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('leads').update({
+        ...editForm,
+        building_sf: editForm.building_sf ? parseInt(String(editForm.building_sf).replace(/,/g,'')) : null,
+        score: editForm.score ? Number(editForm.score) : null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', l.id);
+      if (error) throw error;
+      setEditing(false);
+      onRefresh?.();
+    } catch(e) { alert('Error saving: ' + e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function setCadenceAndFollowUp(val) {
+    setCadence(val);
+    if (!val) return;
+    const intervals = { 'Daily': 1, 'Weekly': 7, 'Biweekly': 14, 'Monthly': 30, 'Quarterly': 90 };
+    const days = intervals[val] || 7;
+    const nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + days);
+    const dateStr = nextDate.toISOString().split('T')[0];
+    setFollowUpDate(dateStr);
+
+    try {
+      const supabase = createClient();
+      await supabase.from('leads').update({
+        cadence: val,
+        follow_up_date: dateStr,
+      }).eq('id', l.id);
+
+      // Auto-create follow-up task
+      await supabase.from('tasks').insert({
+        title: `Follow up — ${l.lead_name || l.company}`,
+        lead_id: l.id,
+        due_date: dateStr,
+        priority: l.priority || 'Medium',
+        notes: `${val} cadence follow-up`,
+        status: 'Pending',
+      });
+      onRefresh?.();
+    } catch(e) { console.error(e); }
+  }
+
+  async function convertToDeal() {
+    try {
+      const supabase = createClient();
+      const { data: deal, error } = await supabase.from('deals').insert({
+        deal_name: l.lead_name || l.company,
+        address: l.address,
+        city: l.city,
+        market: l.market,
+        building_sf: l.building_sf,
+        stage: 'Tracking',
+        lead_id: l.id,
+        notes: l.notes,
+      }).select('id').single();
+      if (error) throw error;
+
+      await supabase.from('leads').update({ stage: 'Converted', converted_deal_id: deal.id }).eq('id', l.id);
+      onRefresh?.();
+      router.push(`/deals/${deal.id}`);
+    } catch(e) { alert('Error converting to deal: ' + e.message); }
+  }
+
+  const inputStyle = { width: '100%', padding: '7px 11px', borderRadius: 7, border: '1px solid var(--card-border)', background: 'rgba(0,0,0,0.025)', fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-primary)', outline: 'none' };
+  const labelStyle = { fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', marginBottom: 4, display: 'block' };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: fullPage ? '100vh' : 'auto', fontFamily: 'var(--font-ui)' }}>
+
+      {/* HERO — satellite map */}
+      <div style={{ height: 260, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div ref={mapRef} style={{ width: '100%', height: 260 }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(10,8,5,0.85) 0%,rgba(10,8,5,0.15) 55%,transparent 100%)', pointerEvents: 'none', zIndex: 400 }} />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 500, padding: '16px 20px' }}>
+          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1.2, marginBottom: 7, textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+            {l.lead_name || l.company || 'Lead Detail'}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {l._warn && <span style={S.hbRust}>⚠ WARN Filing</span>}
+            {l.market && <span style={S.hbBlue}>{l.market}</span>}
+            {l.building_sf && <span style={S.hbAmber}>{Number(l.building_sf).toLocaleString()} SF</span>}
+            {l.owner_type && <span style={S.hbBlue}>{l.owner_type}</span>}
+            {score > 0 && <span style={S.hbGreen}>Score {score} · {grade}</span>}
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={S.pageWrap}>
+      {/* ACTION BAR */}
+      <div style={{ background: 'rgba(0,0,0,0.03)', borderBottom: '1px solid var(--card-border)', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+        {/* Score chip */}
+        {score > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'var(--card-bg)', border: '1px solid var(--rust-bdr)', borderRadius: 7, marginRight: 4, flexShrink: 0 }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Score</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--rust)' }}>{grade}</div>
+            </div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{score}</div>
+          </div>
+        )}
+        <div style={S.abSep} />
+        <button style={S.btnAct} onClick={() => setLogPanel(logPanel === 'call' ? null : 'call')}>📞 Log Call</button>
+        <button style={S.btnAct} onClick={() => setLogPanel(logPanel === 'email' ? null : 'email')}>✉ Log Email</button>
+        <button style={S.btnAct} onClick={() => setLogPanel(logPanel === 'note' ? null : 'note')}>📝 Add Note</button>
+        <button style={S.btnAct} onClick={() => setLogPanel(logPanel === 'task' ? null : 'task')}>+ Task</button>
+        <div style={S.abSep} />
+        <a href={`https://maps.google.com/?q=${encodeURIComponent((l.address || '') + ' ' + (l.city || ''))}`} target="_blank" rel="noopener noreferrer" style={S.btnLink}>📍 Maps</a>
+        <a href={`https://www.costar.com/search#?q=${encodeURIComponent((l.address || '') + (l.city ? ', ' + l.city : ''))}&t=2`} target="_blank" rel="noopener noreferrer" style={S.btnLink}>🗂 CoStar</a>
+        <a href={`https://www.loopnet.com/search/commercial-real-estate/${encodeURIComponent((l.city || 'los-angeles') + '-ca')}/for-sale/`} target="_blank" rel="noopener noreferrer" style={S.btnLink}>🔍 LoopNet</a>
+        {(l.apn || apns[0]?.apn) && (
+          <a href={`https://portal.assessor.lacounty.gov/parceldetail/${String(l.apn || apns[0]?.apn).replace(/-/g,'')}`} target="_blank" rel="noopener noreferrer" style={S.btnLink}>🗺 LA GIS</a>
+        )}
+        <div style={S.abSep} />
+        <button style={S.btnAct} onClick={() => setEditing(!editing)}>✏️ Edit</button>
+        <div style={{ marginLeft: 'auto' }} />
+        <button
+          style={{ ...S.btnAct, background: 'var(--green)', color: '#fff', border: '1px solid var(--green)', fontWeight: 600 }}
+          onClick={convertToDeal}
+        >
+          ◈ Convert to Deal
+        </button>
+      </div>
 
-          {/* HERO — satellite map */}
-          <div style={S.hero}>
-            <div ref={mapRef} style={{ width: '100%', height: 280 }} />
-            <div style={S.heroOverlay} />
-            <div style={S.heroContent}>
-              <div style={S.heroTitle}>{l.company}</div>
-              <div style={S.heroBadges}>
-                <span style={S.hbRust}>⚠ Displacement Signal</span>
-                <span style={S.hbBlue}>{l.market}</span>
-                <span style={S.hbAmber}>{(l.buildingSF ?? 186400).toLocaleString()} SF · {l.ownerType}</span>
-                <span style={S.hbGreen}>Score {l.score} · {l.grade}</span>
+      {/* LOG PANEL */}
+      {logPanel && (
+        <div style={{ background: 'var(--card-bg)', borderBottom: '1px solid var(--card-border)', padding: '14px 20px', display: 'flex', gap: 12, alignItems: 'flex-end', flexShrink: 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>
+              {logPanel === 'call' ? 'Log Call' : logPanel === 'email' ? 'Log Email' : logPanel === 'note' ? 'Add Note' : 'Add Task'}
+            </div>
+            <input
+              value={logContact}
+              onChange={e => setLogContact(e.target.value)}
+              placeholder="Contact name (optional)"
+              style={{ ...inputStyle, marginBottom: 8, fontSize: 12 }}
+            />
+            <textarea
+              value={logText || ''}
+              onChange={e => setLogText(e.target.value)}
+              placeholder={`Notes for this ${logPanel}…`}
+              style={{ ...inputStyle, resize: 'vertical', minHeight: 64 }}
+            />
+          </div>
+          <button style={S.btnAct} onClick={() => { setLogPanel(null); setLogText(''); }}>Cancel</button>
+          <button
+            style={{ ...S.btnAct, background: 'var(--blue)', color: '#fff', border: '1px solid var(--blue)' }}
+            onClick={() => logActivity(logPanel)}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {/* SCROLLABLE BODY */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+
+        {/* EDIT FORM */}
+        {editing && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '16px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Edit Lead</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={S.btnAct} onClick={() => setEditing(false)}>Cancel</button>
+                <button style={{ ...S.btnAct, background: 'var(--blue)', color: '#fff', border: '1px solid var(--blue)' }} onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : '✓ Save'}</button>
               </div>
             </div>
-          </div>
-
-          {/* ACTION BAR */}
-          <div style={S.actionBar}>
-            <div style={S.scoreChip}>
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--ink3)' }}>Lead Score</div>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--rust)' }}>{l.grade}</div>
-              </div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{l.score}</div>
-            </div>
-            <div style={S.abSep} />
-            <button style={S.btnGhost} onClick={() => toggleLog('call')}>📞 Log Call</button>
-            <button style={S.btnGhost} onClick={() => toggleLog('email')}>✉ Log Email</button>
-            <button style={S.btnGhost} onClick={() => toggleLog('note')}>📝 Add Note</button>
-            <button style={S.btnGhost} onClick={() => toggleLog('task')}>+ Task</button>
-            <div style={S.abSep} />
-            <button style={S.btnLink} onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(l.address + ' ' + l.city)}`)}>📍 Google Maps</button>
-            <button style={S.btnLink} onClick={() => window.open(`https://www.costar.com/search#?q=${encodeURIComponent(l.address + (l.city ? ', ' + l.city : ''))}&t=2`)}>🗂 CoStar</button>
-            <button style={S.btnLink} onClick={() => { const apn = l.apn ?? l.apns?.[0]; if (apn) { const cleanAPN = String(apn).replace(/-/g,''); window.open(`https://portal.assessor.lacounty.gov/parceldetail/${cleanAPN}`, '_blank'); } else { const addr = encodeURIComponent(`${l.address}, ${l.city}, CA`); window.open(`https://portal.assessor.lacounty.gov/commonassessment/assessmentsearch?SearchType=address&Address=${addr}`, '_blank'); } }}>🗺 LA County GIS</button>
-            <div style={S.abSep} />
-            <button style={S.btnGhost} onClick={() => {}}>⚙ Edit</button>
-            <button style={S.btnGhost} onClick={() => {}}>↓ Export Memo</button>
-            <button style={S.btnGhost} onClick={() => onNavigate?.('owner-search')}>🔍 Run Owner Search</button>
-            <button style={S.btnGhost} onClick={() => onCreateProperty?.(l)}>+ Create Property</button>
-            <div style={{ marginLeft: 'auto' }} />
-            <button style={S.btnGreen} onClick={() => onConvertToDeal?.(l)}>◈ Convert to Deal</button>
-          </div>
-
-          {/* LOG PANEL */}
-          {logPanel && (
-            <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--line)', padding: '14px 28px', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 6 }}>
-                  {logPanel === 'call' ? 'Log Call' : logPanel === 'email' ? 'Log Email' : logPanel === 'note' ? 'Add Note' : 'Add Task'}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                ['lead_name', 'Lead Name'],
+                ['company', 'Company'],
+                ['address', 'Address'],
+                ['city', 'City'],
+                ['market', 'Market'],
+                ['building_sf', 'Building SF'],
+                ['clear_height_ft', 'Clear Height (ft)'],
+                ['dock_doors', 'Dock Doors'],
+                ['year_built', 'Year Built'],
+                ['zoning', 'Zoning'],
+                ['decision_maker', 'Decision Maker'],
+                ['phone', 'Phone'],
+                ['email', 'Email'],
+              ].map(([key, label]) => (
+                <div key={key}>
+                  <label style={labelStyle}>{label}</label>
+                  <input style={inputStyle} value={editForm[key] || ''} onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))} />
                 </div>
-                <textarea value={logText} onChange={e => setLogText(e.target.value)}
-                  placeholder={`Notes for ${logPanel}...`}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, fontFamily: 'inherit', fontSize: 13, color: 'var(--ink2)', background: 'var(--bg)', outline: 'none', resize: 'vertical', minHeight: 72 }} />
+              ))}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={labelStyle}>Notes</label>
+                <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} value={editForm.notes || ''} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
-              <button style={S.btnGhost} onClick={() => { setLogPanel(null); setLogText(''); }}>Cancel</button>
-              <button style={S.btnBlue} onClick={() => { setLogPanel(null); setLogText(''); }}>Save</button>
+            </div>
+          </div>
+        )}
+
+        {/* AI SYNTHESIS */}
+        <div style={{ background: 'var(--card-bg)', borderRadius: 12, border: '1px solid rgba(88,56,160,0.2)', borderLeft: '3px solid var(--purple)', overflow: 'hidden', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 10px 18px', borderBottom: '1px solid rgba(88,56,160,0.1)', cursor: 'pointer' }} onClick={() => setSynthOpen(o => !o)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--purple)', fontSize: 13 }}>✦</span>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--purple)' }}>AI Synthesis</span>
+              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 12, fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
+                Lead Intelligence · {l.lead_name || l.company}
+              </span>
+            </div>
+            <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--purple)', cursor: 'pointer' }}>
+              {synthOpen ? 'Hide ▴' : 'Show ▾'}
+            </span>
+          </div>
+
+          {synthOpen && (
+            <div style={{ padding: '14px 18px' }}>
+              {synthLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--purple)', fontSize: 13 }}>
+                  <div className="cl-spinner" style={{ width: 16, height: 16, borderColor: 'rgba(88,56,160,0.2)', borderTopColor: 'var(--purple)' }} />
+                  Generating synthesis…
+                </div>
+              ) : synth ? (
+                <div style={{ fontSize: 13.5, lineHeight: 1.72, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{synth}</div>
+              ) : (
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                  No synthesis yet. Click "Generate" to create an AI intelligence report for this lead.
+                </div>
+              )}
             </div>
           )}
 
-          <div style={S.inner}>
-
-  {/* WARN Notice link */}
-  {warnNotice && (
-    <div style={{ background: 'var(--rust-bg)', border: '1px solid var(--rust-bdr)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, borderLeft: '3px solid var(--rust)', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <span style={{ fontSize: 18 }}>⚡</span>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rust)', marginBottom: 3 }}>Linked WARN Filing</div>
-        <div style={{ fontSize: 13, color: 'var(--ink2)' }}>{warnNotice.company}</div>
-        <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 2 }}>
-          {warnNotice.employees ? `${Number(warnNotice.employees).toLocaleString()} workers` : ''}
-          {warnNotice.notice_date ? ` · Filed ${new Date(warnNotice.notice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderTop: '1px solid rgba(88,56,160,0.08)', background: 'rgba(88,56,160,0.02)' }}>
+            <button
+              onClick={runSynthesis}
+              disabled={synthLoading}
+              style={{ fontSize: 12, color: 'var(--purple)', cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px', fontFamily: 'var(--font-ui)' }}
+            >
+              {synth ? '↻ Regenerate' : '✦ Generate'}
+            </button>
+            {synth && (
+              <button onClick={() => navigator.clipboard?.writeText(synth)} style={{ fontSize: 12, color: 'var(--purple)', cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px', fontFamily: 'var(--font-ui)' }}>
+                📋 Copy
+              </button>
+            )}
+            {synthTimestamp && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                Generated {new Date(synthTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <a href={`/warn-intel/${warnNotice.id}`} style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
-        View Filing →
-      </a>
-    </div>
-  )}
 
-            {/* AI SYNTHESIS */}
-            <div style={S.synthCard}>
-              <div style={S.synthHdr} onClick={() => setSynthOpen(o => !o)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, color: 'var(--purple)' }}>✦</span>
-                  <span style={S.synthTitle}>AI Synthesis</span>
-                  <span style={S.synthMeta}>Lead Intelligence Report · {l.company}</span>
-                </div>
-                <span style={S.synthToggle}>{synthOpen ? 'Hide ▴' : 'Show ▾'}</span>
-              </div>
-              {synthOpen && (
-                <div style={S.synthBody}>
-                  <SynthSection title="Current Situation" items={[
-                    `Owner-user occupying ${(l.buildingSF ?? 186400).toLocaleString()} SF in ${l.market} — Lease expiry ${l.leaseExpiry ?? 'Aug 2027'}`,
-                    'Broker intel suggests owner exploring sale-leaseback or relocation',
-                    `${l.market} vacancy sub-3% — demand for quality dock-high product is extremely tight`,
-                    'No broker appointed yet — exclusive outreach window exists',
-                  ]} />
-                  <SynthSection title="Key Contacts / Owner" items={[
-                    `${l.ownerName ?? 'Leegin Creative Leather Inc.'} — owner-user since ${l.ownerSince ?? '2009'}`,
-                    `Primary contact: ${l.ownerContact ?? 'Bob Rosenthall'} — decision maker for RE matters`,
-                  ]} />
-                  <SynthSection title="Recommended Next Steps" steps={[
-                    `<strong>Today:</strong> Reach out directly to ${l.ownerContact ?? 'Bob Rosenthall'} — introduce sale-leaseback concept`,
-                    '<strong>48 hrs:</strong> Pull ownership comps, prepare BOV with SLB pricing',
-                    `<strong>Week 1:</strong> Present SLB structure — target ${l.leaseExpiry ?? 'Aug 2027'} lease-back term`,
-                  ]} />
-                  <div style={S.synthCritical}><strong style={{ color: 'var(--rust)' }}>Act before lease expiry:</strong> Owner-users approaching lease expiry represent highest-conversion leads — first broker in wins the listing.</div>
-                </div>
-              )}
-              <div style={S.synthFooter}>
-                <button style={S.synthRegen} onClick={() => {}}>↻ Regenerate</button>
-                <button style={S.synthRegen} onClick={() => { navigator.clipboard?.writeText(`AI Synthesis: ${l.company} — Owner-user ${l.buildingSF?.toLocaleString() ?? '186,400'} SF, lease expiry ${l.leaseExpiry ?? 'Aug 2027'}, broker intel confirmed.`); {}; }}>📋 Copy</button>
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--ink4)', marginLeft: 'auto' }}>Generated Mar 24, 2026 · 11:02 AM</span>
+        {/* AI DISPLACEMENT SIGNAL */}
+        {(l._warn || catalysts.length > 0) && (
+          <div style={{ background: 'var(--rust-bg)', border: '1px solid var(--rust-bdr)', borderLeft: '3px solid var(--rust)', borderRadius: 12, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ padding: '9px 14px 9px 18px', borderBottom: '1px solid var(--rust-bdr)', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--rust)', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--rust)' }}>AI Displacement Signal</span>
+            </div>
+            <div style={{ padding: '12px 14px 12px 18px', fontSize: 13.5, lineHeight: 1.72, color: 'var(--text-primary)' }}>
+              {l._warn
+                ? `WARN filing detected — ${l.lead_name || l.company} with ${l.building_sf ? Number(l.building_sf).toLocaleString() + ' SF' : 'unknown SF'} in ${l.market || l.city || 'unknown market'}. Owner-user displacement likely within 60 days of effective date. `
+                : `Owner-user with ${l.building_sf ? Number(l.building_sf).toLocaleString() + ' SF' : 'unknown SF'} in ${l.market || l.city || 'unknown market'} showing ${catalysts.length} active signal${catalysts.length !== 1 ? 's' : ''}. `
+              }
+              <span style={{ color: 'var(--blue)', fontWeight: 600 }}>Act before competing brokers identify this opportunity.</span>
+            </div>
+          </div>
+        )}
+
+        {/* STAT ROW */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', background: 'var(--card-bg)', borderRadius: 12, border: '1px solid var(--card-border)', overflow: 'hidden', marginBottom: 14 }}>
+          {[
+            { lbl: 'Building SF', val: l.building_sf ? Number(l.building_sf).toLocaleString() : '—', sub: l.owner_type || 'Industrial' },
+            { lbl: 'Market', val: l.market || '—', sub: l.city || '' },
+            { lbl: 'Lead Score', val: score > 0 ? score : '—', sub: `Grade ${grade}`, rust: score > 0 },
+            { lbl: 'Catalyst Count', val: catalysts.length || '—', sub: 'Active signals', blue: catalysts.length > 0 },
+          ].map((c, i) => (
+            <div key={i} style={{ padding: '12px 14px', borderRight: i < 3 ? '1px solid var(--card-border)' : 'none' }}>
+              <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 4 }}>{c.lbl}</div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, fontSize: 20, color: c.rust ? 'var(--rust)' : c.blue ? 'var(--blue)' : 'var(--text-primary)', lineHeight: 1 }}>{c.val}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{c.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* CADENCE + FOLLOW UP */}
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>Follow-up Cadence</div>
+            <select
+              value={cadence}
+              onChange={e => setCadenceAndFollowUp(e.target.value)}
+              style={{ ...inputStyle, fontSize: 13, width: 'auto', minWidth: 160 }}
+            >
+              <option value="">Set cadence…</option>
+              {['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Quarterly'].map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          {followUpDate && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={labelStyle}>Next Follow-up</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: new Date(followUpDate) < new Date() ? 'var(--rust)' : 'var(--text-primary)', fontWeight: 600 }}>
+                {new Date(followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {new Date(followUpDate) < new Date() && ' ⚠ Overdue'}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* AI DISPLACEMENT SIGNAL */}
-            <div style={S.dispSignal}>
-              <div style={S.dispHdr}>
-                <span style={S.dispPulse} />
-                <span style={S.dispHdrLabel}>AI Displacement Signal</span>
-              </div>
-              <div style={S.dispBody}>
-                Owner-user with {(l.buildingSF ?? 186400).toLocaleString()} SF in {l.market} approaching lease inflection. Broker intel confirms owner exploring exit options. <span style={{ color: 'var(--blue)', fontWeight: 600 }}>Act within 30 days</span> before competing brokers identify this opportunity.
-              </div>
+        {/* CATALYST TAGS */}
+        {catalysts.length > 0 && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Active Catalysts</div>
             </div>
+            <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {catalysts.map((c, i) => {
+                const cs = getCatalystStyle(c);
+                const label = c?.tag || c;
+                return (
+                  <span key={i} style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 5, fontSize: 11.5, fontWeight: 500, border: `1px solid ${cs.bdr}`, background: cs.bg, color: cs.color, cursor: 'pointer' }}>
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-            {/* STAT ROW */}
-            <div style={{ ...S.statRow, gridTemplateColumns: 'repeat(6,1fr)' }}>
-              {[
-                { lbl: 'Building SF', val: (l.buildingSF ?? 186400).toLocaleString(), sub: 'Dock-high' },
-                { lbl: 'Market', val: l.market ?? 'SGV · Mid Valley', sub: 'Industrial', sm: true },
-                { lbl: 'Lead Score', val: l.score ?? 95, sub: `Grade ${l.grade ?? 'A+'}`, rust: true },
-                { lbl: 'Catalyst Count', val: l.catalystCount ?? 3, sub: 'Active signals', blue: true },
-                { lbl: 'Owner Type', val: l.ownerType ?? 'Owner-User', sub: `Since ${l.ownerSince ?? '2009'}`, sm: true },
-                { lbl: 'Last Contact', val: l.lastContact ?? 'Never', sub: 'No activity yet', sm: true },
-              ].map((c, i) => (
-                <div key={i} style={{ ...S.statCell, borderRight: i < 5 ? '1px solid var(--line2)' : 'none' }}>
-                  <div style={S.statLbl}>{c.lbl}</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, color: c.rust ? 'var(--rust)' : c.blue ? 'var(--blue)' : 'var(--ink)', lineHeight: 1, fontSize: c.sm ? 16 : 22 }}>{c.val}</div>
-                  <div style={S.statSub}>{c.sub}</div>
+        {/* NOTES */}
+        {l.notes && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Research Notes</div>
+            </div>
+            <div style={{ padding: '12px 16px', fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{l.notes}</div>
+          </div>
+        )}
+
+        {/* TABS */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--card-border)', marginBottom: 14 }}>
+          {TABS.map(t => (
+            <button key={t}
+              onClick={() => setActiveTab(t)}
+              style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${activeTab === t ? 'var(--blue)' : 'transparent'}`, marginBottom: -1, color: activeTab === t ? 'var(--blue)' : 'var(--text-tertiary)', fontWeight: activeTab === t ? 500 : 400, fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}
+            >{t}</button>
+          ))}
+        </div>
+
+        {/* TAB CONTENT */}
+        {activeTab === 'Timeline' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 14 }}>
+            {/* Activity feed */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--rust)' }} />
+                  Activity Timeline
+                </div>
+                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--blue)', cursor: 'pointer' }} onClick={() => setLogPanel('note')}>+ Log Activity</span>
+              </div>
+              {activities.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--text-tertiary)', fontSize: 14 }}>
+                  No activity yet — log a call, email, or note above
+                </div>
+              ) : activities.map((a, i) => (
+                <div key={a.id || i} style={{ display: 'flex', gap: 12, padding: '11px 16px', borderBottom: i < activities.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0, marginTop: 1, background: ICON_BG[a.type] || ICON_BG.note, color: ICON_COLOR[a.type] || ICON_COLOR.note }}>
+                    {ICON_EMOJI[a.type] || '📝'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                      <strong>{a.contact_name ? `${a.type === 'call' ? 'Called' : a.type === 'email' ? 'Emailed' : 'Note re:'} ${a.contact_name}` : a.type?.charAt(0).toUpperCase() + a.type?.slice(1)}</strong>
+                      {a.notes && ` — ${a.notes}`}
+                    </div>
+                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 12, fontStyle: 'italic', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                      Briana Corso · {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-tertiary)', flexShrink: 0, paddingTop: 2 }}>
+                    {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* SCORE CARD */}
-            <div style={S.scoreCard}>
-              <div style={S.scoreCardHdr} onClick={() => setSpecsOpen(o => !o)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={S.scRing}>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 21, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{l.score ?? 95}</div>
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: 'var(--rust)', marginTop: 1 }}>{l.grade ?? 'A+'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Lead Score — {l.grade ?? 'A+'} · High displacement probability</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 2 }}>Owner-user · {l.leaseExpiry ?? 'Aug 2027'} expiry · 186K SF · Broker intel</div>
-                  </div>
-                </div>
-                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--blue2)', cursor: 'pointer' }}>
-                  {specsOpen ? 'Hide specs ▴' : 'Show all specs ▾'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--line)' }}>
+            {/* Right col: owner + contact */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Owner</div>
                 {[
-                  { lbl: 'Bldg SF', val: '186,400', hi: true },
-                  { lbl: 'Owner Type', val: 'Owner-User' },
-                  { lbl: 'Lease Exp', val: 'Aug 2027', hi: true },
-                  { lbl: 'Source', val: l.source ?? 'Broker Intel' },
-                  { lbl: 'Catalysts', val: String(l.catalystCount ?? 3), hi: true },
-                  { lbl: 'Market', val: 'SGV Mid Val' },
-                  { lbl: 'Last Contact', val: l.lastContact ?? 'Never' },
-                  { lbl: 'Owner Since', val: l.ownerSince ?? '2009' },
-                ].map((s, i) => (
-                  <div key={i} style={{ flex: 1, padding: '9px 12px', borderRight: i < 7 ? '1px solid var(--line2)' : 'none', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9.5, color: 'var(--ink4)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 3 }}>{s.lbl}</div>
-                    <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 12.5, color: s.hi ? 'var(--rust)' : 'var(--ink2)' }}>{s.val}</div>
+                  ['Company', l.company || l.lead_name],
+                  ['Owner Type', l.owner_type || '—'],
+                  ['Contact', l.decision_maker || '—'],
+                  ['Phone', l.phone || '—'],
+                  ['Email', l.email || '—'],
+                  ['Source', l.source || '—'],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 16px', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{k}</span>
+                    <span style={{ fontSize: 12.5, color: ['Phone','Email'].includes(k) ? 'var(--blue)' : 'var(--text-primary)', textAlign: 'right', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</span>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* TABS */}
-            <div style={S.tabsNav}>
-              {TABS.map(t => (
-                <div key={t} style={{ ...S.tabItem, ...(activeTab === t ? S.tabActive : {}) }} onClick={() => setActiveTab(t)}>
-                  {t}
+              {/* Pipeline */}
+              <div style={{ background: 'rgba(24,112,66,0.04)', border: '1px solid rgba(24,112,66,0.15)', borderLeft: '3px solid var(--green)', borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--green)', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>Pipeline</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Ready to move into active deal tracking?</div>
+                <button
+                  onClick={convertToDeal}
+                  style={{ width: '100%', padding: '9px', background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Convert to Deal →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Building Specs' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Building Specifications</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              {[
+                ['Building SF', l.building_sf ? Number(l.building_sf).toLocaleString() + ' SF' : '—'],
+                ['Land Acres', l.land_acres ? l.land_acres + ' AC' : '—'],
+                ['Clear Height', l.clear_height_ft ? l.clear_height_ft + "'" : '—'],
+                ['Dock Doors', l.dock_doors || '—'],
+                ['Grade Doors', l.grade_doors || '—'],
+                ['Year Built', l.year_built || '—'],
+                ['Zoning', l.zoning || '—'],
+                ['Power', l.power_amps ? l.power_amps + 'A' : '—'],
+                ['Parking Spaces', l.parking_spaces || '—'],
+                ['Owner Type', l.owner_type || '—'],
+                ['Market', l.market || '—'],
+                ['Source', l.source || '—'],
+              ].map(([k, v], i) => (
+                <div key={k} style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.04)', borderRight: i % 2 === 0 ? '1px solid rgba(0,0,0,0.04)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{k}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{v}</span>
                 </div>
               ))}
             </div>
-
-            {/* TIMELINE TAB BODY */}
-            {activeTab === 'Timeline' && (
-              <>
-                <div style={S.bodyCols}>
-                  {/* LEFT: Activity Timeline */}
-                  <div style={S.card}>
-                    <div style={S.cardHdr}>
-                      <div style={S.cardTitle}><span style={S.liveDot} /> Activity Timeline</div>
-                      <span style={S.cardAction}>+ Log Activity</span>
-                    </div>
-                    {MOCK_ACTIVITIES.map((a, i) => (
-                      <div key={i} style={{ ...S.actRow, borderBottom: i < MOCK_ACTIVITIES.length - 1 ? '1px solid var(--line2)' : 'none' }}>
-                        <div style={{ ...S.actIcon, background: ICON_BG[a.type], color: ICON_COLOR[a.type] }}>{ICON_EMOJI[a.type]}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={S.actText} dangerouslySetInnerHTML={{ __html: a.text }} />
-                          <div style={S.actMeta}>{a.meta}</div>
-                        </div>
-                        <div style={S.actDate}>{a.date}</div>
-                      </div>
-                    ))}
-                    <div style={S.tlMore} onClick={() => {}}><span style={S.tlMoreText}>View all 8 activities & notes →</span></div>
-                  </div>
-
-                  {/* RIGHT COLUMN */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* AI Displacement Signal sidebar */}
-                    <div style={S.dispSide}>
-                      <div style={S.dsSideHdr}><span style={S.dsSidePulse} /> AI Displacement Signal</div>
-                      <div style={S.dsSideBody}>
-                        Owner-user approaching lease inflection with confirmed broker interest. SGV industrial vacancy tight. <span style={{ color: 'var(--blue)', fontWeight: 600 }}>Act within 30 days</span> before other brokers identify this site.
-                      </div>
-                    </div>
-
-                    {/* Catalysts */}
-                    <div style={S.card}>
-                      <div style={S.spHdr}>Active Catalysts <span style={S.spHdrA} onClick={() => {}}>+ Add</span></div>
-                      {MOCK_CATALYSTS.map((c, i) => (
-                        <div key={i} style={{ ...S.catRow, borderBottom: i < MOCK_CATALYSTS.length - 1 ? '1px solid var(--line2)' : 'none' }}>
-                          <span style={{ ...S.cat, background: CAT_BG[c.type], borderColor: CAT_BDR[c.type], color: CAT_COLOR[c.type] }}>{c.label}</span>
-                          <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>{c.desc}</span>
-                          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10.5, color: 'var(--ink4)' }}>{c.date}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Buyer Matches */}
-                    <div style={S.card}>
-                      <div style={S.spHdr}>✦ Buyer / Tenant Prospects</div>
-                      {[
-                        { name: 'Pacific Manufacturing Group', sub: 'Seeking 150–200K SF · IE West', pct: 94 },
-                        { name: 'Matrix Logistics Partners', sub: '170–220K SF req · Ontario/Fontana', pct: 87 },
-                      ].map((m, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: '1px solid var(--line2)', cursor: 'pointer', background: 'var(--blue-bg)' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'var(--blue-bg)'}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink2)' }}>{m.name}</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--ink4)', marginTop: 1 }}>{m.sub}</div>
-                          </div>
-                          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 700, color: 'var(--blue)' }}>{m.pct}%</div>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)', cursor: 'pointer' }} onClick={() => {}}>Open →</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Owner */}
-                    <div style={S.card}>
-                      <div style={S.spHdr}>Owner <span style={S.spHdrA} onClick={() => {}}>View Record →</span></div>
-                      {[
-                        ['Company', l.ownerName ?? 'Leegin Creative Leather Inc.'],
-                        ['Type', l.ownerType ?? 'Owner-User'],
-                        ['Contact', l.ownerContact ?? 'Bob Rosenthall'],
-                        ['Owner Since', l.ownerSince ?? '2009'],
-                      ].map(([k, v]) => (
-                        <div key={k} style={S.spRow}>
-                          <span style={S.spKey}>{k}</span>
-                          <span style={{ fontSize: 13, color: k === 'Contact' ? 'var(--blue)' : 'var(--ink2)', cursor: k === 'Contact' ? 'pointer' : 'default' }}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* FULL WIDTH: Owner + Contact cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
-                  <div style={S.card}>
-                    <div style={S.spHdr}><span>Owner Record</span><span style={S.spHdrA}>Edit →</span></div>
-                    {[
-                      ['Company', l.ownerName ?? 'Leegin Creative Leather Inc.'],
-                      ['Contact', l.ownerContact ?? 'Bob Rosenthall'],
-                      ['Owner Type', l.ownerType ?? 'Owner-User'],
-                      ['Owner Since', l.ownerSince ?? '2009'],
-                      ['Last Contact', l.lastContact ?? 'Never'],
-                      ['Source', l.source ?? 'Broker Intel'],
-                    ].map(([k, v]) => (
-                      <div key={k} style={S.spRow}>
-                        <span style={S.spKey}>{k}</span>
-                        <span style={{ fontSize: 13, color: k === 'Contact' ? 'var(--blue)' : 'var(--ink2)', cursor: k === 'Contact' ? 'pointer' : 'default' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={S.card}>
-                    <div style={S.spHdr}><span>Lead Details</span></div>
-                    {[
-                      ['Stage', 'New Lead'],
-                      ['Source', l.source ?? 'Broker Intel'],
-                      ['Market', l.market ?? 'SGV · Mid Valley'],
-                      ['Building SF', (l.buildingSF ?? 186400).toLocaleString()],
-                      ['Lease Expiry', l.leaseExpiry ?? 'Aug 2027'],
-                      ['Owner Type', l.ownerType ?? 'Owner-User'],
-                    ].map(([k, v]) => (
-                      <div key={k} style={S.spRow}>
-                        <span style={S.spKey}>{k}</span>
-                        <span style={{ fontSize: 13, color: k === 'Stage' ? 'var(--blue)' : 'var(--ink2)' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {activeTab !== 'Timeline' && <LeadTabContent tab={activeTab} l={l} onNavigate={onNavigate} />}
-
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+        )}
 
-function LeadTabContent({ tab, l, onNavigate }) {
-  const tbl = (cols, rows) => (
-    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--line)' }}>
-            {cols.map(c => <th key={c} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink4)', whiteSpace: 'nowrap' }}>{c}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} style={{ borderBottom: i < rows.length - 1 ? '1px solid var(--line2)' : 'none', cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-              onMouseLeave={e => e.currentTarget.style.background = ''}>
-              {row.map((cell, j) => <td key={j} style={{ padding: '10px 14px', color: j === 0 ? 'var(--ink2)' : 'var(--ink3)', fontFamily: j > 0 ? "'DM Mono',monospace" : 'inherit', fontSize: j > 0 ? 12 : 13 }}>{cell}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  if (tab === 'APNs') return tbl(
-    ['APN Number', 'Owner of Record', 'Land (Acres)', 'Assessed Value', 'Last Transfer', 'Zoning'],
-    [
-      ['8558-006-003', l.ownerName ?? 'Leegin Creative Leather', '4.8 ac', '$18.2M', '2009', 'M-2'],
-      ['8558-006-004', l.ownerName ?? 'Leegin Creative Leather', '3.4 ac', '$12.8M', '2009', 'M-2'],
-    ]
-  );
-  if (tab === 'Lease Comps') return tbl(
-    ['Address', 'Tenant', 'SF', 'Start', 'Rate/SF/Mo', 'Term', 'Type'],
-    [
-      ['14500 Nelson Ave, Baldwin Park', 'Pacific Mfg Group', '142,000', 'Jan 2025', '$1.38', '5 yr', 'NNN'],
-      ['1300 Arrow Hwy, Irwindale', 'Apex Distribution', '96,000', 'Mar 2025', '$1.44', '3 yr', 'NNN'],
-      ['12200 Shoemaker Ave, Norwalk', 'SoCal Logistics', '220,000', 'Nov 2024', '$1.31', '7 yr', 'NNN'],
-    ]
-  );
-  if (tab === 'Contacts') return tbl(
-    ['Name', 'Title', 'Company', 'Phone', 'Email'],
-    [
-      ['Bob Rosenthall', 'VP Real Estate', l.ownerName ?? 'Leegin Creative Leather', '(626) 555-0142', 'bob.r@leegin.com'],
-      ['Sandra Wu', 'CFO', l.ownerName ?? 'Leegin Creative Leather', '(626) 555-0199', 's.wu@leegin.com'],
-    ]
-  );
-  if (tab === 'Properties') return (
-    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
-      <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>{l.address ?? '14022 Nelson Ave E'}, {l.city ?? 'Baldwin Park'}</div>
-        <button style={{ fontSize: 12, color: 'var(--blue)', background: 'none', border: '1px solid var(--blue-bdr)', borderRadius: 6, padding: '5px 11px', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => {}}>View Property →</button>
-      </div>
-      {[
-        ['Building SF', (l.buildingSF ?? 186400).toLocaleString()],
-        ['Market', l.market ?? 'SGV · Mid Valley'],
-        ['Owner Type', l.ownerType ?? 'Owner-User'],
-        ['Year Built', '2001'],
-        ['Clear Height', "32'"],
-        ['Dock-High Doors', '24 DH · 4 GL'],
-        ['APN', '8558-006-003'],
-        ['Zoning', 'M-2'],
-      ].map(([k, v]) => (
-        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 18px', borderBottom: '1px solid var(--line2)' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ink4)' }}>{k}</span>
-          <span style={{ fontSize: 13, color: 'var(--ink2)', fontFamily: "'DM Mono',monospace" }}>{v}</span>
-        </div>
-      ))}
-    </div>
-  );
-  if (tab === 'Files') return (
-    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
-      {[
-        { name: `${l.company ?? 'Lead'}_Research_Brief.pdf`, type: 'PDF', size: '1.8 MB', uploaded: 'Mar 22, 2026' },
-        { name: 'Owner_Contact_Notes.docx', type: 'Doc', size: '320 KB', uploaded: 'Mar 21, 2026' },
-      ].map((f, i, arr) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '11px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--line2)' : 'none', gap: 12, cursor: 'pointer' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-          onMouseLeave={e => e.currentTarget.style.background = ''}
-          onClick={() => {}}>
-          <span style={{ fontSize: 18 }}>📄</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>{f.name}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 2 }}>{f.size} · {f.uploaded}</div>
+        {activeTab === 'Contacts' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Contacts</div>
+            {contacts.length === 0 && l.decision_maker ? (
+              <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{l.decision_maker}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Decision Maker</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {l.phone && <a href={`tel:${l.phone}`} style={{ fontSize: 12, color: 'var(--blue)' }}>📞 {l.phone}</a>}
+                  {l.email && <a href={`mailto:${l.email}`} style={{ fontSize: 12, color: 'var(--blue)' }}>✉ {l.email}</a>}
+                </div>
+              </div>
+            ) : contacts.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No contacts linked yet</div>
+            ) : contacts.map((c, i) => (
+              <div key={c.id || i} style={{ padding: '12px 16px', borderBottom: i < contacts.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{c.name || c.full_name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>{c.title} {c.company ? `· ${c.company}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {c.phone && <a href={`tel:${c.phone}`} style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none' }}>📞 {c.phone}</a>}
+                </div>
+              </div>
+            ))}
           </div>
-          <span style={{ fontSize: 12, color: 'var(--blue)' }}>↓ Download</span>
-        </div>
-      ))}
-    </div>
-  );
-  return null;
-}
+        )}
 
-function SynthSection({ title, items, steps }) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink2)', marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--purple)', flexShrink: 0 }} />
-        {title}
+        {activeTab === 'APNs' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--card-border)', fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>APNs</div>
+            {apns.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No APNs linked yet</div>
+            ) : apns.map((apn, i) => (
+              <div key={apn.id || i} style={{ padding: '10px 16px', borderBottom: i < apns.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-primary)' }}>{apn.apn}</span>
+                <a href={`https://portal.assessor.lacounty.gov/parceldetail/${String(apn.apn).replace(/-/g,'')}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--blue)' }}>View →</a>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'Comps' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '24px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--text-tertiary)', fontSize: 14 }}>Comp analysis will load here</div>
+          </div>
+        )}
+
+        {activeTab === 'Files' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '24px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: 'italic', color: 'var(--text-tertiary)', fontSize: 14 }}>No files attached yet</div>
+          </div>
+        )}
+
       </div>
-      {items && items.map((item, i) => (
-        <div key={i} style={{ fontSize: 13.5, lineHeight: 1.72, color: 'var(--ink2)', display: 'flex', gap: 8, marginBottom: 3 }}>
-          <span style={{ color: 'var(--ink4)', flexShrink: 0 }}>–</span>{item}
-        </div>
-      ))}
-      {steps && steps.map((step, i) => (
-        <div key={i} style={{ fontSize: 13.5, lineHeight: 1.72, color: 'var(--ink2)', display: 'flex', gap: 10, marginBottom: 4 }}>
-          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: 'var(--purple)', fontWeight: 600, flexShrink: 0, minWidth: 20, paddingTop: 2 }}>{i + 1}.</span>
-          <div dangerouslySetInnerHTML={{ __html: step }} />
-        </div>
-      ))}
     </div>
   );
 }
 
 // ── STYLES ────────────────────────────────────────────────────
 const S = {
-  topbar: { height: 48, background: 'var(--card)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', padding: 0, position: 'sticky', top: 0, zIndex: 5, boxShadow: '0 1px 0 rgba(0,0,0,0.05)' },
-  topbarInner: { maxWidth: 1700, width: '100%', display: 'flex', alignItems: 'center', padding: '0 28px', gap: 10 },
-  bc: { fontSize: 13, color: 'var(--ink4)', display: 'flex', alignItems: 'center', gap: 4 },
-  pageWrap: { maxWidth: 1700, minWidth: 1100, margin: '0 auto', paddingBottom: 60 },
-  hero: { height: 280, position: 'relative', overflow: 'hidden' },
-  heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(10,8,5,0.82) 0%,rgba(10,8,5,0.15) 55%,transparent 100%)', pointerEvents: 'none', zIndex: 400 },
-  heroContent: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 500, padding: '20px 28px' },
-  heroTitle: { fontFamily: "'Playfair Display',serif", fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1, letterSpacing: '-0.01em', marginBottom: 8, textShadow: '0 2px 8px rgba(0,0,0,0.5)' },
-  heroBadges: { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  hbRust: { padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(184,55,20,0.30)', borderColor: 'rgba(220,100,70,0.45)', color: '#FFCBB8' },
-  hbBlue: { padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(78,110,150,0.30)', borderColor: 'rgba(137,168,198,0.45)', color: '#C8E0F8' },
-  hbAmber: { padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(140,90,4,0.30)', borderColor: 'rgba(220,160,50,0.45)', color: '#FFE0A0' },
-  hbGreen: { padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(21,102,54,0.30)', borderColor: 'rgba(60,180,110,0.45)', color: '#B8F0D0' },
-  actionBar: { background: 'var(--bg2)', borderBottom: '1px solid var(--line)', padding: '10px 28px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  scoreChip: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 14px', background: 'var(--card)', border: '1px solid var(--rust-bdr)', borderRadius: 8, marginRight: 6, flexShrink: 0 },
-  abSep: { width: 1, height: 22, background: 'var(--line)', margin: '0 3px' },
-  btnGhost: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink3)', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  btnGreen: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--green)', background: 'var(--green)', color: '#fff', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  btnBlue: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--blue)', background: 'var(--blue)', color: '#fff', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  btnLink: { background: 'none', border: 'none', color: 'var(--blue2)', fontSize: 12.5, padding: '7px 10px', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', fontFamily: 'inherit' },
-  inner: { padding: '18px 28px 0' },
-  synthCard: { background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative', borderLeft: '3px solid var(--purple)' },
-  synthHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px 11px 20px', borderBottom: '1px solid rgba(88,56,160,0.12)', cursor: 'pointer' },
-  synthTitle: { fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--purple)' },
-  synthMeta: { fontFamily: "'Cormorant Garamond',serif", fontSize: 12.5, fontStyle: 'italic', color: 'var(--ink4)' },
-  synthToggle: { fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--purple)', cursor: 'pointer', whiteSpace: 'nowrap' },
-  synthBody: { padding: '18px 22px 20px 22px' },
-  synthCritical: { marginTop: 14, padding: '10px 14px', background: 'rgba(184,55,20,0.05)', border: '1px solid rgba(184,55,20,0.18)', borderRadius: 7, fontSize: 13.5, lineHeight: 1.65, color: 'var(--ink2)' },
-  synthFooter: { display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px', borderTop: '1px solid rgba(88,56,160,0.10)', background: 'rgba(88,56,160,0.02)' },
-  synthRegen: { fontSize: 12, color: 'var(--purple)', cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px', fontFamily: 'inherit' },
-  dispSignal: { background: 'var(--rust-bg)', border: '1px solid var(--rust-bdr)', borderRadius: 'var(--radius)', overflow: 'hidden', marginBottom: 16, position: 'relative', borderLeft: '3px solid var(--rust)' },
-  dispHdr: { padding: '10px 16px 10px 20px', borderBottom: '1px solid var(--rust-bdr)', display: 'flex', alignItems: 'center', gap: 7 },
-  dispPulse: { display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--rust)', flexShrink: 0 },
-  dispHdrLabel: { fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--rust)' },
-  dispBody: { padding: '13px 16px 13px 20px', fontSize: 13.5, lineHeight: 1.72, color: 'var(--ink2)' },
-  statRow: { display: 'grid', background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden', marginBottom: 16 },
-  statCell: { padding: '13px 14px' },
-  statLbl: { fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 5 },
-  statSub: { fontSize: 11, color: 'var(--ink4)', marginTop: 2 },
-  scoreCard: { background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden', marginBottom: 16 },
-  scoreCardHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px', borderBottom: '1px solid var(--line)', cursor: 'pointer' },
-  scRing: { width: 50, height: 50, borderRadius: '50%', border: '2.5px solid rgba(184,55,20,0.32)', background: 'var(--rust-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  tabsNav: { display: 'flex', borderBottom: '1px solid var(--line)', marginBottom: 16 },
-  tabItem: { padding: '10px 15px', fontSize: 13.5, color: 'var(--ink4)', cursor: 'pointer', borderBottom: '2px solid transparent', marginBottom: -1, whiteSpace: 'nowrap' },
-  tabActive: { color: 'var(--blue)', borderBottomColor: 'var(--blue)', fontWeight: 500 },
-  bodyCols: { display: 'grid', gridTemplateColumns: '1fr 290px', gap: 16 },
-  card: { background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden' },
-  cardHdr: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--line)' },
-  cardTitle: { fontSize: 11, fontWeight: 500, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', display: 'flex', alignItems: 'center', gap: 6 },
-  cardAction: { fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--blue2)', cursor: 'pointer' },
-  liveDot: { display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--rust)' },
-  actRow: { display: 'flex', gap: 12, padding: '11px 16px' },
-  actIcon: { width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, flexShrink: 0, marginTop: 1 },
-  actText: { fontSize: 13.5, color: 'var(--ink2)', lineHeight: 1.4 },
-  actMeta: { fontFamily: "'Cormorant Garamond',serif", fontSize: 12, fontStyle: 'italic', color: 'var(--ink4)', marginTop: 2 },
-  actDate: { fontFamily: "'DM Mono',monospace", fontSize: 10.5, color: 'var(--ink4)', flexShrink: 0, paddingTop: 2 },
-  tlMore: { padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--bg)', borderTop: '1px solid var(--line)' },
-  tlMoreText: { fontFamily: "'Cormorant Garamond',serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--blue2)' },
-  dispSide: { background: 'var(--rust-bg)', border: '1px solid var(--rust-bdr)', borderRadius: 'var(--radius)', overflow: 'hidden', position: 'relative', borderLeft: '3px solid var(--rust)' },
-  dsSideHdr: { padding: '10px 14px 10px 18px', borderBottom: '1px solid var(--rust-bdr)', fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--rust)', display: 'flex', alignItems: 'center', gap: 7 },
-  dsSidePulse: { display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--rust)', flexShrink: 0 },
-  dsSideBody: { padding: '13px 14px 13px 18px', fontSize: 13, lineHeight: 1.70, color: 'var(--ink2)' },
-  catRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '8px 16px', cursor: 'pointer' },
-  cat: { display: 'inline-flex', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', flexShrink: 0 },
-  spHdr: { padding: '10px 16px', borderBottom: '1px solid var(--line)', fontSize: 11, fontWeight: 500, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  spHdrA: { fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontStyle: 'italic', color: 'var(--blue2)', cursor: 'pointer', fontWeight: 400, letterSpacing: 0, textTransform: 'none' },
-  spRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 16px', borderBottom: '1px solid var(--line2)' },
-  spKey: { fontSize: 12.5, color: 'var(--ink4)' },
+  hbRust: { padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(184,55,20,0.30)', borderColor: 'rgba(220,100,70,0.45)', color: '#FFCBB8' },
+  hbBlue: { padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(78,110,150,0.30)', borderColor: 'rgba(137,168,198,0.45)', color: '#C8E0F8' },
+  hbAmber: { padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(140,90,4,0.30)', borderColor: 'rgba(220,160,50,0.45)', color: '#FFE0A0' },
+  hbGreen: { padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 500, border: '1px solid', backdropFilter: 'blur(6px)', background: 'rgba(21,102,54,0.30)', borderColor: 'rgba(60,180,110,0.45)', color: '#B8F0D0' },
+  abSep: { width: 1, height: 20, background: 'rgba(0,0,0,0.1)', margin: '0 2px' },
+  btnAct: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--card-border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' },
+  btnLink: { background: 'none', border: 'none', color: 'var(--blue)', fontSize: 12, padding: '6px 8px', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(78,110,150,0.3)', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' },
 };
