@@ -8,14 +8,14 @@ import { createClient } from '@/lib/supabase';
 // ─── STAGE CONFIG ─────────────────────────────────────────────────────────────
 
 const STAGES = [
-  { key: 'Tracking',           label: 'Tracking',       color: '#78726A', bg: 'rgba(120,114,106,0.08)', topBorder: '#AFA89E' },   // gray
-  { key: 'Underwriting',       label: 'Underwriting',   color: '#5838A0', bg: 'rgba(88,56,160,0.09)',  topBorder: '#5838A0' },   // violet
-  { key: 'Off-Market Outreach',label: 'Off-Market',     color: '#0F766E', bg: 'rgba(15,118,110,0.08)', topBorder: '#0F766E' },   // teal
-  { key: 'Marketing',          label: 'Marketing',      color: '#4E6E96', bg: 'rgba(78,110,150,0.10)', topBorder: '#4E6E96' },   // blue
-  { key: 'LOI',                label: 'LOI',            color: '#C2410C', bg: 'rgba(194,65,12,0.08)',  topBorder: '#C2410C' },   // burnt orange
-  { key: 'LOI Accepted',       label: 'LOI Accepted',   color: '#156636', bg: 'rgba(21,102,54,0.09)',  topBorder: '#156636' },   // green
-  { key: 'PSA Negotiation',    label: 'PSA / Non-Cont', color: '#187042', bg: 'rgba(24,112,66,0.11)',  topBorder: '#187042' },   // deeper green
-  { key: 'Due Diligence',      label: 'Due Diligence',  color: '#B83714', bg: 'rgba(184,55,20,0.09)',  topBorder: '#B83714' },   // rust red
+  { key: 'Tracking',           label: 'Tracking',       color: '#6B7280', bg: 'rgba(107,114,128,0.07)', topBorder: '#9CA3AF' },  // neutral gray
+  { key: 'Underwriting',       label: 'Underwriting',   color: '#7C3AED', bg: 'rgba(124,58,237,0.07)', topBorder: '#7C3AED' },  // electric violet
+  { key: 'Off-Market Outreach',label: 'Off-Market',     color: '#0891B2', bg: 'rgba(8,145,178,0.07)',  topBorder: '#0891B2' },  // cyan
+  { key: 'Marketing',          label: 'Marketing',      color: '#D97706', bg: 'rgba(217,119,6,0.08)',  topBorder: '#D97706' },  // amber/gold
+  { key: 'LOI',                label: 'LOI',            color: '#DC2626', bg: 'rgba(220,38,38,0.07)',  topBorder: '#DC2626' },  // red
+  { key: 'LOI Accepted',       label: 'LOI Accepted',   color: '#059669', bg: 'rgba(5,150,105,0.08)',  topBorder: '#059669' },  // emerald
+  { key: 'PSA Negotiation',    label: 'PSA / Non-Cont', color: '#BE185D', bg: 'rgba(190,24,93,0.07)',  topBorder: '#BE185D' },  // hot pink
+  { key: 'Due Diligence',      label: 'Due Diligence',  color: '#1D4ED8', bg: 'rgba(29,78,216,0.07)',  topBorder: '#1D4ED8' },  // deep blue
 ];
 
 const COMMISSION_STAGES = new Set(['LOI Accepted','PSA Negotiation','Due Diligence','Non-Contingent','Closed Won']);
