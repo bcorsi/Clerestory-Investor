@@ -637,7 +637,7 @@ Be specific, reference actual data, 180 words max.`;
                 <div style={{ padding:'12px 16px' }}>
                   {/* Score ring + tier */}
                   <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
-                    <div style={{ width:52, height:52, borderRadius:'50%', border:, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <div style={{ width:52, height:52, borderRadius:'50%', border:`3px solid ${l.readiness_score>=80?'var(--rust)':l.readiness_score>=60?'var(--amber)':l.readiness_score>=40?'var(--blue)':'var(--card-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       <span style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:l.readiness_score>=80?'var(--rust)':l.readiness_score>=60?'var(--amber)':l.readiness_score>=40?'var(--blue)':'var(--text-tertiary)' }}>{l.readiness_score}</span>
                     </div>
                     <div>
