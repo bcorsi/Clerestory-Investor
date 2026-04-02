@@ -8,14 +8,14 @@ import { createClient } from '@/lib/supabase';
 // ─── STAGE CONFIG ─────────────────────────────────────────────────────────────
 
 const STAGES = [
-  { key: 'Tracking',           label: 'Tracking',       color: '#4E6E96', bg: 'rgba(78,110,150,0.11)',  topBorder: '#4E6E96' },
-  { key: 'Underwriting',       label: 'Underwriting',   color: '#5838A0', bg: 'rgba(88,56,160,0.09)',   topBorder: '#5838A0' },
-  { key: 'Off-Market Outreach',label: 'Off-Market',     color: '#8C5A04', bg: 'rgba(140,90,4,0.09)',    topBorder: '#8C5A04' },
-  { key: 'Marketing',          label: 'Marketing',      color: '#4E6E96', bg: 'rgba(78,110,150,0.09)',  topBorder: '#89A8C6' },
-  { key: 'LOI',                label: 'LOI',            color: '#8C5A04', bg: 'rgba(140,90,4,0.09)',    topBorder: '#A87010' },
-  { key: 'LOI Accepted',       label: 'LOI Accepted',   color: '#156636', bg: 'rgba(21,102,54,0.09)',   topBorder: '#156636' },
-  { key: 'PSA Negotiation',    label: 'PSA / Non-Cont', color: '#156636', bg: 'rgba(21,102,54,0.12)',   topBorder: '#187042' },
-  { key: 'Due Diligence',      label: 'Due Diligence',  color: '#B83714', bg: 'rgba(184,55,20,0.08)',   topBorder: '#B83714' },
+  { key: 'Tracking',           label: 'Tracking',       color: '#78726A', bg: 'rgba(120,114,106,0.08)', topBorder: '#AFA89E' },   // gray
+  { key: 'Underwriting',       label: 'Underwriting',   color: '#5838A0', bg: 'rgba(88,56,160,0.09)',  topBorder: '#5838A0' },   // violet
+  { key: 'Off-Market Outreach',label: 'Off-Market',     color: '#0F766E', bg: 'rgba(15,118,110,0.08)', topBorder: '#0F766E' },   // teal
+  { key: 'Marketing',          label: 'Marketing',      color: '#4E6E96', bg: 'rgba(78,110,150,0.10)', topBorder: '#4E6E96' },   // blue
+  { key: 'LOI',                label: 'LOI',            color: '#C2410C', bg: 'rgba(194,65,12,0.08)',  topBorder: '#C2410C' },   // burnt orange
+  { key: 'LOI Accepted',       label: 'LOI Accepted',   color: '#156636', bg: 'rgba(21,102,54,0.09)',  topBorder: '#156636' },   // green
+  { key: 'PSA Negotiation',    label: 'PSA / Non-Cont', color: '#187042', bg: 'rgba(24,112,66,0.11)',  topBorder: '#187042' },   // deeper green
+  { key: 'Due Diligence',      label: 'Due Diligence',  color: '#B83714', bg: 'rgba(184,55,20,0.09)',  topBorder: '#B83714' },   // rust red
 ];
 
 const COMMISSION_STAGES = new Set(['LOI Accepted','PSA Negotiation','Due Diligence','Non-Contingent','Closed Won']);
@@ -60,12 +60,18 @@ function DealCard({ deal, stage, onOpen }) {
   const probColor  = (deal.probability >= 70) ? '#156636' : (deal.probability >= 40) ? '#8C5A04' : '#AFA89E';
   const typeLabel  = deal.deal_type || deal.strategy;
 
+  // Deal type tags — steel blue family, neutral
   const TAG_STYLE = {
-    'Disposition':    { bg: 'rgba(78,110,150,0.09)',  bdr: 'rgba(78,110,150,0.28)',  color: '#4E6E96' },
-    'Sale Listing':   { bg: 'rgba(78,110,150,0.09)',  bdr: 'rgba(78,110,150,0.28)',  color: '#4E6E96' },
-    'SLB Advisory':   { bg: 'rgba(21,102,54,0.08)',   bdr: 'rgba(21,102,54,0.25)',   color: '#156636' },
-    'Sale-Leaseback': { bg: 'rgba(21,102,54,0.08)',   bdr: 'rgba(21,102,54,0.25)',   color: '#156636' },
-    'Acquisition':    { bg: 'rgba(88,56,160,0.08)',   bdr: 'rgba(88,56,160,0.22)',   color: '#5838A0' },
+    'Disposition':       { bg: 'rgba(78,110,150,0.08)',  bdr: 'rgba(78,110,150,0.25)',  color: '#4E6E96' },
+    'Investment Sale':   { bg: 'rgba(78,110,150,0.08)',  bdr: 'rgba(78,110,150,0.25)',  color: '#4E6E96' },
+    'Owner-User Sale':   { bg: 'rgba(78,110,150,0.08)',  bdr: 'rgba(78,110,150,0.25)',  color: '#4E6E96' },
+    'Sale Listing':      { bg: 'rgba(78,110,150,0.08)',  bdr: 'rgba(78,110,150,0.25)',  color: '#4E6E96' },
+    'Acquisition':       { bg: 'rgba(88,56,160,0.08)',   bdr: 'rgba(88,56,160,0.22)',   color: '#5838A0' },  // violet — buy side
+    'Buyer Rep':         { bg: 'rgba(88,56,160,0.08)',   bdr: 'rgba(88,56,160,0.22)',   color: '#5838A0' },  // violet — buy side
+    'SLB Advisory':      { bg: 'rgba(21,102,54,0.08)',   bdr: 'rgba(21,102,54,0.22)',   color: '#156636' },  // green — SLB
+    'Sale-Leaseback':    { bg: 'rgba(21,102,54,0.08)',   bdr: 'rgba(21,102,54,0.22)',   color: '#156636' },  // green — SLB
+    'Development':       { bg: 'rgba(194,65,12,0.08)',   bdr: 'rgba(194,65,12,0.22)',   color: '#C2410C' },  // orange — dev
+    'Lease Rep':         { bg: 'rgba(140,90,4,0.08)',    bdr: 'rgba(140,90,4,0.22)',    color: '#8C5A04' },  // amber — lease
   };
   const ts = TAG_STYLE[typeLabel] || TAG_STYLE['Disposition'];
 
@@ -140,11 +146,12 @@ function DealCard({ deal, stage, onOpen }) {
             {typeLabel === 'SLB Advisory' || typeLabel === 'Sale-Leaseback' ? 'SLB' : typeLabel}
           </span>
         )}
+        {/* Priority — System 2: square chip + left border, jewel tones */}
         {deal.priority === 'Critical' && (
-          <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(88,56,160,0.25)', background: 'rgba(88,56,160,0.08)', color: '#5838A0' }}>Critical</span>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px 2px 5px', borderRadius: 4, borderLeft: '3px solid #7C3AED', background: '#EDE9FE', color: '#6D28D9' }}>Critical</span>
         )}
         {deal.priority === 'High' && (
-          <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(184,55,20,0.25)', background: 'rgba(184,55,20,0.07)', color: '#B83714' }}>High Priority</span>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px 2px 5px', borderRadius: 4, borderLeft: '3px solid #DB2777', background: '#FCE7F3', color: '#BE185D' }}>High</span>
         )}
       </div>
     </div>
@@ -265,7 +272,7 @@ function NewDealModal({ onClose, onCreated }) {
             <div>
               <label style={lbl}>Deal Type</label>
               <select style={inp} value={form.deal_type} onChange={e => setForm(f => ({ ...f, deal_type: e.target.value }))}>
-                {['Disposition','Acquisition','SLB Advisory','Sale-Leaseback','Lease Rep','Buyer Rep'].map(t => <option key={t}>{t}</option>)}
+                {['Disposition','Acquisition','SLB Advisory','Sale-Leaseback','Investment Sale','Owner-User Sale','Development','Lease Rep','Buyer Rep','Other'].map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
