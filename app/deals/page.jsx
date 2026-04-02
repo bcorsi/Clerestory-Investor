@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import SlideDrawer from '@/components/SlideDrawer';
-import DealDetailInline from './DealDetailInline';
 
 // ─── STAGE CONFIG ─────────────────────────────────────────────────────────────
 
@@ -563,7 +562,37 @@ export default function DealsPage() {
         subtitle={[selectedDeal?.stage, selectedDeal?.deal_value ? (selectedDeal.deal_value >= 1e6 ? `$${(selectedDeal.deal_value/1e6).toFixed(1)}M` : `$${(selectedDeal.deal_value/1e3).toFixed(0)}K`) : null].filter(Boolean).join(' · ')}
         badge={selectedDeal?.priority ? { label: selectedDeal.priority, color: selectedDeal.priority === 'High' || selectedDeal.priority === 'Critical' ? 'rust' : 'gray' } : undefined}
       >
-        {selectedDeal && <DealDetailInline id={selectedDeal.id} onClose={() => setSelectedDeal(null)} />}
+        {selectedDeal && (
+          <div style={{ padding: 24, fontFamily: "'Instrument Sans', sans-serif" }}>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#0F0D09', marginBottom: 4 }}>{selectedDeal.deal_name || selectedDeal.address}</div>
+              <div style={{ fontSize: 13, color: '#6E6860' }}>{selectedDeal.address}{selectedDeal.submarket ? ` · ${selectedDeal.submarket}` : ''}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+              {[
+                { l: 'Stage',      v: selectedDeal.stage },
+                { l: 'Deal Type',  v: selectedDeal.deal_type },
+                { l: 'Value',      v: selectedDeal.deal_value ? (selectedDeal.deal_value >= 1e6 ? '$'+(selectedDeal.deal_value/1e6).toFixed(1)+'M' : '$'+(selectedDeal.deal_value/1e3).toFixed(0)+'K') : '—' },
+                { l: 'Probability',v: selectedDeal.probability != null ? selectedDeal.probability+'%' : '—' },
+                { l: 'Close Date', v: selectedDeal.close_date ? new Date(selectedDeal.close_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—' },
+                { l: 'Priority',   v: selectedDeal.priority },
+              ].map((r,i) => (
+                <div key={i} style={{ background: '#F4F1EC', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#6E6860', marginBottom: 4 }}>{r.l}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0F0D09' }}>{r.v || '—'}</div>
+                </div>
+              ))}
+            </div>
+            {selectedDeal.notes && (
+              <div style={{ background: '#F4F1EC', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: '#524D46', lineHeight: 1.6 }}>
+                {selectedDeal.notes}
+              </div>
+            )}
+            <a href={'/deals/'+selectedDeal.id} style={{ display: 'block', textAlign: 'center', padding: '10px 0', background: '#4E6E96', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', fontFamily: 'inherit' }}>
+              Open Full Deal Detail →
+            </a>
+          </div>
+        )}
       </SlideDrawer>
 
       {/* ── NEW DEAL MODAL ── */}
