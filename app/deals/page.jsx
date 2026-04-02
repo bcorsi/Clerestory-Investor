@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import SlideDrawer from '@/components/SlideDrawer';
+import DealDetailInline from './DealDetailInline';
 
 // ─── STAGE CONFIG ─────────────────────────────────────────────────────────────
 
@@ -40,24 +42,6 @@ const SUBTYPE_BY_TYPE = {
 };
 
 // ─── PROPERTY TYPES & SUBTYPES ───────────────────────────────────────────────
-
-const PROP_TYPES = ['Industrial', 'Land', 'Office', 'Flex', 'Land/IOS', 'Office/Flex'];
-
-const PROP_SUBTYPES = [
-  'Warehouse', 'Distribution', 'Warehouse/Dist.', 'Manufacturing',
-  'Light Industrial', 'Business Park', 'IOS', 'Charging Station',
-  'Covered Land', 'Food Processing', 'Cold Storage',
-];
-
-const SUBTYPE_BY_TYPE = {
-  'Industrial':  ['Warehouse','Distribution','Warehouse/Dist.','Manufacturing','Light Industrial','Business Park','Food Processing','Cold Storage'],
-  'Land':        ['IOS','Covered Land','Charging Station'],
-  'Land/IOS':    ['IOS','Covered Land','Charging Station'],
-  'Office':      [],
-  'Flex':        ['Light Industrial','Warehouse'],
-  'Office/Flex': ['Light Industrial'],
-};
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function fmtM(n) {
@@ -390,6 +374,7 @@ export default function DealsPage() {
   const [view, setView]         = useState('kanban');
   const [kpis, setKpis]         = useState(null);
   const [showNew, setShowNew]   = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState(null);
 
   useEffect(() => { load(); }, []);
 
@@ -411,9 +396,7 @@ export default function DealsPage() {
         return a;
       }, 0);
       const loiCount     = d.filter(x => ['LOI','LOI Accepted'].includes(x.stage)).length;
-      const actionNeeded = d.filter(x => daysAgo(x.updated_at) >= 14).length;
-
-      setKpis({ count: d.length, totalVal, wtdComm, loiCount, actionNeeded });
+      setKpis({ count: d.length, totalVal, wtdComm, loiCount });
       setDeals(d);
     } catch (err) {
       console.error(err);
@@ -470,13 +453,12 @@ export default function DealsPage() {
       <div style={{ padding: '0 28px 60px' }}>
 
         {/* ── KPI STRIP ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 16 }}>
           {[
             { icon: '◈', iconBg: 'rgba(78,110,150,0.09)',  iconColor: '#4E6E96', val: kpis?.count ?? '—',          lbl: 'Active Deals' },
             { icon: '$', iconBg: 'rgba(78,110,150,0.09)',  iconColor: '#4E6E96', val: fmtM(kpis?.totalVal) ?? '—', lbl: 'Total Value' },
             { icon: '↗', iconBg: 'rgba(21,102,54,0.08)',   iconColor: '#156636', val: kpis?.wtdComm > 0 ? fmtM(Math.round(kpis.wtdComm)) : '—', lbl: 'Wtd. Commission', green: true },
             { icon: '◉', iconBg: 'rgba(140,90,4,0.09)',    iconColor: '#8C5A04', val: kpis?.loiCount ?? '—',       lbl: 'In LOI / Accepted' },
-            { icon: '⏱', iconBg: 'rgba(184,55,20,0.08)',   iconColor: '#B83714', val: kpis?.actionNeeded ?? '—',   lbl: 'Action Needed', rust: true },
           ].map((k, i) => (
             <div key={i} style={{ background: '#fff', borderRadius: 9, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.06)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 11 }}>
               <div style={{ width: 34, height: 34, borderRadius: 7, background: k.iconBg, color: k.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
@@ -523,7 +505,7 @@ export default function DealsPage() {
                   const days     = daysAgo(deal.updated_at);
                   return (
                     <tr key={deal.id}
-                      onClick={() => router.push(`/deals/${deal.id}`)}
+                      onClick={() => setSelectedDeal(deal)}
                       style={{ borderBottom: '1px solid rgba(0,0,0,0.04)', cursor: 'pointer', transition: 'background .1s' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(78,110,150,0.025)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -571,6 +553,18 @@ export default function DealsPage() {
           </div>
         )}
       </div>
+
+      {/* ── DEAL DRAWER ── */}
+      <SlideDrawer
+        open={!!selectedDeal}
+        onClose={() => setSelectedDeal(null)}
+        fullPageHref={selectedDeal ? `/deals/${selectedDeal.id}` : undefined}
+        title={selectedDeal?.deal_name || selectedDeal?.address || ''}
+        subtitle={[selectedDeal?.stage, selectedDeal?.deal_value ? (selectedDeal.deal_value >= 1e6 ? `$${(selectedDeal.deal_value/1e6).toFixed(1)}M` : `$${(selectedDeal.deal_value/1e3).toFixed(0)}K`) : null].filter(Boolean).join(' · ')}
+        badge={selectedDeal?.priority ? { label: selectedDeal.priority, color: selectedDeal.priority === 'High' || selectedDeal.priority === 'Critical' ? 'rust' : 'gray' } : undefined}
+      >
+        {selectedDeal && <DealDetailInline id={selectedDeal.id} onClose={() => setSelectedDeal(null)} />}
+      </SlideDrawer>
 
       {/* ── NEW DEAL MODAL ── */}
       {showNew && (
