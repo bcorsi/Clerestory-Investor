@@ -8,7 +8,7 @@ export async function POST(request) {
     const body = await request.json();
     const payload = {
       model: body.model || 'claude-sonnet-4-20250514',
-      max_tokens: body.max_tokens || 1000,
+      max_tokens: body.max_tokens || 1500,
       messages: body.messages,
     };
     if (body.system) payload.system = body.system;
