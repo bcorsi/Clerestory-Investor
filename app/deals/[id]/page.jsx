@@ -107,6 +107,7 @@ export default function DealDetailPage({params}) {
   // AI Synthesis
   const [synthesis, setSynthesis] = useState('');
   const [genSynthesis, setGenSynthesis] = useState(false);
+  const [genMemo, setGenMemo] = useState(false);
 
   // Opportunity Memo
   const [memo, setMemo] = useState('');
@@ -251,6 +252,43 @@ Write a concise 3-4 sentence deal intelligence synthesis covering: (1) what make
       console.error('AI synthesis error:',e);
       setSynthesis('Unable to generate synthesis. Check /api/ai route.');
     } finally { setGenSynthesis(false); }
+  }
+
+
+  async function generateMemo() {
+    setGenMemo(true);
+    try {
+      const prompt = `You are a senior industrial real estate broker writing a concise opportunity memo for a deal.
+
+Deal: ${deal?.deal_name || deal?.address || 'Industrial property'}
+Stage: ${deal?.stage || 'Unknown'}
+Deal Type: ${deal?.deal_type || 'Sale'}
+Deal Value: ${deal?.deal_value ? fmtM(deal.deal_value) : 'TBD'}
+Priority: ${deal?.priority || 'Medium'}
+${property ? `Property: ${property.address}, ${property.city}
+Building SF: ${property.building_sf ? Number(property.building_sf).toLocaleString()+' SF' : 'Unknown'}
+Clear Height: ${property.clear_height ? property.clear_height+"'" : 'Unknown'}
+Year Built: ${property.year_built || 'Unknown'}
+Owner: ${property.owner || 'Unknown'}
+Tenant: ${property.tenant || 'Vacant'}
+Submarket: ${property.submarket || property.city || 'SGV/IE'}` : ''}
+${activities.length > 0 ? 'Recent Activity: '+activities.slice(0,3).map(a=>a.subject).join(' | ') : ''}
+
+Write a 2-3 sentence opportunity memo in first-person broker voice. Cover: what type of opportunity this is, what makes it compelling or urgent, and what the key next step is. Be specific and direct. No headers, just prose.`;
+
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({messages:[{role:'user',content:prompt}]}),
+      });
+      const json = await res.json();
+      const text = json?.content?.[0]?.text || json?.text || '';
+      setMemo(text);
+      setEditingMemo(true);
+      showToast('Memo generated','Review and save to deal record','blue');
+    } catch(e) {
+      console.error('Memo gen error:',e);
+    } finally { setGenMemo(false); }
   }
 
   function runUW() {
@@ -568,7 +606,7 @@ Write a concise 3-4 sentence deal intelligence synthesis covering: (1) what make
 
               {/* OPPORTUNITY MEMO */}
               <Card>
-                <CardHdr title="Opportunity Memo" action={editingMemo?null:"Edit"} onAction={()=>setEditingMemo(true)}/>
+                <CardHdr title="Opportunity Memo" action={editingMemo?null:(genMemo?'Generating…':'✦ Generate')} onAction={()=>!genMemo&&generateMemo()}/>
                 <div style={{padding:'10px 14px'}}>
                   {editingMemo?(
                     <>
@@ -635,7 +673,7 @@ Write a concise 3-4 sentence deal intelligence synthesis covering: (1) what make
                   {v==='quick'?'Quick Underwrite':'Returns Dashboard'}
                 </button>
               ))}
-              <Link href={`/deals/${id}/underwriting`} style={{marginLeft:'auto',fontSize:12,padding:'7px 14px',borderRadius:6,background:'rgba(88,56,160,.1)',color:'var(--purple)',border:'1px solid rgba(88,56,160,.25)',textDecoration:'none'}}>Full 7-Tab UW Model →</Link>
+              <span style={{marginLeft:'auto',fontFamily:'var(--font-editorial)',fontSize:12,fontStyle:'italic',color:'var(--text-tertiary)'}}>Full UW model coming soon — use standalone mockup-underwriting.html</span>
             </div>
 
             {uwView==='quick'&&(
