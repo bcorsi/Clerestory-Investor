@@ -126,7 +126,7 @@ export default function LeadDetail({ lead, onClose, onRefresh, fullPage = false,
   async function runSynthesis() {
     setSynthLoading(true);
     try {
-      const acts = activities.slice(0,5).map(a => `${a.type}: ${a.notes||''}`).join(' | ');
+      const acts = activities.slice(0,5).map(a => `${a.activity_type||a.subject}: ${a.notes||''}`).join(' | ');
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +171,7 @@ Be specific, reference actual data, 180 words max.`
     setSaving(true);
     try {
       const sb = createClient();
-      await sb.from('activities').insert({ lead_id:l.id, type, notes:logText, contact_name:logContact||null, created_at:new Date().toISOString() });
+      await sb.from('activities').insert({ lead_id:l.id, activity_type:type, subject:type==='call'?'Phone Call':type==='email'?'Email':type==='task'?'Task':'Note', notes:logText, activity_date:new Date().toISOString().split('T')[0], completed:false });
       setLogPanel(null); setLogText(''); setLogContact('');
       loadActivities(); onRefresh?.();
     } catch(e) { alert('Error: '+e.message); }
@@ -514,15 +514,15 @@ Be specific, reference actual data, 180 words max.`
                   ? <div style={{ padding:'36px', textAlign:'center', fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', color:'var(--text-tertiary)', fontSize:15 }}>No activity yet — log a call, email, or note above</div>
                   : activities.map((a,i) => (
                     <div key={a.id||i} style={{ display:'flex', gap:12, padding:'11px 16px', borderBottom:i<activities.length-1?'1px solid rgba(0,0,0,0.04)':'none' }}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11.5, flexShrink:0, marginTop:1, background:ICON_BG[a.type]||ICON_BG.note, color:ICON_COLOR[a.type]||ICON_COLOR.note }}>
-                        {a.type==='call'?'C':a.type==='email'?'E':a.type==='task'?'T':'N'}
+                      <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11.5, flexShrink:0, marginTop:1, background:ICON_BG[a.activity_type]||ICON_BG.note, color:ICON_COLOR[a.activity_type]||ICON_COLOR.note }}>
+                        {a.activity_type==='call'?'C':a.activity_type==='email'?'E':a.activity_type==='task'?'T':'N'}
                       </div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13.5, color:'var(--text-primary)', lineHeight:1.4 }}>
-                          <strong>{a.contact_name ? `${a.type==='call'?'Called':a.type==='email'?'Emailed':'Note re:'} ${a.contact_name}` : a.type?.charAt(0).toUpperCase()+a.type?.slice(1)}</strong>
+                          <strong>{a.subject || (a.activity_type?.charAt(0).toUpperCase()+a.activity_type?.slice(1))}</strong>
                           {a.notes && <span style={{ fontWeight:400 }}> — {a.notes}</span>}
                         </div>
-                        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontStyle:'italic', color:'var(--text-tertiary)', marginTop:2 }}>Briana Corso · {fmtDate(a.created_at)}</div>
+                        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, fontStyle:'italic', color:'var(--text-tertiary)', marginTop:2 }}>Briana Corso · {fmtDate(a.activity_date||a.created_at)}</div>
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--text-tertiary)', flexShrink:0, paddingTop:2 }}>{fmtShort(a.created_at)}</div>
                     </div>
