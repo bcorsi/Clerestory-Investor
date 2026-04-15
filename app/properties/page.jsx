@@ -53,14 +53,14 @@ export default function PropertiesPage() {
     let list = [...properties];
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(p => [p.property_name, p.address, p.city, p.submarket, p.owner, p.tenant_name].some(f => (f||'').toLowerCase().includes(q)));
+      list = list.filter(p => [p.property_name, p.address, p.city, p.submarket, p.owner, p.tenant].some(f => (f||'').toLowerCase().includes(q)));
     }
     switch (activeFilter) {
       case 'SGV': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')); break;
       case 'IE': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')); break;
-      case 'Occupied': list = list.filter(p => (p.occupancy_status||'').toLowerCase().includes('occupied')); break;
-      case 'Vacant': list = list.filter(p => (p.occupancy_status||'').toLowerCase().includes('vacant')); break;
-      case 'Partial': list = list.filter(p => (p.occupancy_status||'').toLowerCase().includes('partial')); break;
+      case 'Occupied': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')); break;
+      case 'Vacant': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('vacant')); break;
+      case 'Partial': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('partial')); break;
       case 'WARN': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('warn'))); break;
       case 'Lease Expiry': list = list.filter(p => { const m = monthsUntil(p.lease_expiration); return m != null && m <= 24; }); break;
       case 'SLB': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('slb'))); break;
@@ -77,9 +77,9 @@ export default function PropertiesPage() {
   }, [properties, search, activeFilter, sortCol, sortDir]);
 
   const kpis = useMemo(() => {
-    const totalSF = filtered.reduce((s, p) => s + (p.total_sf||p.building_sf||0), 0);
-    const occupied = filtered.filter(p => (p.occupancy_status||'').toLowerCase().includes('occupied')).length;
-    const vacantPartial = filtered.filter(p => { const s = (p.occupancy_status||'').toLowerCase(); return s.includes('vacant') || s.includes('partial'); }).length;
+    const totalSF = filtered.reduce((s, p) => s + (p.building_sf||0), 0);
+    const occupied = filtered.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')).length;
+    const vacantPartial = filtered.filter(p => { const s = (p.vacancy_status||'').toLowerCase(); return s.includes('vacant') || s.includes('partial'); }).length;
     const signals = filtered.filter(p => (p.catalyst_tags||[]).length > 0).length;
     return { total: filtered.length, totalSF, occupied, vacantPartial, signals };
   }, [filtered]);
@@ -122,12 +122,12 @@ export default function PropertiesPage() {
   const cols = [
     { key: 'property_name', label: 'Property' },
     { key: 'submarket', label: 'Market / Submarket' },
-    { key: 'property_type', label: 'Type' },
+    { key: 'prop_type', label: 'Type' },
     { key: 'ai_score', label: 'Score' },
-    { key: 'total_sf', label: 'SF' },
+    { key: 'building_sf', label: 'SF' },
     { key: 'clear_height', label: 'Clear Ht' },
     { key: 'owner', label: 'Owner' },
-    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant', label: 'Tenant' },
     { key: 'lease_expiration', label: 'Lease Exp.' },
     { key: null, label: 'Status' },
     { key: null, label: 'Catalysts' },
@@ -206,17 +206,17 @@ export default function PropertiesPage() {
                     <div style={{ fontFamily:"'Cormorant Garamond', serif", fontStyle:'italic', fontSize:14, color:'#6E6860', marginTop:2 }}>{[p.city, p.state, p.zip].filter(Boolean).join(', ')||'—'}</div>
                   </td>
                   <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
-                  <td style={tdM}>{p.property_type||'—'}</td>
+                  <td style={tdM}>{p.prop_type||'—'}</td>
                   <td style={{ padding:'14px 16px', verticalAlign:'middle' }}>
                     <span style={{ fontFamily:"'Playfair Display', serif", fontSize:20, fontWeight:700, color:getScoreColor(p.ai_score) }}>{p.ai_score??'—'}</span>
                     <span style={{ fontFamily:"'DM Mono', monospace", fontSize:12, fontWeight:500, color:'#6E6860', marginLeft:5 }}>{getGrade(p.ai_score)}</span>
                   </td>
-                  <td style={tdMono}>{fmt(p.total_sf||p.building_sf)}</td>
+                  <td style={tdMono}>{fmt(p.building_sf)}</td>
                   <td style={tdMono}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
                   <td style={{ ...tdM, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
-                  <td style={{ ...tdM, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.tenant_name||'—'}</td>
+                  <td style={{ ...tdM, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.tenant||'—'}</td>
                   <td style={{ ...tdMono, color: mo!=null&&mo<=12?'#B83714':mo!=null&&mo<=24?'#8C5A04':'#2C2822' }}>{fmtExpiry(p.lease_expiration)}</td>
-                  <td style={{ padding:'14px 16px', verticalAlign:'middle' }}><StatusTag status={p.occupancy_status} /></td>
+                  <td style={{ padding:'14px 16px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
                   <td style={{ padding:'14px 16px', verticalAlign:'middle' }}>
                     <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                       {(p.catalyst_tags||[]).slice(0,3).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:12, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c }}>{tag}</span>; })}
