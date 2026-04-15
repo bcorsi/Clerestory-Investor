@@ -15,7 +15,7 @@ const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*6
 const fmtExpiry = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
 const ago = (d) => { if (!d) return ''; const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); if (h < 1) return 'now'; if (h < 24) return `${h}h`; const days = Math.round(h / 24); return days === 1 ? '1d' : `${days}d`; };
 
-const V = {
+const CL = {
   bg:'#F4F1EC',bg2:'#EAE6DF',card:'#FFFFFF',
   ink:'#0F0D09',ink2:'#2C2822',ink3:'#524D46',ink4:'#6E6860',
   blue:'#4E6E96',blue2:'#6480A2',blue3:'#89A8C6',
@@ -31,27 +31,27 @@ const V = {
 };
 
 const getTagStyle = (tag) => {
-  if (!tag) return { bg: V.blueBg, bdr: V.blueBdr, c: V.blue };
+  if (!tag) return { bg: CL.blueBg, bdr: CL.blueBdr, c: CL.blue };
   const t = tag.toLowerCase();
-  if (t.includes('warn')||t.includes('vacant')||t.includes('owner')||t.includes('legacy')||t.includes('long hold')||t.includes('age 55')||t.includes('expired')) return { bg:V.rustBg, bdr:V.rustBdr, c:V.rust };
-  if (t.includes('lease')||t.includes('partial')||t.includes('below market')) return { bg:V.amberBg, bdr:V.amberBdr, c:V.amber };
-  if (t.includes('slb')||t.includes('occupied')||t.includes('market')) return { bg:V.greenBg, bdr:V.greenBdr, c:V.green };
-  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')) return { bg:V.purpleBg, bdr:V.purpleBdr, c:V.purple };
-  return { bg:V.blueBg, bdr:V.blueBdr, c:V.blue };
+  if (t.includes('warn')||t.includes('vacant')||t.includes('owner')||t.includes('legacy')||t.includes('long hold')||t.includes('age 55')||t.includes('expired')) return { bg:CL.rustBg, bdr:CL.rustBdr, c:CL.rust };
+  if (t.includes('lease')||t.includes('partial')||t.includes('below market')) return { bg:CL.amberBg, bdr:CL.amberBdr, c:CL.amber };
+  if (t.includes('slb')||t.includes('occupied')||t.includes('market')) return { bg:CL.greenBg, bdr:CL.greenBdr, c:CL.green };
+  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
+  return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
 };
 
 const getSignalColor = (tag) => {
   const t = (tag||'').toLowerCase();
-  if (t.includes('warn')||t.includes('vacant')||t.includes('expired')) return V.rust;
-  if (t.includes('lease')||t.includes('below market')) return V.amber;
-  if (t.includes('slb')) return V.green;
-  return V.purple;
+  if (t.includes('warn')||t.includes('vacant')||t.includes('expired')) return CL.rust;
+  if (t.includes('lease')||t.includes('below market')) return CL.amber;
+  if (t.includes('slb')) return CL.green;
+  return CL.purple;
 };
 
-const ghostBtn = { display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:7, fontFamily:"'Instrument Sans',sans-serif", fontSize:13, fontWeight:500, cursor:'pointer', border:`1px solid ${V.line}`, background:V.card, color:V.ink3, whiteSpace:'nowrap', transition:'all .12s' };
-const primaryBtn = { ...ghostBtn, background:V.blue, color:'#fff', borderColor:V.blue };
-const tdM = { padding:'12px 14px', fontSize:14, color:V.ink4, verticalAlign:'middle' };
-const tdMono = { padding:'12px 14px', fontFamily:"'DM Mono',monospace", fontSize:13, color:V.ink2, verticalAlign:'middle' };
+const ghostBtn = { display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:7, fontFamily:"'Instrument Sans',sans-serif", fontSize:13, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.line}`, background:CL.card, color:CL.ink3, whiteSpace:'nowrap', transition:'all .12s' };
+const primaryBtn = { ...ghostBtn, background:CL.blue, color:'#fff', borderColor:CL.blue };
+const tdM = { padding:'12px 14px', fontSize:14, color:CL.ink4, verticalAlign:'middle' };
+const tdMono = { padding:'12px 14px', fontFamily:"'DM Mono',monospace", fontSize:13, color:CL.ink2, verticalAlign:'middle' };
 
 export default function PropertiesPage() {
   const router = useRouter();
@@ -244,7 +244,7 @@ export default function PropertiesPage() {
     <>
       {/* ═══ ① LIVE SIGNAL TICKER ═══ */}
       {signals.length > 0 && (
-        <div style={{ background:'linear-gradient(90deg,#1A2130,#1F2840,#1A2130)', borderRadius:V.radius, overflow:'hidden', marginBottom:20, height:38, position:'relative', border:'1px solid rgba(100,128,162,0.15)' }}>
+        <div style={{ background:'linear-gradient(90deg,#1A2130,#1F2840,#1A2130)', borderRadius:CL.radius, overflow:'hidden', marginBottom:20, height:38, position:'relative', border:'1px solid rgba(100,128,162,0.15)' }}>
           <div style={{ position:'absolute', left:0, top:0, bottom:0, width:110, background:'linear-gradient(90deg,#1A2130 70%,transparent)', zIndex:5, display:'flex', alignItems:'center', paddingLeft:14, gap:6 }}>
             <span style={{ width:6, height:6, borderRadius:'50%', background:'#F08880', animation:'blink 1.4s infinite' }} />
             <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:'.08em', textTransform:'uppercase', color:'rgba(240,235,225,0.7)' }}>Live Signals</span>
@@ -264,24 +264,23 @@ export default function PropertiesPage() {
       {/* ═══ HEADER ═══ */}
       <div style={{ padding:'28px 0 20px', display:'flex', alignItems:'flex-end', justifyContent:'space-between' }}>
         <div>
-          <h1 style={{ fontFamily:"'Instrument Sans',sans-serif", fontSize:32, fontWeight:300, color:V.ink, letterSpacing:'-0.02em', lineHeight:1, margin:0 }}>Properties</h1>
-          <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:16, fontStyle:'italic', color:V.ink4, marginTop:6 }}>
+          <h1 style={{ fontFamily:"'Instrument Sans',sans-serif", fontSize:32, fontWeight:300, color:CL.ink, letterSpacing:'-0.02em', lineHeight:1, margin:0 }}>Properties</h1>
+          <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:16, fontStyle:'italic', color:CL.ink4, marginTop:6 }}>
             {loading ? 'Loading…' : `${kpis.total} properties tracked · ${fmtSF(kpis.totalSF)} SF · SGV / IE Industrial`}
           </p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {/* ② VIEW TOGGLE */}
-          <div style={{ display:'flex', background:V.bg2, border:`1px solid ${V.line}`, borderRadius:7, overflow:'hidden' }}>
-            <button onClick={() => setViewMode('table')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='table'?V.card:'transparent', color:viewMode==='table'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:viewMode==='table'?'0 1px 3px rgba(0,0,0,0.08)':'none' }}>
+          <div style={{ display:'flex', background:CL.bg2, border:`1px solid ${CL.line}`, borderRadius:7, overflow:'hidden' }}>
+            <button style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:CL.card, color:CL.blue, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'0 1px 3px rgba(0,0,0,0.08)' }}>
               ☰ Table
             </button>
             <button onClick={() => alert('Map view coming in next build — Leaflet satellite map with clustered markers.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='map'?V.card:'transparent', color:viewMode==='map'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
+              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
               🗺 Map
             </button>
             <button onClick={() => alert('Cards view coming in next build — grid with aerial thumbnails and score rings.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='cards'?V.card:'transparent', color:viewMode==='cards'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
+              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
               ◫ Cards
             </button>
           </div>
@@ -293,35 +292,35 @@ export default function PropertiesPage() {
 
       {/* ═══ ③ KPI STRIP WITH DELTAS ═══ */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:20 }}>
-        <KPI icon="🏢" bg={V.blueBg} color={V.blue} value={kpis.total} label="Total Properties" delta={deltas.props > 0 ? `+${deltas.props}` : null} up />
-        <KPI icon="◫" bg={V.amberBg} color={V.amber} value={fmtSF(kpis.totalSF)} label="Total SF Tracked" />
-        <KPI icon="◉" bg={V.greenBg} color={V.green} value={kpis.occupied} label="Occupied" />
-        <KPI icon="◎" bg={V.rustBg} color={V.rust} value={kpis.vacantPartial} label="Vacant / Partial" />
-        <KPI icon="⚡" bg={V.purpleBg} color={V.purple} value={kpis.signals} label="Active Catalysts" delta={deltas.signals > 0 ? `+${deltas.signals}` : null} up />
+        <KPI icon="🏢" bg={CL.blueBg} color={CL.blue} value={kpis.total} label="Total Properties" delta={deltas.props > 0 ? `+${deltas.props}` : null} up />
+        <KPI icon="◫" bg={CL.amberBg} color={CL.amber} value={fmtSF(kpis.totalSF)} label="Total SF Tracked" />
+        <KPI icon="◉" bg={CL.greenBg} color={CL.green} value={kpis.occupied} label="Occupied" />
+        <KPI icon="◎" bg={CL.rustBg} color={CL.rust} value={kpis.vacantPartial} label="Vacant / Partial" />
+        <KPI icon="⚡" bg={CL.purpleBg} color={CL.purple} value={kpis.signals} label="Active Catalysts" delta={deltas.signals > 0 ? `+${deltas.signals}` : null} up />
       </div>
 
       {/* ═══ ④ ADVANCED FILTER PANEL ═══ */}
       {showFilters && (
-        <div style={{ background:V.card, borderRadius:V.radius, boxShadow:V.shadowMd, border:`1px solid ${V.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
-          <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:V.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
+        <div style={{ background:CL.card, borderRadius:CL.radius, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
+          <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
             <FilterField label="Min Building Score">
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <input type="range" min="0" max="100" value={advFilters.minScore} onChange={e => setAdvFilters(f => ({ ...f, minScore: Number(e.target.value) }))} style={{ flex:1, accentColor:V.blue }} />
-                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:V.blue, minWidth:28, textAlign:'right' }}>{advFilters.minScore}</span>
+                <input type="range" min="0" max="100" value={advFilters.minScore} onChange={e => setAdvFilters(f => ({ ...f, minScore: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.blue }} />
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.blue, minWidth:28, textAlign:'right' }}>{advFilters.minScore}</span>
               </div>
             </FilterField>
             <FilterField label="Property SF Range">
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <input placeholder="Min" value={advFilters.minSF} onChange={e => setAdvFilters(f => ({ ...f, minSF:e.target.value }))} style={fpInput} />
-                <span style={{ color:V.ink4, fontSize:11 }}>to</span>
+                <span style={{ color:CL.ink4, fontSize:11 }}>to</span>
                 <input placeholder="Max" value={advFilters.maxSF} onChange={e => setAdvFilters(f => ({ ...f, maxSF:e.target.value }))} style={fpInput} />
               </div>
             </FilterField>
             <FilterField label="Min Clear Height">
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <input type="range" min="0" max="40" value={advFilters.minHt} onChange={e => setAdvFilters(f => ({ ...f, minHt: Number(e.target.value) }))} style={{ flex:1, accentColor:V.blue }} />
-                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:V.blue, minWidth:28, textAlign:'right' }}>{advFilters.minHt}'</span>
+                <input type="range" min="0" max="40" value={advFilters.minHt} onChange={e => setAdvFilters(f => ({ ...f, minHt: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.blue }} />
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.blue, minWidth:28, textAlign:'right' }}>{advFilters.minHt}'</span>
               </div>
             </FilterField>
             <FilterField label="Lease Expiry">
@@ -351,7 +350,7 @@ export default function PropertiesPage() {
               </select>
             </FilterField>
           </div>
-          <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16, paddingTop:14, borderTop:`1px solid ${V.line}` }}>
+          <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16, paddingTop:14, borderTop:`1px solid ${CL.line}` }}>
             <button onClick={() => setAdvFilters({ minScore:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' })} style={ghostBtn}>Clear All</button>
             <button onClick={() => setShowFilters(false)} style={primaryBtn}>Apply · {filtered.length} results</button>
           </div>
@@ -363,7 +362,7 @@ export default function PropertiesPage() {
         {[{k:'All',ct:counts.all},{k:'SGV',ct:counts.sgv},{k:'IE',ct:counts.ie}].map(f =>
           <Chip key={f.k} label={f.k} count={f.ct} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
         <Sep />
-        {[{k:'Occupied',dot:V.green},{k:'Vacant',dot:V.rust},{k:'Partial',dot:V.amber}].map(f =>
+        {[{k:'Occupied',dot:CL.green},{k:'Vacant',dot:CL.rust},{k:'Partial',dot:CL.amber}].map(f =>
           <Chip key={f.k} label={f.k} dot={f.dot} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
         <Sep />
         {['WARN','Lease Expiry','SLB'].map(f =>
@@ -371,35 +370,35 @@ export default function PropertiesPage() {
 
         {/* ⑤ Saved Views */}
         <div style={{ position:'relative', marginLeft:8 }}>
-          <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${V.purpleBdr}`, background:V.purpleBg, color:V.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
+          <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.purpleBdr}`, background:CL.purpleBg, color:CL.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
           {showSaved && (
-            <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, width:260, background:V.card, borderRadius:10, boxShadow:V.shadowMd, border:`1px solid ${V.line2}`, zIndex:50, overflow:'hidden' }}>
-              {savedViews.length === 0 && <div style={{ padding:'14px 14px', fontSize:13, color:V.ink4 }}>No saved views yet</div>}
+            <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, width:260, background:CL.card, borderRadius:10, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, zIndex:50, overflow:'hidden' }}>
+              {savedViews.length === 0 && <div style={{ padding:'14px 14px', fontSize:13, color:CL.ink4 }}>No saved views yet</div>}
               {savedViews.map((v, i) => (
-                <div key={i} onClick={() => loadView(v)} style={{ padding:'10px 14px', fontSize:13, color:V.ink2, cursor:'pointer', borderBottom:`1px solid ${V.line2}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div key={i} onClick={() => loadView(v)} style={{ padding:'10px 14px', fontSize:13, color:CL.ink2, cursor:'pointer', borderBottom:`1px solid ${CL.line2}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                   <span style={{ fontWeight:500 }}>{v.name}</span>
-                  <span onClick={e => { e.stopPropagation(); deleteView(i); }} style={{ fontSize:14, color:V.ink4, cursor:'pointer', padding:'0 4px' }}>✕</span>
+                  <span onClick={e => { e.stopPropagation(); deleteView(i); }} style={{ fontSize:14, color:CL.ink4, cursor:'pointer', padding:'0 4px' }}>✕</span>
                 </div>
               ))}
-              <div onClick={saveView} style={{ padding:'10px 14px', fontSize:12, color:V.purple, cursor:'pointer', borderTop:`1px solid ${V.line}`, display:'flex', alignItems:'center', gap:6, background:'rgba(88,56,160,0.03)' }}>+ Save current view…</div>
+              <div onClick={saveView} style={{ padding:'10px 14px', fontSize:12, color:CL.purple, cursor:'pointer', borderTop:`1px solid ${CL.line}`, display:'flex', alignItems:'center', gap:6, background:'rgba(88,56,160,0.03)' }}>+ Save current view…</div>
             </div>
           )}
         </div>
 
         {/* Search */}
         <div style={{ position:'relative', flex:1, maxWidth:360, marginLeft:'auto' }}>
-          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:14, color:V.ink4, pointerEvents:'none' }}>⌕</span>
+          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:14, color:CL.ink4, pointerEvents:'none' }}>⌕</span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search properties, owners, tenants…"
-            style={{ width:'100%', padding:'8px 14px 8px 36px', border:`1px solid ${V.line}`, borderRadius:8, fontFamily:"'Instrument Sans',sans-serif", fontSize:14, color:V.ink, background:V.card, outline:'none' }} />
+            style={{ width:'100%', padding:'8px 14px 8px 36px', border:`1px solid ${CL.line}`, borderRadius:8, fontFamily:"'Instrument Sans',sans-serif", fontSize:14, color:CL.ink, background:CL.card, outline:'none' }} />
         </div>
       </div>
 
       {/* ═══ TABLE ═══ */}
-      <div style={{ background:V.card, borderRadius:12, boxShadow:V.shadow, border:`1px solid ${V.line2}`, overflow:'hidden' }}>
+      <div style={{ background:CL.card, borderRadius:12, boxShadow:CL.shadow, border:`1px solid ${CL.line2}`, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr>
-            <th style={{ width:36, padding:'11px 10px', borderBottom:`2px solid ${V.line}`, background:V.bg }}>
-              <div onClick={toggleAll} style={{ width:18, height:18, border:`2px solid ${selected.size===filtered.length&&filtered.length>0?V.blue:V.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:selected.size===filtered.length&&filtered.length>0?V.blue:'transparent' }}>
+            <th style={{ width:36, padding:'11px 10px', borderBottom:`2px solid ${CL.line}`, background:CL.bg }}>
+              <div onClick={toggleAll} style={{ width:18, height:18, border:`2px solid ${selected.size===filtered.length&&filtered.length>0?CL.blue:CL.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:selected.size===filtered.length&&filtered.length>0?CL.blue:'transparent' }}>
                 {selected.size===filtered.length&&filtered.length>0?'✓':''}
               </div>
             </th>
@@ -407,45 +406,45 @@ export default function PropertiesPage() {
               <th key={i} onClick={() => col.key && handleSort(col.key)} style={{
                 padding:'11px 14px', textAlign:'left', fontSize:11, fontWeight:600,
                 letterSpacing:'.08em', textTransform:'uppercase', whiteSpace:'nowrap',
-                color:sortCol===col.key?V.blue:V.ink3,
-                borderBottom:`2px solid ${V.line}`, background:V.bg,
+                color:sortCol===col.key?CL.blue:CL.ink3,
+                borderBottom:`2px solid ${CL.line}`, background:CL.bg,
                 cursor:col.key?'pointer':'default', userSelect:'none',
               }}>
                 {col.label}
                 {col.key && <span style={{ opacity:sortCol===col.key?1:0.35, fontSize:10, marginLeft:4 }}>{sortCol===col.key?(sortDir==='desc'?'↓':'↑'):'↕'}</span>}
               </th>
             ))}
-            <th style={{ width:28, borderBottom:`2px solid ${V.line}`, background:V.bg }} />
+            <th style={{ width:28, borderBottom:`2px solid ${CL.line}`, background:CL.bg }} />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:V.ink4, fontSize:16 }}>Loading properties…</td></tr> :
-             filtered.length === 0 ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:V.ink4, fontSize:16 }}>No properties match filters.</td></tr> :
+            {loading ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>Loading properties…</td></tr> :
+             filtered.length === 0 ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>No properties match filters.</td></tr> :
              filtered.map((p, idx) => {
               const mo = monthsUntil(p.lease_expiration);
               const isSel = selected.has(p.id);
               const cov = (p.building_sf && p.land_acres) ? ((p.building_sf / (p.land_acres * 43560)) * 100).toFixed(1) : null;
               return (
                 <tr key={p.id} onClick={() => router.push(`/properties/${p.id}`)}
-                  style={{ borderBottom:`1px solid ${V.line2}`, cursor:'pointer', transition:'background .1s', background:isSel?'rgba(78,110,150,0.05)':'' }}
+                  style={{ borderBottom:`1px solid ${CL.line2}`, cursor:'pointer', transition:'background .1s', background:isSel?'rgba(78,110,150,0.05)':'' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background='#F8F6F2'; setHoverIdx(idx); }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background=''; setHoverIdx(null); }}>
                   {/* Checkbox */}
                   <td style={{ padding:'12px 10px', verticalAlign:'middle' }}>
                     <div onClick={e => { e.stopPropagation(); toggleSelect(p.id); }}
-                      style={{ width:18, height:18, border:`2px solid ${isSel?V.blue:V.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:isSel?V.blue:'transparent', transition:'all .12s' }}>
+                      style={{ width:18, height:18, border:`2px solid ${isSel?CL.blue:CL.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:isSel?CL.blue:'transparent', transition:'all .12s' }}>
                       {isSel?'✓':''}
                     </div>
                   </td>
                   {/* Property */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle', maxWidth:220 }}>
-                    <div style={{ fontWeight:600, color:V.ink, fontSize:14 }}>{p.property_name||p.address||'—'}</div>
-                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:V.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
+                    <div style={{ fontWeight:600, color:CL.ink, fontSize:14 }}>{p.property_name||p.address||'—'}</div>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
                   </td>
                   {/* Market */}
                   <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
                   {/* Score ring */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
-                    <div style={{ width:38, height:38, borderRadius:'50%', border:`2px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?V.blueBg:p.ai_score>=55?V.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                    <div style={{ width:38, height:38, borderRadius:'50%', border:`2px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
                       <span style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:getScoreColor(p.ai_score), lineHeight:1 }}>{p.ai_score??'—'}</span>
                       <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{getGrade(p.ai_score)}</span>
                     </div>
@@ -463,25 +462,25 @@ export default function PropertiesPage() {
                   {/* Owner */}
                   <td style={{ ...tdM, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
                   {/* Lease Exp */}
-                  <td style={{ ...tdMono, color:mo!=null&&mo<=12?V.rust:mo!=null&&mo<=24?V.amber:V.ink2 }}>{fmtExpiry(p.lease_expiration)}</td>
+                  <td style={{ ...tdMono, color:mo!=null&&mo<=12?CL.rust:mo!=null&&mo<=24?CL.amber:CL.ink2 }}>{fmtExpiry(p.lease_expiration)}</td>
                   {/* Status */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
                   {/* Catalysts + ⑥ AI Sparkle */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
                     <div style={{ display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
                       {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c }}>{tag}</span>; })}
-                      {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:11, color:V.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
+                      {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:11, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
                       {p.ai_synthesis && <AISparkle text={p.ai_synthesis} />}
                     </div>
                   </td>
-                  <td style={{ padding:'12px 8px', color:V.ink4, fontSize:14, opacity:0.5, verticalAlign:'middle' }}>›</td>
+                  <td style={{ padding:'12px 8px', color:CL.ink4, fontSize:14, opacity:0.5, verticalAlign:'middle' }}>›</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {!loading && filtered.length > 0 && <div style={{ padding:'14px 0', fontSize:14, color:V.ink4 }}>Showing {filtered.length} of {properties.length} properties</div>}
+      {!loading && filtered.length > 0 && <div style={{ padding:'14px 0', fontSize:14, color:CL.ink4 }}>Showing {filtered.length} of {properties.length} properties</div>}
 
       {/* ═══ ⑦ BULK ACTION BAR ═══ */}
       {selected.size > 0 && (
@@ -499,22 +498,22 @@ export default function PropertiesPage() {
 
       {/* ═══ ⑧ COMPARE DRAWER ═══ */}
       {showCompare && (
-        <div style={{ position:'fixed', right:0, top:0, bottom:0, width:480, background:V.card, boxShadow:'-8px 0 30px rgba(0,0,0,0.12)', zIndex:200, borderLeft:`1px solid ${V.line2}`, display:'flex', flexDirection:'column', animation:'slideIn .3s ease' }}>
-          <div style={{ padding:'18px 24px', borderBottom:`1px solid ${V.line}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:14, fontWeight:600 }}>⊞ Property Comparison <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:V.ink4, marginLeft:4 }}>{compareIds.length} of 3 max</span></span>
-            <span onClick={() => setShowCompare(false)} style={{ color:V.ink4, cursor:'pointer', fontSize:18 }}>✕</span>
+        <div style={{ position:'fixed', right:0, top:0, bottom:0, width:480, background:CL.card, boxShadow:'-8px 0 30px rgba(0,0,0,0.12)', zIndex:200, borderLeft:`1px solid ${CL.line2}`, display:'flex', flexDirection:'column', animation:'slideIn .3s ease' }}>
+          <div style={{ padding:'18px 24px', borderBottom:`1px solid ${CL.line}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{ fontSize:14, fontWeight:600 }}>⊞ Property Comparison <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:CL.ink4, marginLeft:4 }}>{compareIds.length} of 3 max</span></span>
+            <span onClick={() => setShowCompare(false)} style={{ color:CL.ink4, cursor:'pointer', fontSize:18 }}>✕</span>
           </div>
           {compareProps.length === 0 ? (
-            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:8, color:V.ink4 }}>
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:8, color:CL.ink4 }}>
               <div style={{ fontSize:14 }}>Select properties to compare</div>
               <div style={{ fontSize:12 }}>Click checkboxes in the table, then click Compare</div>
             </div>
           ) : (
             <div style={{ flex:1, overflowY:'auto' }}>
               {/* Header row */}
-              <div style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${V.line2}`, background:V.bg }}>
+              <div style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${CL.line2}`, background:CL.bg }}>
                 <div style={{ padding:'9px 14px' }} />
-                {compareProps.map(p => <div key={p.id} style={{ padding:'9px 14px', fontWeight:600, fontSize:12, color:V.blue }}>{p.property_name||p.address||'—'}</div>)}
+                {compareProps.map(p => <div key={p.id} style={{ padding:'9px 14px', fontWeight:600, fontSize:12, color:CL.blue }}>{p.property_name||p.address||'—'}</div>)}
               </div>
               {/* Comparison rows */}
               {[
@@ -534,11 +533,11 @@ export default function PropertiesPage() {
               ].map((row, ri) => {
                 const bestVal = row.key && row.best === 'max' ? Math.max(...compareProps.map(p => p[row.key]||0)) : null;
                 return (
-                  <div key={ri} style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${V.line2}` }}>
-                    <div style={{ padding:'9px 14px', fontSize:12, color:V.ink4, background:'rgba(0,0,0,0.015)' }}>{row.label}</div>
+                  <div key={ri} style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${CL.line2}` }}>
+                    <div style={{ padding:'9px 14px', fontSize:12, color:CL.ink4, background:'rgba(0,0,0,0.015)' }}>{row.label}</div>
                     {compareProps.map(p => {
                       const isWinner = row.key && bestVal != null && (p[row.key]||0) === bestVal && compareProps.filter(pp => (pp[row.key]||0)===bestVal).length === 1;
-                      return <div key={p.id} style={{ padding:'9px 14px', fontFamily:"'DM Mono',monospace", fontSize:12, color:isWinner?V.blue:V.ink2, fontWeight:isWinner?600:400, background:isWinner?'rgba(21,102,54,0.04)':'' }}>{row.fn(p)}</div>;
+                      return <div key={p.id} style={{ padding:'9px 14px', fontFamily:"'DM Mono',monospace", fontSize:12, color:isWinner?CL.blue:CL.ink2, fontWeight:isWinner?600:400, background:isWinner?'rgba(21,102,54,0.04)':'' }}>{row.fn(p)}</div>;
                     })}
                   </div>
                 );
@@ -551,13 +550,13 @@ export default function PropertiesPage() {
       {/* ADD MODAL */}
       {showAddModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShowAddModal(false)}>
-          <div style={{ background:'#fff', borderRadius:14, boxShadow:V.shadowMd, padding:28, width:500, maxWidth:'90vw' }} onClick={e => e.stopPropagation()}>
+          <div style={{ background:'#fff', borderRadius:14, boxShadow:CL.shadowMd, padding:28, width:500, maxWidth:'90vw' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ fontSize:22, fontWeight:500, marginBottom:20 }}>Add Property</h2>
             {['property_name','address','city','zip'].map(field => (
               <div key={field} style={{ marginBottom:14 }}>
-                <label style={{ fontSize:13, fontWeight:600, color:V.ink3, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:6, display:'block' }}>{field.replace('_',' ')}</label>
+                <label style={{ fontSize:13, fontWeight:600, color:CL.ink3, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:6, display:'block' }}>{field.replace('_',' ')}</label>
                 <input value={newProp[field]||''} onChange={e => setNewProp(prev => ({ ...prev, [field]:e.target.value }))}
-                  style={{ width:'100%', padding:'10px 14px', borderRadius:8, border:`1px solid ${V.line}`, fontFamily:"'Instrument Sans',sans-serif", fontSize:15, color:V.ink2, background:V.bg, outline:'none' }} />
+                  style={{ width:'100%', padding:'10px 14px', borderRadius:8, border:`1px solid ${CL.line}`, fontFamily:"'Instrument Sans',sans-serif", fontSize:15, color:CL.ink2, background:CL.bg, outline:'none' }} />
               </div>
             ))}
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:20 }}>
@@ -585,14 +584,14 @@ export default function PropertiesPage() {
 
 function KPI({ icon, bg, color, value, label, delta, up }) {
   return (
-    <div style={{ background:V.card, borderRadius:12, boxShadow:V.shadow, border:`1px solid ${V.line2}`, padding:'18px 22px', display:'flex', alignItems:'center', gap:16, transition:'transform .15s', cursor:'default' }}>
+    <div style={{ background:CL.card, borderRadius:12, boxShadow:CL.shadow, border:`1px solid ${CL.line2}`, padding:'18px 22px', display:'flex', alignItems:'center', gap:16, transition:'transform .15s', cursor:'default' }}>
       <div style={{ width:44, height:44, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0, background:bg, color }}>{icon}</div>
       <div>
         <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700, color:V.ink, lineHeight:1, letterSpacing:'-0.02em' }}>{value}</span>
-          {delta && <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:600, padding:'1px 5px', borderRadius:3, color:up?V.green:V.rust, background:up?V.greenBg:V.rustBg }}>{delta}</span>}
+          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700, color:CL.ink, lineHeight:1, letterSpacing:'-0.02em' }}>{value}</span>
+          {delta && <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:600, padding:'1px 5px', borderRadius:3, color:up?CL.green:CL.rust, background:up?CL.greenBg:CL.rustBg }}>{delta}</span>}
         </div>
-        <div style={{ fontSize:13, color:V.ink3, marginTop:4 }}>{label}</div>
+        <div style={{ fontSize:13, color:CL.ink3, marginTop:4 }}>{label}</div>
       </div>
     </div>
   );
@@ -603,8 +602,8 @@ function Chip({ label, count, dot, active, onClick }) {
     <button onClick={onClick} style={{
       display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:22,
       fontFamily:"'Instrument Sans',sans-serif", fontSize:13, fontWeight:500, cursor:'pointer', whiteSpace:'nowrap',
-      border:`1px solid ${active?V.blueBdr:V.line}`,
-      background:active?V.blueBg:V.card, color:active?V.blue:V.ink3,
+      border:`1px solid ${active?CL.blueBdr:CL.line}`,
+      background:active?CL.blueBg:CL.card, color:active?CL.blue:CL.ink3,
     }}>
       {dot && <span style={{ width:7, height:7, borderRadius:'50%', background:dot }} />}
       {label}
@@ -613,14 +612,14 @@ function Chip({ label, count, dot, active, onClick }) {
   );
 }
 
-function Sep() { return <div style={{ width:1, height:24, background:V.line, margin:'0 4px' }} />; }
+function Sep() { return <div style={{ width:1, height:24, background:CL.line, margin:'0 4px' }} />; }
 
 function StatusTag({ status }) {
   const s = (status||'').toLowerCase(); let label = status||'—', bg, bdr, c;
-  if (s.includes('occupied')||s==='leased') { label='Occupied'; bg=V.greenBg; bdr=V.greenBdr; c=V.green; }
-  else if (s.includes('vacant')||s==='available') { label='Vacant'; bg=V.rustBg; bdr=V.rustBdr; c=V.rust; }
-  else if (s.includes('partial')) { label='Partial'; bg=V.amberBg; bdr=V.amberBdr; c=V.amber; }
-  else { bg='rgba(0,0,0,0.04)'; bdr=V.line; c=V.ink4; }
+  if (s.includes('occupied')||s==='leased') { label='Occupied'; bg=CL.greenBg; bdr=CL.greenBdr; c=CL.green; }
+  else if (s.includes('vacant')||s==='available') { label='Vacant'; bg=CL.rustBg; bdr=CL.rustBdr; c=CL.rust; }
+  else if (s.includes('partial')) { label='Partial'; bg=CL.amberBg; bdr=CL.amberBdr; c=CL.amber; }
+  else { bg='rgba(0,0,0,0.04)'; bdr=CL.line; c=CL.ink4; }
   return <span style={{ display:'inline-flex', padding:'3px 10px', borderRadius:5, fontSize:12, fontWeight:600, background:bg, border:`1px solid ${bdr}`, color:c }}>{label}</span>;
 }
 
@@ -629,7 +628,7 @@ function AISparkle({ text }) {
   const preview = text.length > 180 ? text.slice(0, 180) + '…' : text;
   return (
     <span onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)} onClick={e => e.stopPropagation()}
-      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background:V.purpleBg, color:V.purple, fontSize:10, cursor:'pointer', flexShrink:0, transition:'all .15s', position:'relative' }}>
+      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background:CL.purpleBg, color:CL.purple, fontSize:10, cursor:'pointer', flexShrink:0, transition:'all .15s', position:'relative' }}>
       ✦
       {show && (
         <div style={{ position:'absolute', bottom:'calc(100% + 8px)', left:'50%', transform:'translateX(-50%)', width:260, background:'#1A2130', color:'rgba(245,240,232,0.9)', padding:'10px 12px', borderRadius:8, fontSize:11.5, lineHeight:1.5, pointerEvents:'none', zIndex:60, boxShadow:'0 4px 16px rgba(0,0,0,0.3)' }}>
@@ -652,11 +651,11 @@ function BulkBtn({ children, green }) {
 function FilterField({ label, children }) {
   return (
     <div>
-      <label style={{ display:'block', fontSize:11, fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase', color:V.ink4, marginBottom:6 }}>{label}</label>
+      <label style={{ display:'block', fontSize:11, fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase', color:CL.ink4, marginBottom:6 }}>{label}</label>
       {children}
     </div>
   );
 }
 
-const fpInput = { padding:'7px 10px', border:`1px solid ${V.line}`, borderRadius:6, fontFamily:"'DM Mono',monospace", fontSize:12, width:'100%', color:V.ink2, background:V.bg, outline:'none' };
-const fpSelect = { padding:'7px 10px', border:`1px solid ${V.line}`, borderRadius:6, fontFamily:"'Instrument Sans',sans-serif", fontSize:12, width:'100%', color:V.ink2, background:V.bg, outline:'none', cursor:'pointer' };
+const fpInput = { padding:'7px 10px', border:`1px solid ${CL.line}`, borderRadius:6, fontFamily:"'DM Mono',monospace", fontSize:12, width:'100%', color:CL.ink2, background:CL.bg, outline:'none' };
+const fpSelect = { padding:'7px 10px', border:`1px solid ${CL.line}`, borderRadius:6, fontFamily:"'Instrument Sans',sans-serif", fontSize:12, width:'100%', color:CL.ink2, background:CL.bg, outline:'none', cursor:'pointer' };
