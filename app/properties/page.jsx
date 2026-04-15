@@ -620,21 +620,23 @@ function StatusTag({ status }) {
   if (s.includes('occupied')||s==='leased') { label='Occupied'; bg=CL.greenBg; bdr=CL.greenBdr; c=CL.green; }
   else if (s.includes('vacant')||s==='available') { label='Vacant'; bg=CL.rustBg; bdr=CL.rustBdr; c=CL.rust; }
   else if (s.includes('partial')) { label='Partial'; bg=CL.amberBg; bdr=CL.amberBdr; c=CL.amber; }
+  else if (s==='active'||s==='listed') { label='Listed'; bg=CL.blueBg; bdr=CL.blueBdr; c=CL.blue; }
   else { bg='rgba(0,0,0,0.04)'; bdr=CL.line; c=CL.ink4; }
   return <span style={{ display:'inline-flex', padding:'3px 10px', borderRadius:5, fontSize:12, fontWeight:600, background:bg, border:`1px solid ${bdr}`, color:c }}>{label}</span>;
 }
 
 function AISparkle({ text }) {
   const [show, setShow] = useState(false);
-  const preview = text.length > 180 ? text.slice(0, 180) + '…' : text;
+  const preview = text.length > 300 ? text.slice(0, 300) + '…' : text;
   return (
     <span onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)} onClick={e => e.stopPropagation()}
       style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background:CL.purpleBg, color:CL.purple, fontSize:10, cursor:'pointer', flexShrink:0, transition:'all .15s', position:'relative' }}>
       ✦
       {show && (
-        <div style={{ position:'absolute', bottom:'calc(100% + 8px)', left:'50%', transform:'translateX(-50%)', width:260, background:'#1A2130', color:'rgba(245,240,232,0.9)', padding:'10px 12px', borderRadius:8, fontSize:11.5, lineHeight:1.5, pointerEvents:'none', zIndex:60, boxShadow:'0 4px 16px rgba(0,0,0,0.3)' }}>
+        <div style={{ position:'absolute', bottom:'calc(100% + 8px)', right:0, width:320, background:'#1A2130', color:'rgba(245,240,232,0.9)', padding:'12px 14px', borderRadius:8, fontSize:12, lineHeight:1.6, pointerEvents:'none', zIndex:60, boxShadow:'0 4px 16px rgba(0,0,0,0.3)' }}>
           {preview}
-          <div style={{ position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)', width:0, height:0, borderLeft:'5px solid transparent', borderRight:'5px solid transparent', borderTop:'5px solid #1A2130' }} />
+          <div style={{ marginTop:6, fontSize:10, color:'rgba(137,168,198,0.5)', fontStyle:'italic' }}>Click property for full synthesis →</div>
+          <div style={{ position:'absolute', top:'100%', right:16, width:0, height:0, borderLeft:'5px solid transparent', borderRight:'5px solid transparent', borderTop:'5px solid #1A2130' }} />
         </div>
       )}
     </span>
