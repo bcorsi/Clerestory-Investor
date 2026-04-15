@@ -1,709 +1,882 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
-/* ──────────────────────────────────────────────
-   INVESTOR MODE — Property Detail
+/* ═══════════════════════════════════════════════════════════
+   PropertyDetail — Investor Acquisition Intelligence View
    components/PropertyDetail.jsx
-   Matches: property-detail-investor.html mockup
-   Layout: hero → action bar (3 score chips) → AI synth → stat row → bldg score →
-           tabs → 2-col (timeline LEFT, ORS + catalysts + signal + memo RIGHT) →
-           owner + tenant full-width
-   ────────────────────────────────────────────── */
+   Clerestory-Investor · clerestory-acq.vercel.app
 
+   Correct column names (from Supabase schema):
+   building_sf · land_acres · lot_sf · clear_height · dock_doors
+   grade_doors · truck_court_depth · office_pct · power_amps
+   power_volts · sprinklers · rail_served · evap_cooler
+   parking_spaces · trailer_spots · eave_height · column_spacing
+   bay_depth · year_built · zoning · owner · owner_type · tenant
+   vacancy_status · lease_expiration · lease_type · in_place_rent
+   market_rent · ai_score · building_score · building_grade
+   catalyst_tags (ARRAY) · lat · lng · last_transfer_date
+   last_sale_price · price_psf · property_name · address · city
+   zip · market · submarket · ai_synthesis · ai_synthesis_at
+   notes · prop_type · costar_property_id · lv_property_id
+   ═══════════════════════════════════════════════════════════ */
+
+// ── HELPERS ───────────────────────────────────────────────
 const fmt = (n) => n == null ? '—' : Number(n).toLocaleString();
-const fmtCurrency = (n) => {
-  if (n == null) return '—';
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${fmt(n)}`;
-};
-const getGrade = (s) => {
-  if (s == null) return '—';
-  if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+';
-  if (s >= 40) return 'B'; return 'C';
-};
-const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1000*60*60*24*30.44)) : null;
-const fmtExpiry = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-const fmtTimestamp = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+const fmtSF = (n) => { if (n == null) return '—'; if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`; return fmt(n); };
+const fmtCurrency = (n) => { if (n == null) return '—'; if (n >= 1e9) return `$${(n/1e9).toFixed(1)}B`; if (n >= 1e6) return `$${(n/1e6).toFixed(1)}M`; return `$${fmt(n)}`; };
+const fmtRent = (n) => n == null ? '—' : `$${Number(n).toFixed(2)}/SF`;
+const fmtAcres = (n) => n == null ? '—' : `${Number(n).toFixed(2)} ac`;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
+const fmtDateFull = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
 
-// Tag colors
+const getGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
+const getScoreColor = (s) => { if (s == null) return V.ink4; if (s >= 70) return V.blue; if (s >= 55) return V.amber; return V.ink4; };
+const getOrsLabel = (s) => { if (s == null) return 'N/A'; if (s >= 75) return 'ACT NOW'; if (s >= 50) return 'WARM'; if (s >= 25) return 'WATCH'; return 'COOL'; };
+
+// Color tokens matching mockup exactly
+const V = {
+  bg: '#F4F1EC', bg2: '#EAE6DF', card: '#FFFFFF',
+  ink: '#0F0D09', ink2: '#2C2822', ink3: '#524D46', ink4: '#6E6860',
+  blue: '#4E6E96', blue2: '#6480A2', blue3: '#89A8C6',
+  blueBg: 'rgba(78,110,150,0.09)', blueBdr: 'rgba(78,110,150,0.30)',
+  rust: '#B83714', rustBg: 'rgba(184,55,20,0.08)', rustBdr: 'rgba(184,55,20,0.30)',
+  green: '#156636', greenBg: 'rgba(21,102,54,0.08)', greenBdr: 'rgba(21,102,54,0.28)',
+  amber: '#8C5A04', amberBg: 'rgba(140,90,4,0.09)', amberBdr: 'rgba(140,90,4,0.28)',
+  purple: '#5838A0', purpleBg: 'rgba(88,56,160,0.08)', purpleBdr: 'rgba(88,56,160,0.26)',
+  teal: '#1A6B6B',
+  line: 'rgba(0,0,0,0.08)', line2: 'rgba(0,0,0,0.055)', line3: 'rgba(0,0,0,0.034)',
+  shadow: '0 1px 4px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05)',
+  shadowMd: '0 4px 16px rgba(0,0,0,0.10),0 1px 4px rgba(0,0,0,0.06)',
+  radius: 10,
+};
+
+// Building Score calculation (§01 from scores guide)
+function calculateBuildingScore(p) {
+  if (!p) return null;
+  let total = 0;
+  // Clear height (0–25 pts)
+  if (p.clear_height) {
+    if (p.clear_height >= 36) total += 25;
+    else if (p.clear_height >= 32) total += 20;
+    else if (p.clear_height >= 28) total += 15;
+    else if (p.clear_height >= 24) total += 10;
+    else total += 5;
+  }
+  // DH ratio (0–20 pts)
+  const dhRatio = (p.dock_doors && p.building_sf) ? (p.dock_doors / (p.building_sf / 10000)) : 0;
+  if (dhRatio >= 1.2) total += 20;
+  else if (dhRatio >= 1.0) total += 16;
+  else if (dhRatio >= 0.8) total += 12;
+  else if (dhRatio >= 0.5) total += 8;
+  else if (dhRatio > 0) total += 4;
+  // Truck court (0–20 pts)
+  if (p.truck_court_depth) {
+    if (p.truck_court_depth >= 130) total += 20;
+    else if (p.truck_court_depth >= 120) total += 16;
+    else if (p.truck_court_depth >= 100) total += 12;
+    else if (p.truck_court_depth >= 60) total += 8;
+    else total += 4;
+  }
+  // Office % (0–15 pts) — lower is better for distribution
+  if (p.office_pct != null) {
+    if (p.office_pct <= 5) total += 15;
+    else if (p.office_pct <= 10) total += 12;
+    else if (p.office_pct <= 20) total += 8;
+    else if (p.office_pct <= 30) total += 5;
+    else total += 2;
+  }
+  // Power (0–10 pts)
+  if (p.power_amps) {
+    if (p.power_amps >= 2000) total += 10;
+    else if (p.power_amps >= 1200) total += 8;
+    else if (p.power_amps >= 600) total += 5;
+    else total += 3;
+  }
+  // Vintage (0–10 pts)
+  if (p.year_built) {
+    const age = new Date().getFullYear() - p.year_built;
+    if (age <= 10) total += 10;
+    else if (age <= 20) total += 8;
+    else if (age <= 30) total += 6;
+    else if (age <= 40) total += 4;
+    else total += 2;
+  }
+  return total;
+}
+
+function getScoreBreakdown(p) {
+  if (!p) return [];
+  const dhRatio = (p.dock_doors && p.building_sf) ? (p.dock_doors / (p.building_sf / 10000)) : 0;
+  const items = [];
+  // Clear height
+  let pts = 0;
+  if (p.clear_height) {
+    if (p.clear_height >= 36) pts = 25; else if (p.clear_height >= 32) pts = 20;
+    else if (p.clear_height >= 28) pts = 15; else if (p.clear_height >= 24) pts = 10; else pts = 5;
+  }
+  items.push({ label: `Clear Height (${p.clear_height || '—'}')`, pts, max: 25, color: pts >= 20 ? V.green : pts >= 15 ? V.amber : V.ink4 });
+  // DH ratio
+  pts = 0;
+  if (dhRatio >= 1.2) pts = 20; else if (dhRatio >= 1.0) pts = 16; else if (dhRatio >= 0.8) pts = 12;
+  else if (dhRatio >= 0.5) pts = 8; else if (dhRatio > 0) pts = 4;
+  items.push({ label: `DH Ratio (${dhRatio.toFixed(2)})`, pts, max: 20, color: pts >= 16 ? V.green : pts >= 12 ? V.amber : V.ink4 });
+  // Truck court
+  pts = 0;
+  if (p.truck_court_depth) {
+    if (p.truck_court_depth >= 130) pts = 20; else if (p.truck_court_depth >= 120) pts = 16;
+    else if (p.truck_court_depth >= 100) pts = 12; else if (p.truck_court_depth >= 60) pts = 8; else pts = 4;
+  }
+  items.push({ label: `Truck Court (${p.truck_court_depth || '—'}')`, pts, max: 20, color: pts >= 16 ? V.green : pts >= 12 ? V.amber : V.ink4 });
+  // Office %
+  pts = 0;
+  if (p.office_pct != null) {
+    if (p.office_pct <= 5) pts = 15; else if (p.office_pct <= 10) pts = 12;
+    else if (p.office_pct <= 20) pts = 8; else if (p.office_pct <= 30) pts = 5; else pts = 2;
+  }
+  items.push({ label: `Office % (${p.office_pct ?? '—'}%)`, pts, max: 15, color: pts >= 12 ? V.green : pts >= 8 ? V.amber : V.ink4 });
+  // Power
+  pts = 0;
+  if (p.power_amps) {
+    if (p.power_amps >= 2000) pts = 10; else if (p.power_amps >= 1200) pts = 8;
+    else if (p.power_amps >= 600) pts = 5; else pts = 3;
+  }
+  items.push({ label: `Power (${p.power_amps ? `${fmt(p.power_amps)}A` : '—'})`, pts, max: 10, color: pts >= 8 ? V.green : pts >= 5 ? V.amber : V.ink4 });
+  // Vintage
+  pts = 0;
+  if (p.year_built) {
+    const age = new Date().getFullYear() - p.year_built;
+    if (age <= 10) pts = 10; else if (age <= 20) pts = 8; else if (age <= 30) pts = 6;
+    else if (age <= 40) pts = 4; else pts = 2;
+  }
+  items.push({ label: `Vintage (${p.year_built || '—'})`, pts, max: 10, color: pts >= 8 ? V.green : pts >= 6 ? V.amber : V.ink4 });
+  return items;
+}
+
 const getTagStyle = (tag) => {
-  if (!tag) return { bg: 'var(--blue-bg)', bdr: 'var(--blue-bdr)', text: 'var(--blue)' };
+  if (!tag) return { bg: V.blueBg, bdr: V.blueBdr, c: V.blue };
   const t = tag.toLowerCase();
-  if (t.includes('warn') || t.includes('nod') || t.includes('owner')) return { bg: 'var(--rust-bg)', bdr: 'var(--rust-bdr)', text: 'var(--rust)' };
-  if (t.includes('lease') || t.includes('vacant') || t.includes('value')) return { bg: 'var(--amber-bg)', bdr: 'var(--amber-bdr)', text: 'var(--amber)' };
-  if (t.includes('slb') || t.includes('market') || t.includes('land') || t.includes('occupied')) return { bg: 'var(--green-bg)', bdr: 'var(--green-bdr)', text: 'var(--green)' };
-  if (t.includes('capex') || t.includes('roof')) return { bg: 'var(--purple-bg)', bdr: 'var(--purple-bdr)', text: 'var(--purple)' };
-  return { bg: 'var(--blue-bg)', bdr: 'var(--blue-bdr)', text: 'var(--blue)' };
+  if (t.includes('warn') || t.includes('nod') || t.includes('vacant') || t.includes('owner') || t.includes('legacy') || t.includes('long hold') || t.includes('age 55') || t.includes('expired')) return { bg: V.rustBg, bdr: V.rustBdr, c: V.rust };
+  if (t.includes('lease') || t.includes('partial') || t.includes('below market') || t.includes('value')) return { bg: V.amberBg, bdr: V.amberBdr, c: V.amber };
+  if (t.includes('slb') || t.includes('occupied') || t.includes('market')) return { bg: V.greenBg, bdr: V.greenBdr, c: V.green };
+  if (t.includes('capex') || t.includes('roof') || t.includes('vintage') || t.includes('low clear') || t.includes('coverage')) return { bg: V.purpleBg, bdr: V.purpleBdr, c: V.purple };
+  if (t.includes('institutional') || t.includes('investment') || t.includes('grade')) return { bg: V.blueBg, bdr: V.blueBdr, c: V.blue };
+  return { bg: V.blueBg, bdr: V.blueBdr, c: V.blue };
 };
 
-export default function PropertyDetail() {
-  const router = useRouter();
-  const params = useParams();
-  const propertyId = params?.id;
-  const mapRef = useRef(null);
-  const mapInst = useRef(null);
+const ACT_ICONS = { call: { emoji: '📞', bg: V.blueBg, c: V.blue }, email: { emoji: '✉', bg: V.purpleBg, c: V.purple }, note: { emoji: '📝', bg: V.amberBg, c: V.amber }, meeting: { emoji: '🤝', bg: V.greenBg, c: V.green }, alert: { emoji: '⚠', bg: V.rustBg, c: V.rust }, deal: { emoji: '◈', bg: V.greenBg, c: V.green }, task: { emoji: '✓', bg: V.blueBg, c: V.blue } };
+const getActIcon = (type) => ACT_ICONS[type] || ACT_ICONS.note;
 
-  const [p, setP] = useState(null);
+const TABS = [
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'buildings', label: 'Buildings' },
+  { key: 'apns', label: 'APNs' },
+  { key: 'lease_comps', label: 'Lease Comps' },
+  { key: 'sale_comps', label: 'Sale Comps' },
+  { key: 'contacts', label: 'Contacts' },
+  { key: 'deals', label: 'Deals' },
+  { key: 'leads', label: 'Leads' },
+  { key: 'files', label: 'Files' },
+];
+
+// ── MAIN COMPONENT ────────────────────────────────────────
+export default function PropertyDetail({ id, inline = false }) {
+  const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('Timeline');
-  const [specsOpen, setSpecsOpen] = useState(false);
-  const [synthOpen, setSynthOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('timeline');
   const [activities, setActivities] = useState([]);
-  const [buildings, setBuildings] = useState([]);
-  const [apns, setApns] = useState([]);
-  const [leaseComps, setLeaseComps] = useState([]);
-  const [saleComps, setSaleComps] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [deals, setDeals] = useState([]);
-  const [files, setFiles] = useState([]);
-  const [aiGen, setAiGen] = useState(null);
-  const [oppMemo, setOppMemo] = useState(null);
-  const [oppMemoText, setOppMemoText] = useState('');
-  const [oppMemoEditing, setOppMemoEditing] = useState(false);
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [logType, setLogType] = useState('call');
-  const [logNote, setLogNote] = useState('');
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFields, setEditFields] = useState({});
+  const [leads, setLeads] = useState([]);
+  const [leaseComps, setLeaseComps] = useState([]);
+  const [saleComps, setSaleComps] = useState([]);
+  const [buildings, setBuildings] = useState([]);
+  const [apns, setApns] = useState([]);
+  const [warnNotice, setWarnNotice] = useState(null);
+  const [specsOpen, setSpecsOpen] = useState(false);
+  const [synthOpen, setSynthOpen] = useState(true);
+  const [synthLoading, setSynthLoading] = useState(false);
+  const [memoText, setMemoText] = useState('');
+  const [memoSaving, setMemoSaving] = useState(false);
+  const mapRef = useRef(null);
+  const mapInitRef = useRef(false);
 
-  useEffect(() => { if (propertyId) fetchAll(); }, [propertyId]);
+  // ── FETCH ALL DATA ──────────────────────────────────────
+  useEffect(() => { if (id) loadAll(id); }, [id]);
 
-  const fetchAll = async () => {
+  async function loadAll(propId) {
     setLoading(true);
     try {
-      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).single();
-      setP(prop); setEditFields(prop);
+      const { data: prop, error } = await supabase.from('properties').select('*').eq('id', propId).single();
+      if (error) throw error;
+      setProperty(prop);
+      setMemoText(prop.notes || '');
 
-      const [acts, bldgs, apnD, lc, sc, ct, dl, fl, aiD, memoD] = await Promise.all([
-        supabase.from('activities').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('property_buildings').select('*').eq('property_id', propertyId),
-        supabase.from('property_apns').select('*').eq('property_id', propertyId),
-        supabase.from('lease_comps').select('*').eq('property_id', propertyId).order('commencement_date', { ascending: false }),
-        supabase.from('sale_comps').select('*').eq('property_id', propertyId).order('sale_date', { ascending: false }),
-        supabase.from('deal_contacts').select('*').eq('property_id', propertyId),
-        supabase.from('deals').select('*').eq('property_id', propertyId),
-        supabase.from('file_attachments').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
-        supabase.from('ai_generations').select('*').eq('property_id', propertyId).eq('generation_type', 'synthesis').order('created_at', { ascending: false }).limit(1),
-        supabase.from('ai_generations').select('*').eq('property_id', propertyId).eq('generation_type', 'opportunity_memo').order('created_at', { ascending: false }).limit(1),
+      // Parallel fetches
+      const [actRes, ctRes, dlRes, ldRes, bldRes, apnRes, warnRes] = await Promise.all([
+        supabase.from('activities').select('*').eq('property_id', propId).order('created_at', { ascending: false }).limit(20),
+        supabase.from('contacts').select('id, first_name, last_name, title, company, phone, email').eq('property_id', propId).limit(10),
+        supabase.from('deals').select('id, deal_name, stage, deal_type, deal_value, commission_est, created_at').eq('property_id', propId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('leads').select('id, lead_name, company, stage, ai_score, catalyst_tags').eq('property_id', propId).limit(5),
+        supabase.from('property_buildings').select('*').eq('property_id', propId).order('created_at', { ascending: true }),
+        supabase.from('property_apns').select('*').eq('property_id', propId),
+        supabase.from('warn_notices').select('id, company, notice_date, effective_date, employees').eq('matched_property_id', propId).limit(1).maybeSingle(),
       ]);
-      setActivities(acts.data || []);
-      setBuildings(bldgs.data || []);
-      setApns(apnD.data || []);
-      setLeaseComps(lc.data || []);
-      setSaleComps(sc.data || []);
-      setContacts(ct.data || []);
-      setDeals(dl.data || []);
-      setFiles(fl.data || []);
-      setAiGen(aiD.data?.[0] || null);
-      if (memoD.data?.[0]) { setOppMemo(memoD.data[0]); setOppMemoText(memoD.data[0].content || ''); }
-    } catch (err) { console.error('Error:', err); }
-    finally { setLoading(false); }
-  };
+      setActivities(actRes.data || []);
+      setContacts(ctRes.data || []);
+      setDeals(dlRes.data || []);
+      setLeads(ldRes.data || []);
+      setBuildings(bldRes.data || []);
+      setApns(apnRes.data || []);
+      if (warnRes.data) setWarnNotice(warnRes.data);
 
-  // Leaflet map
+      // Comps by submarket
+      if (prop?.submarket) {
+        const [lcRes, scRes] = await Promise.all([
+          supabase.from('lease_comps').select('*').eq('submarket', prop.submarket).order('created_at', { ascending: false }).limit(8),
+          supabase.from('sale_comps').select('*').eq('submarket', prop.submarket).order('created_at', { ascending: false }).limit(5),
+        ]);
+        setLeaseComps(lcRes.data || []);
+        setSaleComps(scRes.data || []);
+      }
+    } catch (e) {
+      console.error('PropertyDetail load error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── MAP INIT ────────────────────────────────────────────
   useEffect(() => {
-    if (!p || !mapRef.current || mapInst.current) return;
-    if (typeof window === 'undefined' || !window.L) return;
-    const lat = p.latitude || 34.0887, lng = p.longitude || -117.9712;
-    const m = window.L.map(mapRef.current, { zoomControl: false, scrollWheelZoom: false, dragging: false, doubleClickZoom: false, attributionControl: false }).setView([lat, lng], 16);
-    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20 }).addTo(m);
-    window.L.marker([lat, lng], { icon: window.L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#4E6E96;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(m);
-    mapInst.current = m;
-    return () => { if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; } };
-  }, [p]);
+    if (!property?.lat || !property?.lng || mapInitRef.current) return;
+    if (typeof window === 'undefined') return;
+    import('leaflet').then((L) => {
+      if (mapInitRef.current) return;
+      mapInitRef.current = true;
+      const map = L.map(mapRef.current, { zoomControl: false, scrollWheelZoom: false, dragging: false, doubleClickZoom: false, attributionControl: false }).setView([property.lat, property.lng], 17);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20 }).addTo(map);
+      const icon = L.divIcon({ className: '', html: `<div style="width:14px;height:14px;border-radius:50%;background:${V.blue};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+      L.marker([property.lat, property.lng], { icon }).addTo(map);
+    });
+  }, [property]);
 
-  // ─── Handlers ──────────────────────────────
-  const handleLogActivity = async () => {
-    if (!logNote.trim()) return;
+  // ── AI SYNTHESIS ────────────────────────────────────────
+  const generateSynthesis = useCallback(async () => {
+    if (!property || synthLoading) return;
+    setSynthLoading(true);
     try {
-      await supabase.from('activities').insert([{ property_id: propertyId, activity_type: logType, notes: logNote, created_by: 'Briana Corso' }]);
-      setLogNote(''); setShowLogModal(false);
-      const { data } = await supabase.from('activities').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }).limit(20);
-      setActivities(data || []);
-    } catch (err) { alert('Error: ' + err.message); }
-  };
+      const context = {
+        address: property.address, city: property.city, submarket: property.submarket,
+        building_sf: property.building_sf, clear_height: property.clear_height,
+        dock_doors: property.dock_doors, truck_court_depth: property.truck_court_depth,
+        year_built: property.year_built, owner: property.owner, owner_type: property.owner_type,
+        tenant: property.tenant, vacancy_status: property.vacancy_status,
+        lease_expiration: property.lease_expiration, in_place_rent: property.in_place_rent,
+        market_rent: property.market_rent, lease_type: property.lease_type,
+        last_transfer_date: property.last_transfer_date, catalyst_tags: property.catalyst_tags,
+        building_score: calcScore, activities: activities.slice(0, 5).map(a => ({ type: a.activity_type, subject: a.subject, body: a.body, date: a.created_at })),
+      };
+      const prompt = `You are Clerestory, an AI acquisition intelligence system for industrial real estate. Analyze this property for an institutional buyer. Be specific with numbers. Use sections: Current Situation, Key Contacts / Owner, Outstanding Issues, Recommended Next Steps. Keep it concise and actionable.\n\nProperty data: ${JSON.stringify(context)}`;
 
-  const handleConvert = async () => {
-    if (!confirm(`Convert "${p.property_name || p.address}" to Acquisition?\nCreates deal at Screening stage.`)) return;
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, type: 'property_synthesis' }),
+      });
+      const data = await res.json();
+      const content = data.content || data.text || '';
+
+      // Save to properties
+      await supabase.from('properties').update({ ai_synthesis: content, ai_synthesis_at: new Date().toISOString() }).eq('id', property.id);
+
+      // Save to ai_generations
+      await supabase.from('ai_generations').insert({
+        generation_type: 'property_synthesis',
+        property_id: property.id,
+        content,
+        input_context: context,
+        model_used: 'claude-sonnet-4-20250514',
+      });
+
+      setProperty(prev => ({ ...prev, ai_synthesis: content, ai_synthesis_at: new Date().toISOString() }));
+    } catch (e) {
+      console.error('Synthesis error:', e);
+    } finally {
+      setSynthLoading(false);
+    }
+  }, [property, synthLoading, activities]);
+
+  // ── SAVE MEMO ───────────────────────────────────────────
+  const saveMemo = useCallback(async () => {
+    if (!property) return;
+    setMemoSaving(true);
     try {
-      const { data } = await supabase.from('deals').insert([{
-        property_id: propertyId, deal_name: `${p.property_name || p.address} — Acquisition`,
-        stage: 'Screening', deal_type: 'acquisition', estimated_value: p.estimated_value,
-      }]).select();
-      await supabase.from('activities').insert([{ property_id: propertyId, activity_type: 'deal', notes: `Acquisition created — Screening stage`, created_by: 'Briana Corso' }]);
-      router.push(`/deals/${data?.[0]?.id || ''}`);
-    } catch (err) { alert('Error: ' + err.message); }
+      await supabase.from('properties').update({ notes: memoText }).eq('id', property.id);
+      // Also log to ai_generations
+      await supabase.from('ai_generations').insert({
+        generation_type: 'opportunity_memo',
+        property_id: property.id,
+        content: memoText,
+        input_context: { source: 'manual_edit', address: property.address },
+      });
+    } catch (e) { console.error('Memo save error:', e); }
+    finally { setMemoSaving(false); }
+  }, [property, memoText]);
+
+  // ── LOADING / ERROR ─────────────────────────────────────
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400, color: V.ink4, fontSize: 16 }}>Loading property…</div>;
+  if (!property) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400, color: V.ink4, fontSize: 16 }}>Property not found</div>;
+
+  // ── COMPUTED VALUES ─────────────────────────────────────
+  const tags = Array.isArray(property.catalyst_tags) ? property.catalyst_tags : [];
+  const calcScore = property.building_score || calculateBuildingScore(property);
+  const calcGrade = property.building_grade || getGrade(calcScore);
+  const scoreBreakdown = getScoreBreakdown(property);
+  const scoreTotal = scoreBreakdown.reduce((s, i) => s + i.pts, 0);
+  const dhRatio = (property.dock_doors && property.building_sf) ? (property.dock_doors / (property.building_sf / 10000)).toFixed(2) : null;
+  const coverage = (property.building_sf && property.land_acres) ? ((property.building_sf / (property.land_acres * 43560)) * 100).toFixed(1) : null;
+  const mo = monthsUntil(property.lease_expiration);
+  const estValue = property.last_sale_price || (property.building_sf && property.price_psf ? property.building_sf * property.price_psf : null);
+
+  const tabCounts = {
+    timeline: activities.length,
+    buildings: buildings.length || 1,
+    apns: apns.length,
+    lease_comps: leaseComps.length,
+    sale_comps: saleComps.length,
+    contacts: contacts.length,
+    deals: deals.length,
+    leads: leads.length,
   };
 
-  const handleSaveEdit = async () => {
-    try {
-      await supabase.from('properties').update(editFields).eq('id', propertyId);
-      setShowEditModal(false); fetchAll();
-    } catch (err) { alert('Error: ' + err.message); }
-  };
-
-  const handleSaveOppMemo = async () => {
-    try {
-      if (oppMemo?.id) {
-        await supabase.from('ai_generations').update({ content: oppMemoText, updated_at: new Date().toISOString() }).eq('id', oppMemo.id);
-      } else {
-        const { data } = await supabase.from('ai_generations').insert([{ property_id: propertyId, generation_type: 'opportunity_memo', content: oppMemoText }]).select();
-        setOppMemo(data?.[0]);
-      }
-      setOppMemoEditing(false);
-    } catch (err) { alert('Error: ' + err.message); }
-  };
-
-  const handleExportMemo = () => {
-    const content = aiGen?.content || oppMemoText || 'No memo available';
-    const blob = new Blob([`IC MEMO — ${p?.property_name || p?.address}\nGenerated: ${new Date().toLocaleDateString()}\n\n${content}`], { type: 'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `${(p?.property_name || 'property').replace(/\s/g, '_')}_ic_memo.txt`; a.click();
-  };
-
-  const openGoogleMaps = () => window.open(`https://www.google.com/maps/search/${encodeURIComponent(`${p?.address || ''} ${p?.city || ''} ${p?.state || ''}`)}`, '_blank');
-  const openCoStar = () => window.open('https://product.costar.com/', '_blank');
-  const openCountyGIS = () => window.open('https://maps.assessor.lacounty.gov/', '_blank');
-
-  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--ink4)' }}>Loading property…</div>;
-  if (!p) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--ink4)' }}>Property not found<br/><button onClick={() => router.push('/properties')} style={btnGhost}>← Back</button></div>;
-
-  const score = p.ai_score, grade = getGrade(score);
-  const pfs = p.portfolio_fit_score, pfsGrade = getGrade(pfs);
-  const ors = p.ors_score;
-  const leaseMonths = monthsUntil(p.lease_expiration);
-  const occ = (p.occupancy_status || '').toLowerCase().includes('occupied') ? 'Occupied' : (p.occupancy_status || '').toLowerCase().includes('vacant') ? 'Vacant' : (p.occupancy_status || '').toLowerCase().includes('partial') ? 'Partial' : (p.occupancy_status || 'Unknown');
-  const tabs = ['Timeline', 'Buildings', 'APNs', 'Lease Comps', 'Sale Comps', 'Contacts', 'Deals', 'Leads', 'Files'];
-  const tabCounts = { Timeline: activities.length, Buildings: buildings.length, APNs: apns.length, 'Lease Comps': leaseComps.length, 'Sale Comps': saleComps.length, Contacts: contacts.length, Deals: deals.length };
-
-  // ORS signals — use stored ors_signals JSON if available, otherwise derive from property fields
-  const orsSignals = (() => {
-    // If the record has stored ORS signal breakdown, use it directly
-    if (p.ors_signals && Array.isArray(p.ors_signals)) {
-      return p.ors_signals.map(s => ({
-        label: s.label || s.signal || '—',
-        pts: s.pts || s.points || 0,
-        color: (s.pts || 0) >= 20 ? 'var(--rust)' : (s.pts || 0) >= 10 ? 'var(--amber)' : 'var(--ink4)',
-      }));
-    }
-    // Fallback: derive from property fields using §02 breakpoints
-    const signals = [];
-    if (p.lease_expiration && leaseMonths != null) {
-      const pts = leaseMonths < 12 ? 25 : leaseMonths <= 18 ? 20 : leaseMonths <= 24 ? 15 : 5;
-      if (pts >= 10) signals.push({ label: `Lease expiry ${leaseMonths} months`, pts, color: pts >= 20 ? 'var(--rust)' : 'var(--amber)' });
-    }
-    if (p.last_transfer_date) {
-      const holdYrs = new Date().getFullYear() - new Date(p.last_transfer_date).getFullYear();
-      const pts = holdYrs >= 10 ? 20 : holdYrs >= 7 ? 15 : holdYrs >= 5 ? 10 : holdYrs >= 3 ? 5 : 0;
-      if (pts > 0) signals.push({ label: `Hold period ${holdYrs} years`, pts, color: pts >= 15 ? 'var(--amber)' : 'var(--ink4)' });
-    }
-    if ((p.catalyst_tags || []).some(t => t.toLowerCase().includes('warn'))) {
-      signals.push({ label: 'WARN Act match — active', pts: 20, color: 'var(--rust)' });
-    }
-    if ((p.catalyst_tags || []).some(t => t.toLowerCase().includes('slb'))) {
-      signals.push({ label: 'SLB interest confirmed', pts: 15, color: 'var(--amber)' });
-    }
-    if (p.rent_dislocation || (p.in_place_rent && p.market_rent)) {
-      const inPlace = parseFloat(String(p.in_place_rent).replace(/[^0-9.]/g, ''));
-      const market = parseFloat(String(p.market_rent).replace(/[^0-9.]/g, ''));
-      if (inPlace && market && ((market - inPlace) / inPlace) > 0.15) {
-        signals.push({ label: 'Rent dislocation >15%', pts: 15, color: 'var(--amber)' });
-      }
-    }
-    if (p.prior_listing_expired) signals.push({ label: 'Prior listing — expired/withdrawn', pts: 12, color: 'var(--amber)' });
-    if (p.owner_age_signal) signals.push({ label: 'Owner age / estate signal', pts: 10, color: 'var(--amber)' });
-    if (p.deferred_maintenance) signals.push({ label: 'Deferred maintenance flag', pts: 8, color: 'var(--ink4)' });
-    signals.push({ label: 'Contact gap', pts: p.ors_contact || 3, color: 'var(--ink4)' });
-    return signals;
-  })();
-
-  // Seller Motivation (§04) — HIGH/MODERATE/LOW from seller_motivation_score or ors_score
-  const sellerMotivation = p.seller_motivation_score || p.ors_score || null;
-  const sellerMotivationLabel = sellerMotivation >= 60 ? 'HIGH' : sellerMotivation >= 30 ? 'MOD' : sellerMotivation != null ? 'LOW' : '—';
-
-
+  // ── RENDER ──────────────────────────────────────────────
   return (
-    <>
-      {/* ═══ HERO MAP ═══ */}
-      <div style={{ height: 300, position: 'relative', overflow: 'hidden', marginLeft: -28, marginRight: -28, marginTop: -18 }}>
-        <div ref={mapRef} style={{ width: '100%', height: 300, background: '#1a1e2a' }} />
-        <div style={{ position: 'absolute', inset: 0, zIndex: 400, pointerEvents: 'none', background: 'linear-gradient(to top, rgba(10,8,5,0.82) 0%, rgba(10,8,5,0.15) 55%, transparent 100%)' }} />
+    <div style={{ fontFamily: "'Instrument Sans', sans-serif", color: V.ink, minWidth: 0 }}>
+
+      {/* ═══ HERO SATELLITE MAP ═══ */}
+      <div style={{ height: 300, position: 'relative', overflow: 'hidden', background: '#1A2130' }}>
+        {property.lat && property.lng ? (
+          <div ref={mapRef} style={{ width: '100%', height: 300 }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: V.ink4, fontSize: 14 }}>No coordinates — add lat/lng to enable satellite view</div>
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,8,5,0.82) 0%, rgba(10,8,5,0.15) 55%, transparent 100%)', pointerEvents: 'none', zIndex: 400 }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 500, padding: '20px 28px' }}>
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 700, color: '#fff', lineHeight: 1, letterSpacing: '-0.01em', marginBottom: 8, textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-            {p.property_name || p.address}
+            {property.property_name || property.address || '—'}
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <HeroBadge c="green">● {occ}</HeroBadge>
-            {p.lease_expiration && <HeroBadge c="amber">Lease Exp. {fmtExpiry(p.lease_expiration)}</HeroBadge>}
-            <HeroBadge c="blue">{p.property_type || 'Industrial'} · {fmt(p.total_sf || p.building_sf)} SF</HeroBadge>
-            {p.owner_type && <HeroBadge c="blue">{p.owner_type}</HeroBadge>}
+            {property.vacancy_status && <HeroBadge color="green">{property.vacancy_status.includes('ccupied') ? '● ' : ''}{property.vacancy_status}</HeroBadge>}
+            {property.lease_expiration && <HeroBadge color="amber">Lease Exp. {fmtDate(property.lease_expiration)}</HeroBadge>}
+            {property.prop_type && property.building_sf && <HeroBadge color="blue">{property.prop_type} · {fmtSF(property.building_sf)} SF</HeroBadge>}
+            {property.owner_type && <HeroBadge color="blue">{property.owner_type}</HeroBadge>}
           </div>
         </div>
       </div>
 
-      {/* ═══ ACTION BAR — 3 score chips ═══ */}
-      <div style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--line)', padding: '10px 28px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: -28, marginRight: -28 }}>
-        <ScoreChip label="Bldg Score" grade={grade} value={score} color="var(--blue)" borderColor="var(--blue-bdr)" />
-        <ScoreChip label="Portfolio Fit" grade={pfsGrade} value={pfs} color="#1A6B6B" borderColor="rgba(26,107,107,.3)" />
-        <ScoreChip label="Seller Readiness" grade={sellerMotivationLabel} value={ors} color="var(--rust)" borderColor="var(--rust-bdr)" />
+      {/* ═══ ACTION BAR ═══ */}
+      <div style={{ background: V.bg2, borderBottom: `1px solid ${V.line}`, padding: '10px 28px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Building Score chip */}
+        <ScoreChip label="Bldg Score" score={calcScore} grade={calcGrade} color={V.blue} borderColor={V.blueBdr} />
+        {/* Portfolio Fit chip — placeholder */}
+        <ScoreChip label="Portfolio Fit" score={property.ai_score} grade={getGrade(property.ai_score)} color={V.teal} borderColor="rgba(26,107,107,0.30)" />
+        {/* ORS chip */}
+        {property.ai_score != null && (
+          <ScoreChip label="Seller Readiness" score={property.probability || '—'} grade={getOrsLabel(property.probability)} color={V.rust} borderColor={V.rustBdr} />
+        )}
         <Divider />
-        <button onClick={() => { setShowLogModal(true); setLogType('call'); }} style={btnGhost}>📞 Log Call</button>
-        <button onClick={() => { setShowLogModal(true); setLogType('email'); }} style={btnGhost}>✉ Log Email</button>
-        <button onClick={() => { setShowLogModal(true); setLogType('note'); }} style={btnGhost}>📝 Add Note</button>
-        <button onClick={() => { setShowLogModal(true); setLogType('task'); }} style={btnGhost}>+ Task</button>
+        <Btn ghost onClick={() => {}}><span>📞</span> Log Call</Btn>
+        <Btn ghost onClick={() => {}}><span>✉</span> Log Email</Btn>
+        <Btn ghost onClick={() => {}}><span>📝</span> Add Note</Btn>
+        <Btn ghost onClick={() => {}}><span>+</span> Task</Btn>
         <Divider />
-        <button onClick={openGoogleMaps} style={btnLink}>📍 Google Maps</button>
-        <button onClick={openCoStar} style={btnLink}>🗂 CoStar</button>
-        <button onClick={openCountyGIS} style={btnLink}>🗺 LA County GIS</button>
+        {/* External links */}
+        {property.lat && property.lng && <BtnLink onClick={() => window.open(`https://www.google.com/maps/@${property.lat},${property.lng},17z`, '_blank')}>📍 Google Maps</BtnLink>}
+        {property.costar_property_id && <BtnLink onClick={() => window.open(`https://gateway.costar.com/property/${property.costar_property_id}`, '_blank')}>🗂 CoStar</BtnLink>}
+        <BtnLink onClick={() => window.open(`https://maps.assessor.lacounty.gov/`, '_blank')}>🗺 LA County GIS</BtnLink>
         <Divider />
-        <button onClick={() => setShowEditModal(true)} style={btnGhost}>⚙ Edit</button>
-        <button onClick={handleExportMemo} style={btnGhost}>📄 Export IC Memo</button>
+        <Btn ghost>⚙ Edit</Btn>
+        <Btn ghost>📄 Export IC Memo</Btn>
         <div style={{ marginLeft: 'auto' }} />
-        <button onClick={handleConvert} style={{ ...btnGhost, background: 'var(--green)', color: '#fff', borderColor: 'var(--green)' }}>◈ Convert to Acquisition</button>
+        <Btn green>◈ Convert to Acquisition</Btn>
       </div>
 
       {/* ═══ INNER CONTENT ═══ */}
-      <div style={{ padding: '18px 0 0' }}>
+      <div style={{ padding: '18px 28px 0' }}>
 
-        {/* ─── AI Acquisition Intelligence ─── */}
-        <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative' }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg, #8B6FCC, var(--purple))' }} />
-          <div onClick={() => setSynthOpen(!synthOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px 11px 20px', borderBottom: '1px solid rgba(88,56,160,0.12)', cursor: 'pointer' }}>
+        {/* ═══ AI SYNTHESIS ═══ */}
+        <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, #8B6FCC, ${V.purple})` }} />
+          <div onClick={() => setSynthOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px 11px 20px', borderBottom: synthOpen ? '1px solid rgba(88,56,160,0.12)' : 'none', cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: 'var(--purple)' }}>✦</span>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--purple)' }}>AI Acquisition Intelligence</span>
-              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: 'var(--ink4)' }}>Property Status Report · {p.property_name || p.address}</span>
+              <span style={{ fontSize: 13, color: V.purple }}>✦</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: V.purple }}>AI Acquisition Intelligence</span>
+              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: V.ink4 }}>Property Status Report · {property.address || '—'}</span>
             </div>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: 'var(--purple)', cursor: 'pointer' }}>{synthOpen ? 'Hide ▴' : 'Show ▾'}</span>
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.purple, cursor: 'pointer' }}>{synthOpen ? 'Hide ▴' : 'Show ▾'}</span>
           </div>
           {synthOpen && (
             <>
               <div style={{ padding: '18px 22px 20px' }}>
-                {aiGen?.content ? (
-                  <div style={{ fontSize: 13.5, lineHeight: 1.72, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{aiGen.content}</div>
+                {property.ai_synthesis ? (
+                  <div style={{ fontSize: 13.5, lineHeight: 1.72, color: V.ink2, whiteSpace: 'pre-wrap' }}>{property.ai_synthesis}</div>
                 ) : (
-                  <div style={{ fontSize: 13.5, lineHeight: 1.72, color: 'var(--ink4)', fontStyle: 'italic' }}>
-                    No AI synthesis generated yet. Click Regenerate to create acquisition intelligence.
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <div style={{ fontSize: 14, color: V.ink4, marginBottom: 10 }}>No synthesis generated yet</div>
+                    <button onClick={generateSynthesis} disabled={synthLoading} style={{ ...btnStyle, background: V.purple, color: '#fff', borderColor: V.purple, opacity: synthLoading ? 0.6 : 1 }}>
+                      {synthLoading ? '⟳ Generating…' : '✦ Generate AI Synthesis'}
+                    </button>
                   </div>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px', borderTop: '1px solid rgba(88,56,160,0.10)', background: 'rgba(88,56,160,0.02)' }}>
-                <button onClick={() => alert('AI regeneration triggered')} style={synthBtn}>↻ Regenerate</button>
-                <button onClick={() => aiGen?.content && navigator.clipboard.writeText(aiGen.content)} style={synthBtn}>📋 Copy</button>
-                {aiGen?.created_at && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--ink4)', marginLeft: 'auto' }}>Generated {fmtTimestamp(aiGen.created_at)}</span>}
+                <button onClick={generateSynthesis} disabled={synthLoading} style={{ fontFamily: "'Instrument Sans', sans-serif", fontSize: 12, color: V.purple, cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px' }}>↻ Regenerate</button>
+                <button onClick={() => navigator.clipboard.writeText(property.ai_synthesis || '')} style={{ fontFamily: "'Instrument Sans', sans-serif", fontSize: 12, color: V.purple, cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px' }}>📋 Copy</button>
+                {property.ai_synthesis_at && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: V.ink4, marginLeft: 'auto' }}>Generated {fmtDateFull(property.ai_synthesis_at)}</span>}
               </div>
             </>
           )}
         </div>
 
-        {/* ─── Stat Row ─── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden', marginBottom: 16 }}>
-          <StatCell label="Building SF" value={fmt(p.total_sf || p.building_sf)} sub={buildings.length ? `${buildings.length} building${buildings.length > 1 ? 's' : ''}` : null} />
-          <StatCell label="Land" value={p.land_area ? `${p.land_area} ac` : '—'} sub={apns.length ? `${apns.length} APNs` : null} />
-          <StatCell label="In-Place Rent" value={p.in_place_rent ? `$${p.in_place_rent}/SF` : '—'} sub="NNN / mo" color="blue" sm />
-          <StatCell label="Market Rent" value={p.market_rent ? `$${p.market_rent}` : '—'} sub="NNN est." color="green" sm />
-          <StatCell label="Lease Expiry" value={fmtExpiry(p.lease_expiration)} sub={leaseMonths != null ? `${leaseMonths} months` : null} color={leaseMonths != null && leaseMonths <= 24 ? 'amber' : undefined} sm />
-          <StatCell label="Est. Value" value={fmtCurrency(p.estimated_value)} sub={p.estimated_value && (p.total_sf || p.building_sf) ? `~$${Math.round(p.estimated_value / (p.total_sf || p.building_sf))}/SF` : null} />
-          <StatCell label="Year Built" value={p.year_built || '—'} sub={p.zoning || null} last />
+        {/* ═══ STAT ROW ═══ */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0, background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden', marginBottom: 16 }}>
+          <StatCell label="Property SF" value={fmtSF(property.building_sf)} sub={buildings.length ? `${buildings.length} building${buildings.length > 1 ? 's' : ''}` : '1 building'} />
+          <StatCell label="Land" value={fmtAcres(property.land_acres)} sub={apns.length ? `${apns.length} APNs` : '—'} />
+          <StatCell label="In-Place Rent" value={fmtRent(property.in_place_rent)} sub={property.lease_type ? `${property.lease_type} / mo` : '—'} color={V.blue} sm />
+          <StatCell label="Market Rent" value={property.market_rent ? fmtRent(property.market_rent) : '—'} sub="NNN est." color={V.green} sm />
+          <StatCell label="Lease Expiry" value={fmtDate(property.lease_expiration)} sub={mo != null ? `${mo} months` : '—'} color={mo != null && mo <= 24 ? V.amber : undefined} sm />
+          <StatCell label="Est. Value" value={estValue ? fmtCurrency(estValue) : '—'} sub={property.price_psf ? `~$${fmt(Math.round(property.price_psf))}/SF` : '—'} />
+          <StatCell label="Year Built" value={property.year_built || '—'} sub={property.zoning || '—'} last />
         </div>
 
-        {/* ─── Building Score Card ─── */}
-        <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden', marginBottom: 16 }}>
-          <div onClick={() => setSpecsOpen(!specsOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
+        {/* ═══ BUILDING SCORE CARD ═══ */}
+        <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden', marginBottom: 16 }}>
+          {/* Header with ring */}
+          <div onClick={() => setSpecsOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 18px', borderBottom: `1px solid ${V.line}`, cursor: 'pointer' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 50, height: 50, borderRadius: '50%', border: '2.5px solid rgba(78,110,150,0.32)', background: 'var(--blue-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 21, fontWeight: 700, color: 'var(--blue)', lineHeight: 1 }}>{score ?? '—'}</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--blue2)', marginTop: 1 }}>{grade}</div>
+              <div style={{ width: 50, height: 50, borderRadius: '50%', border: `2.5px solid ${V.blueBdr}`, background: V.blueBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 21, fontWeight: 700, color: V.blue, lineHeight: 1 }}>{calcScore ?? '—'}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: V.blue2, marginTop: 1 }}>{calcGrade}</div>
               </div>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink2)' }}>Building Score — {grade} · {score >= 90 ? 'Top-tier distribution asset' : score >= 80 ? 'High-quality industrial asset' : score >= 70 ? 'Good functional quality' : 'Standard industrial'}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink4)', marginTop: 2 }}>
-                  {[p.clear_height && `${p.clear_height}' clear`, p.dock_doors && `${p.dock_doors} dock-high`, p.truck_court_depth && `${p.truck_court_depth}' truck court`, p.sprinkler_type, p.power_amps && `${fmt(p.power_amps)}A power`].filter(Boolean).join(' · ') || 'No specs available'}
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: V.ink2 }}>Building Score — {calcGrade} · {calcScore >= 85 ? 'Top-tier' : calcScore >= 70 ? 'Strong' : calcScore >= 55 ? 'Average' : 'Below avg'} {property.prop_type || 'industrial'} asset</div>
+                <div style={{ fontSize: 12, color: V.ink4, marginTop: 2 }}>
+                  {[
+                    property.clear_height ? `${property.clear_height}' clear` : null,
+                    property.dock_doors ? `${property.dock_doors} dock-high` : null,
+                    property.truck_court_depth ? `${property.truck_court_depth}' truck court` : null,
+                    property.sprinklers || null,
+                    property.power_amps ? `${fmt(property.power_amps)}A power` : null,
+                  ].filter(Boolean).join(' · ')}
                 </div>
               </div>
             </div>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: 'var(--blue2)', cursor: 'pointer' }}>{specsOpen ? 'Hide specs ▴' : 'Show all specs ▾'}</span>
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.blue2, cursor: 'pointer' }}>{specsOpen ? 'Hide specs ▴' : 'Show all specs ▾'}</span>
           </div>
-          {/* Summary strip */}
-          <div style={{ display: 'flex', borderBottom: specsOpen ? '1px solid var(--line)' : 'none' }}>
+          {/* Spec summary strip — always visible */}
+          <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${V.line}` }}>
             {[
-              { l: 'Clear Ht', v: p.clear_height ? `${p.clear_height}'` : '—', hi: (p.clear_height||0) >= 30 },
-              { l: 'Dock Doors', v: p.dock_doors ? `${p.dock_doors} DH${p.grade_doors ? ` · ${p.grade_doors} GL` : ''}` : '—', hi: (p.dock_doors||0) >= 20 },
-              { l: 'Truck Court', v: p.truck_court_depth ? `${p.truck_court_depth}'` : '—', hi: (p.truck_court_depth||0) >= 130 },
-              { l: 'Office %', v: p.office_pct != null ? `${p.office_pct}%` : '—' },
-              { l: 'Power', v: p.power_amps ? `${fmt(p.power_amps)}A/${p.power_voltage||''}V` : '—' },
-              { l: 'Sprinklers', v: p.sprinkler_type || '—' },
-              { l: 'DH Ratio', v: p.dh_ratio ? `${p.dh_ratio}/10kSF` : '—', hi: (p.dh_ratio||0) >= 1.0 },
-              { l: 'Coverage', v: p.coverage_ratio ? `${p.coverage_ratio}%` : '—' },
+              { lbl: 'Clear Ht', val: property.clear_height ? `${property.clear_height}'` : '—', hi: property.clear_height >= 28 },
+              { lbl: 'Dock Doors', val: property.dock_doors ? `${property.dock_doors} DH${property.grade_doors ? ` · ${property.grade_doors} GL` : ''}` : '—', hi: property.dock_doors >= 10 },
+              { lbl: 'Truck Court', val: property.truck_court_depth ? `${property.truck_court_depth}'` : '—', hi: property.truck_court_depth >= 120 },
+              { lbl: 'Office %', val: property.office_pct != null ? `${property.office_pct}%` : '—' },
+              { lbl: 'Power', val: property.power_amps ? `${fmt(property.power_amps)}A${property.power_volts ? `/${property.power_volts}V` : ''}` : '—' },
+              { lbl: 'Sprinklers', val: property.sprinklers || '—' },
+              { lbl: 'DH Ratio', val: dhRatio ? `${dhRatio}/10kSF` : '—', hi: dhRatio >= 1.0 },
+              { lbl: 'Coverage', val: coverage ? `${coverage}%` : '—' },
             ].map((item, i) => (
-              <div key={i} style={{ flex: 1, padding: '9px 12px', borderRight: i < 7 ? '1px solid var(--line2)' : 'none', textAlign: 'center' }}>
-                <div style={{ fontSize: 9.5, color: 'var(--ink4)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 3 }}>{item.l}</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12.5, color: item.hi ? 'var(--blue)' : 'var(--ink2)' }}>{item.v}</div>
+              <div key={i} style={{ flex: 1, padding: '9px 12px', borderRight: i < 7 ? `1px solid ${V.line2}` : 'none', textAlign: 'center' }}>
+                <div style={{ fontSize: 9.5, color: V.ink4, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 3 }}>{item.lbl}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12.5, color: item.hi ? V.blue : V.ink2 }}>{item.val}</div>
               </div>
             ))}
           </div>
-          {/* Expanded specs + score breakdown */}
+          {/* Expanded spec grid + score breakdown */}
           {specsOpen && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-              <div style={{ padding: '14px 18px', borderRight: '1px solid var(--line)' }}>
-                <div style={secLabel}>Structure</div>
-                {[['Building SF', fmt(p.total_sf || p.building_sf)], ['Land Area', p.land_area ? `${p.land_area} ac` : '—'], ['Year Built', p.year_built || '—'], ['Clear Height', p.clear_height ? `${p.clear_height}'` : '—'], ['Eave Height', p.eave_height ? `${p.eave_height}'` : '—'], ['Column Spacing', p.column_spacing || '—'], ['Bay Depth', p.bay_depth ? `${p.bay_depth}'` : '—']].map(([k, v], i) => <SpecRow key={i} k={k} v={v} />)}
-                <div style={{ ...secLabel, marginTop: 12 }}>Loading</div>
-                {[['Dock-High Doors', p.dock_doors || '—'], ['Grade-Level Doors', p.grade_doors || '—'], ['Truck Court Depth', p.truck_court_depth ? `${p.truck_court_depth}'` : '—'], ['Yard Depth', p.yard_depth ? `${p.yard_depth}'` : '—'], ['Trailer Spots', p.trailer_spots || '—'], ['Parking Spaces', p.parking_spaces || '—']].map(([k, v], i) => <SpecRow key={i} k={k} v={v} />)}
+              <div style={{ padding: '14px 18px', borderRight: `1px solid ${V.line}` }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, paddingBottom: 6, borderBottom: `1px solid ${V.line}`, marginBottom: 6 }}>Structure</div>
+                {[
+                  ['Building SF', fmt(property.building_sf)],
+                  ['Land Area', property.land_acres ? `${fmtAcres(property.land_acres)} / ${fmt(property.lot_sf || Math.round(property.land_acres * 43560))} SF` : '—'],
+                  ['Year Built', property.year_built || '—'],
+                  ['Clear Height', property.clear_height ? `${property.clear_height}'` : '—', property.clear_height >= 28],
+                  ['Eave Height', property.eave_height ? `${property.eave_height}'` : '—'],
+                  ['Column Spacing', property.column_spacing || '—'],
+                  ['Bay Depth', property.bay_depth ? `${property.bay_depth}'` : '—'],
+                ].map(([k, v, hi], i) => <SpecRow key={i} label={k} value={v} hi={hi} />)}
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, paddingBottom: 6, borderBottom: `1px solid ${V.line}`, marginBottom: 6, marginTop: 12 }}>Loading</div>
+                {[
+                  ['Dock-High Doors', property.dock_doors || '—'],
+                  ['Grade-Level Doors', property.grade_doors || '—'],
+                  ['Truck Court', property.truck_court_depth ? `${property.truck_court_depth}'` : '—'],
+                  ['Trailer Spots', property.trailer_spots || '—'],
+                  ['Parking Spaces', property.parking_spaces || '—'],
+                ].map(([k, v], i) => <SpecRow key={i} label={k} value={v} />)}
               </div>
               <div style={{ padding: '14px 18px' }}>
-                <div style={secLabel}>Systems</div>
-                {[['Power', p.power_amps ? `${fmt(p.power_amps)}A / ${p.power_voltage||''}V` : '—'], ['Sprinklers', p.sprinkler_type || '—'], ['Rail Served', p.rail_served ? 'Yes' : 'No'], ['Zoning', p.zoning || '—'], ['Office SF', p.office_sf ? `${fmt(p.office_sf)} (${p.office_pct||''}%)` : '—'], ['Warehouse SF', p.warehouse_sf ? fmt(p.warehouse_sf) : '—']].map(([k, v], i) => <SpecRow key={i} k={k} v={v} />)}
-                <div style={{ ...secLabel, marginTop: 12 }}>Calculated</div>
-                {[['DH Ratio', p.dh_ratio ? `${p.dh_ratio} / 10,000 SF` : '—'], ['Coverage Ratio', p.coverage_ratio ? `${p.coverage_ratio}%` : '—'], ['Land-to-Building', p.land_to_building ? `${p.land_to_building}×` : '—']].map(([k, v], i) => <SpecRow key={i} k={k} v={v} hi />)}
-                <div style={{ ...secLabel, marginTop: 12 }}>Score Breakdown</div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, paddingBottom: 6, borderBottom: `1px solid ${V.line}`, marginBottom: 6 }}>Systems</div>
                 {[
-                  { l: `Clear Height (${p.clear_height||'—'}')`, v: p.bs_clear_height||0, max: 25 },
-                  { l: `DH Ratio (${p.dh_ratio||'—'})`, v: p.bs_dh_ratio||0, max: 20 },
-                  { l: `Truck Court (${p.truck_court_depth||'—'}')`, v: p.bs_truck_court||0, max: 20 },
-                  { l: `Office % (${p.office_pct||'—'}%)`, v: p.bs_office||0, max: 15 },
-                  { l: `Power (${p.power_amps ? fmt(p.power_amps)+'A' : '—'})`, v: p.bs_power||0, max: 10 },
-                  { l: `Vintage (${p.year_built||'—'})`, v: p.bs_vintage||0, max: 10 },
-                ].map((f, i) => (
+                  ['Power', property.power_amps ? `${fmt(property.power_amps)}A / ${property.power_volts || '—'}V / 3Ø` : '—', property.power_amps >= 1200],
+                  ['Sprinklers', property.sprinklers || '—'],
+                  ['Rail Served', property.rail_served ? 'Yes' : 'No'],
+                  ['Evap Cooler', property.evap_cooler ? 'Yes' : 'No'],
+                  ['Zoning', property.zoning || '—'],
+                  ['Office SF', property.office_pct != null && property.building_sf ? `${fmt(Math.round(property.building_sf * property.office_pct / 100))} (${property.office_pct}%)` : '—'],
+                  ['Warehouse SF', property.office_pct != null && property.building_sf ? fmt(Math.round(property.building_sf * (1 - property.office_pct / 100))) : '—'],
+                ].map(([k, v, hi], i) => <SpecRow key={i} label={k} value={v} hi={hi} />)}
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, paddingBottom: 6, borderBottom: `1px solid ${V.line}`, marginBottom: 6, marginTop: 12 }}>Calculated</div>
+                {[
+                  ['DH Ratio', dhRatio ? `${dhRatio} / 10,000 SF` : '—', dhRatio >= 1.0],
+                  ['Coverage Ratio', coverage ? `${coverage}%` : '—'],
+                  ['Land-to-Building', property.land_acres && property.building_sf ? `${((property.land_acres * 43560) / property.building_sf).toFixed(2)}×` : '—'],
+                ].map(([k, v, hi], i) => <SpecRow key={i} label={k} value={v} hi={hi} />)}
+                {/* Score breakdown */}
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, paddingBottom: 6, borderBottom: `1px solid ${V.line}`, marginBottom: 10, marginTop: 12 }}>Score Breakdown</div>
+                {scoreBreakdown.map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: 'var(--ink3)', width: 140, flexShrink: 0 }}>{f.l}</span>
-                    <div style={{ flex: 1, height: 5, background: 'var(--bg2)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, width: `${f.max > 0 ? f.v/f.max*100 : 0}%`, background: f.v/f.max >= 0.8 ? 'var(--green)' : f.v/f.max >= 0.5 ? 'var(--amber)' : 'var(--rust)' }} />
+                    <span style={{ fontSize: 12, color: V.ink3, width: 140, flexShrink: 0 }}>{item.label}</span>
+                    <div style={{ flex: 1, height: 5, background: V.bg2, borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${(item.pts / item.max) * 100}%`, background: item.color, borderRadius: 3 }} />
                     </div>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--ink3)', width: 40, textAlign: 'right', flexShrink: 0 }}>{f.v}/{f.max}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: V.ink3, width: 40, textAlign: 'right', flexShrink: 0 }}>{item.pts}/{item.max}</span>
                   </div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 7, borderTop: '1px solid var(--line3)' }}>
-                  <span style={{ fontSize: 11, color: 'var(--ink4)' }}>Total</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--blue)', fontWeight: 600 }}>{score||0}/100</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 7, borderTop: `1px solid ${V.line3}` }}>
+                  <span style={{ fontSize: 11, color: V.ink4 }}>Total</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: V.blue, fontWeight: 600 }}>{scoreTotal}/100</span>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ─── Tabs ─── */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', marginBottom: 16 }}>
-          {tabs.map(tab => (
-            <div key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '10px 15px', fontSize: 13.5, cursor: 'pointer', marginBottom: -1, whiteSpace: 'nowrap',
-              borderBottom: `2px solid ${activeTab === tab ? 'var(--blue)' : 'transparent'}`,
-              color: activeTab === tab ? 'var(--blue)' : 'var(--ink4)', fontWeight: activeTab === tab ? 500 : 400,
+        {/* ═══ TABS ═══ */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${V.line}`, marginBottom: 16 }}>
+          {TABS.map(tab => (
+            <div key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+              padding: '10px 15px', fontSize: 13.5, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.12s', marginBottom: -1,
+              color: activeTab === tab.key ? V.blue : V.ink4,
+              borderBottom: `2px solid ${activeTab === tab.key ? V.blue : 'transparent'}`,
+              fontWeight: activeTab === tab.key ? 500 : 400,
             }}>
-              {tab}
-              {tabCounts[tab] > 0 && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: 20, padding: '1px 6px', marginLeft: 4, color: 'var(--ink4)' }}>{tabCounts[tab]}</span>}
+              {tab.label}
+              {tabCounts[tab.key] > 0 && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, background: V.bg2, border: `1px solid ${V.line}`, borderRadius: 20, padding: '1px 6px', marginLeft: 4, color: V.ink4 }}>{tabCounts[tab.key]}</span>}
             </div>
           ))}
         </div>
 
-        {/* ─── 2-COL BODY: Timeline LEFT, Scores/Signals RIGHT ─── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          {/* LEFT — Tab Content */}
-          <div>
-            {activeTab === 'Timeline' && (
-              <Card hdr={<><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--rust)', display: 'inline-block', animation: 'blink 1.4s infinite' }} /> Activity Timeline</>} action="+ Log Activity" onAction={() => setShowLogModal(true)}>
+        {/* ═══ TAB CONTENT — 2-col body ═══ */}
+        {activeTab === 'timeline' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+            {/* LEFT — Timeline */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', borderBottom: `1px solid ${V.line}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: V.rust, animation: 'blink 1.4s infinite' }} /> Activity Timeline
+                  </div>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13.5, fontStyle: 'italic', color: V.blue2, cursor: 'pointer' }}>+ Log Activity</span>
+                </div>
                 {activities.length === 0 ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink4)', fontSize: 13 }}>No activities yet.</div>
-                ) : activities.map((a, i) => <ActRow key={a.id || i} a={a} />)}
-                {activities.length > 0 && (
-                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--bg)', borderTop: '1px solid var(--line)' }}>
-                    <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--blue2)' }}>View all {activities.length} activities & notes →</span>
+                  <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No activity yet — log a call or note to start the timeline</div>
+                ) : activities.slice(0, 6).map(act => {
+                  const icon = getActIcon(act.activity_type);
+                  return (
+                    <div key={act.id} style={{ display: 'flex', gap: 12, padding: '11px 16px', borderBottom: `1px solid ${V.line2}` }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, flexShrink: 0, marginTop: 1, background: icon.bg, color: icon.c }}>{icon.emoji}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, color: V.ink2, lineHeight: 1.4 }}><strong style={{ fontWeight: 500 }}>{act.subject || act.activity_type}</strong>{act.body ? ` — ${act.body}` : ''}</div>
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12, fontStyle: 'italic', color: V.ink4, marginTop: 2 }}>Briana Corso{act.duration_minutes ? ` · ${act.duration_minutes} min` : ''}</div>
+                      </div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: V.ink4, flexShrink: 0, paddingTop: 2 }}>{fmtDateShort(act.created_at)}</div>
+                    </div>
+                  );
+                })}
+                {activities.length > 6 && (
+                  <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: V.bg, borderTop: `1px solid ${V.line}` }}>
+                    <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13.5, fontStyle: 'italic', color: V.blue2 }}>View all {activities.length} activities & notes →</span>
                   </div>
                 )}
-              </Card>
-            )}
-            {activeTab === 'Buildings' && <DataTable headers={['Building', 'SF', 'Clear Ht', 'Docks', 'Power', 'Year']} rows={buildings.map(b => [b.building_name||'—', fmt(b.building_sf), b.clear_height?`${b.clear_height}'`:'—', b.dock_doors||'—', b.power_amps?`${fmt(b.power_amps)}A`:'—', b.year_built||'—'])} empty="No buildings." />}
-            {activeTab === 'APNs' && <DataTable headers={['APN', 'Acreage', 'Owner', 'Last Transfer', 'Assessed']} rows={apns.map(a => [a.apn||'—', a.acreage?`${a.acreage} ac`:'—', a.owner_of_record||'—', a.last_transfer_date?fmtDate(a.last_transfer_date):'—', a.assessed_value?fmtCurrency(a.assessed_value):'—'])} empty="No APNs." />}
-            {activeTab === 'Lease Comps' && <DataTable headers={['Address', 'Tenant', 'SF', 'Rate', 'Type', 'Date']} rows={leaseComps.map(l => [l.address||'—', l.tenant_name||'—', fmt(l.building_sf), l.rate?`$${l.rate}/SF`:'—', l.lease_type||'—', l.commencement_date?fmtDate(l.commencement_date):'—'])} empty="No lease comps." />}
-            {activeTab === 'Sale Comps' && <DataTable headers={['Address', 'Buyer', 'SF', 'Price', '$/SF', 'Date', 'Broker']} rows={saleComps.map(s => [s.address||'—', s.buyer||'—', fmt(s.building_sf), fmtCurrency(s.sale_price), s.price_per_sf?`$${s.price_per_sf}`:'—', s.sale_date?fmtDate(s.sale_date):'—', s.broker||'—'])} empty="No sale comps." />}
-            {activeTab === 'Contacts' && <DataTable headers={['Name', 'Company', 'Role', 'Phone', 'Email']} rows={contacts.map(c => [c.contact_name||'—', c.company||'—', c.role||'—', c.phone||'—', c.email||'—'])} empty="No contacts." />}
-            {activeTab === 'Deals' && <DataTable headers={['Deal', 'Stage', 'Value', 'Type', 'Created']} rows={deals.map(d => [d.deal_name||'—', d.stage||'—', fmtCurrency(d.estimated_value||d.deal_value), d.deal_type||'—', d.created_at?fmtDate(d.created_at):'—'])} empty="No deals." onRow={i => deals[i]?.id && router.push(`/deals/${deals[i].id}`)} />}
-            {activeTab === 'Leads' && <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink4)', fontSize: 13, background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)' }}>Leads tab — coming soon</div>}
-            {activeTab === 'Files' && <DataTable headers={['Filename', 'Type', 'Size', 'Uploaded']} rows={files.map(f => [f.filename||f.file_name||'—', f.file_type||'—', f.file_size?`${Math.round(f.file_size/1024)} KB`:'—', f.created_at?fmtDate(f.created_at):'—'])} empty="No files." />}
-          </div>
-
-          {/* RIGHT — Scores + Signals + Catalysts + Memo */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* ORS — Seller Readiness */}
-            <Card hdr="Seller Readiness (ORS)" action="Expand tiers →">
-              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 60, height: 60, borderRadius: '50%', border: '3px solid var(--rust-bdr)', background: 'var(--rust-bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--rust)', lineHeight: 1 }}>{ors ?? '—'}</div>
-                  <div style={{ fontSize: 8, color: 'var(--ink4)', marginTop: 1 }}>/ 100</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--rust)', marginBottom: 3 }}>{ors >= 70 ? 'ACT NOW' : ors >= 50 ? 'MONITOR' : 'LOW'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink3)', lineHeight: 1.5 }}>
-                    {orsSignals.map(s => s.label).join(' + ')}
-                  </div>
-                </div>
               </div>
-              <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {orsSignals.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--ink3)', flex: 1 }}>{s.label}</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: s.color, fontWeight: 600 }}>+{s.pts}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
 
-            {/* Portfolio Fit Score — 8 dimensions (§08) */}
-            {pfs != null && (
-              <Card hdr="Portfolio Fit Score" action={`${pfsGrade} · ${pfs}/100`}>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid var(--line)' }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', border: '2.5px solid rgba(26,107,107,0.32)', background: 'rgba(26,107,107,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#1A6B6B', lineHeight: 1 }}>{pfs}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#1A6B6B', marginTop: 1 }}>{pfsGrade}</div>
+              {/* Owner + Tenant below timeline */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {/* OWNER CARD */}
+                <Card>
+                  <CardHeader title="Owner" action="View Record →" />
+                  <CardRow label="Company" value={property.owner || '—'} />
+                  <CardRow label="Owner Type" value={property.owner_type || '—'} />
+                  <CardRow label="Owner Since" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
+                  {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
+                </Card>
+                {/* TENANT / LEASE CARD */}
+                <Card>
+                  <CardHeader title="Tenant" />
+                  <div style={{ padding: '14px 16px 10px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: V.ink4, marginBottom: 2 }}>Tenant</div>
+                    <div style={{ fontSize: 15, fontWeight: 500, color: V.ink2, marginBottom: 2 }}>{property.tenant || 'Vacant'}</div>
+                    {property.lease_expiration && (
+                      <>
+                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: V.rust, lineHeight: 1, marginTop: 4, letterSpacing: '-0.02em' }}>{fmtDate(property.lease_expiration)}</div>
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.rust, marginTop: 2 }}>{mo != null ? `${mo} months remaining` : ''}</div>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${V.line2}` }}>
+                    <RateCell label="Current Rate" value={fmtRent(property.in_place_rent)} color={V.rust} />
+                    <RateCell label="Market Rate" value={property.market_rent ? fmtRent(property.market_rent) : '—'} color={V.green} />
+                    <RateCell label="Type" value={property.lease_type || '—'} color={V.blue} bottom />
+                    <RateCell label="Spread" value={property.in_place_rent && property.market_rent ? `+${(((property.market_rent - property.in_place_rent) / property.in_place_rent) * 100).toFixed(0)}%` : '—'} color={V.green} bottom />
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* RIGHT — Sidebar cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* ORS — Seller Readiness */}
+              <Card>
+                <CardHeader title="Seller Readiness (ORS)" action="Expand tiers →" />
+                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', border: `3px solid ${V.rustBdr}`, background: V.rustBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: V.rust, lineHeight: 1 }}>{property.probability ?? '—'}</div>
+                    <div style={{ fontSize: 8, color: V.ink4, marginTop: 1 }}>/ 100</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1A6B6B', marginBottom: 2 }}>{pfs >= 90 ? 'AUTO-CREATE' : pfs >= 70 ? 'STRONG FIT' : pfs >= 60 ? 'MODERATE FIT' : 'OUTSIDE CRITERIA'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink3)', lineHeight: 1.4 }}>
-                      {pfs >= 90 ? 'Auto-creates acquisition record' : pfs >= 60 ? 'Matches fund criteria' : 'Below target thresholds'}
+                    <div style={{ fontSize: 12, fontWeight: 600, color: V.rust, marginBottom: 3 }}>{getOrsLabel(property.probability)}</div>
+                    <div style={{ fontSize: 12, color: V.ink3, lineHeight: 1.5 }}>
+                      {[
+                        mo != null && mo <= 24 ? `Lease expiry ${mo}mo` : null,
+                        property.last_transfer_date ? `Hold ${new Date().getFullYear() - new Date(property.last_transfer_date).getFullYear()} years` : null,
+                        tags.includes('SLB Corridor') ? 'SLB corridor' : null,
+                      ].filter(Boolean).join(' + ') || 'No strong signals detected'}
                     </div>
                   </div>
                 </div>
-                <div style={{ padding: '10px 16px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {[
-                    { label: 'Size / SF range', max: 25, val: p.pfs_size || null },
-                    { label: 'Geography / submarket', max: 20, val: p.pfs_geography || null },
-                    { label: 'Basis vs maximum', max: 15, val: p.pfs_basis || null },
-                    { label: 'Strategy type match', max: 10, val: p.pfs_strategy || null },
-                    { label: 'Clear height vs min', max: 10, val: p.pfs_clear_height || null },
-                    { label: 'SLB corridor bonus', max: 10, val: p.pfs_slb_corridor || null },
-                    { label: 'Power requirements', max: 5, val: p.pfs_power || null },
-                    { label: 'Seller activity / ORS', max: 5, val: p.pfs_seller || null },
-                  ].map((dim, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: 'var(--ink3)', width: 140, flexShrink: 0 }}>{dim.label}</span>
-                      <div style={{ flex: 1, height: 4, background: 'var(--bg2)', borderRadius: 3, overflow: 'hidden' }}>
-                        {dim.val != null && <div style={{ height: '100%', borderRadius: 3, width: `${dim.max > 0 ? dim.val / dim.max * 100 : 0}%`, background: '#1A6B6B' }} />}
-                      </div>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: dim.val != null ? '#1A6B6B' : 'var(--ink4)', width: 36, textAlign: 'right', flexShrink: 0 }}>
-                        {dim.val != null ? `${dim.val}/${dim.max}` : `—/${dim.max}`}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {mo != null && mo <= 24 && <SignalBar label={`Lease expiry ${mo} months`} pts={mo <= 12 ? 25 : 15} color={V.rust} />}
+                  {property.last_transfer_date && (() => { const yr = new Date().getFullYear() - new Date(property.last_transfer_date).getFullYear(); return yr >= 10 ? <SignalBar label={`Hold period ${yr} years`} pts={yr >= 20 ? 25 : 15} color={V.amber} /> : null; })()}
+                  {tags.includes('Owner-User') && <SignalBar label="Owner-user occupant" pts={10} color={V.amber} />}
+                  {warnNotice && <SignalBar label="WARN filing linked" pts={20} color={V.rust} />}
                 </div>
               </Card>
-            )}
 
-            {/* Catalysts */}
-            <Card hdr="Active Catalysts" action="+ Add">
-              {(p.catalyst_tags || []).length === 0 ? (
-                <div style={{ padding: 20, textAlign: 'center', color: 'var(--ink4)', fontSize: 13 }}>No active catalysts.</div>
-              ) : (p.catalyst_tags || []).map((tag, i) => {
-                const c = getTagStyle(tag);
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderBottom: i < (p.catalyst_tags||[]).length - 1 ? '1px solid var(--line2)' : 'none', cursor: 'pointer' }}>
-                    <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 500, background: c.bg, border: `1px solid ${c.bdr}`, color: c.text }}>{tag}</span>
-                    <span style={{ fontSize: 12.5, color: 'var(--ink3)', flex: 1 }}>—</span>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: 'var(--ink4)' }}>auto</span>
-                  </div>
-                );
-              })}
-            </Card>
+              {/* Catalysts */}
+              <Card>
+                <CardHeader title="Active Catalysts" action="+ Add" />
+                {tags.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: V.ink4 }}>No catalysts assigned</div>
+                ) : tags.map((tag, i) => {
+                  const s = getTagStyle(tag);
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderBottom: `1px solid ${V.line2}`, cursor: 'pointer' }}>
+                      <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 500, background: s.bg, border: `1px solid ${s.bdr}`, color: s.c }}>{tag}</span>
+                    </div>
+                  );
+                })}
+              </Card>
 
-            {/* AI Acquisition Signal */}
-            <div style={{ background: 'var(--blue-bg)', border: '1px solid var(--blue-bdr)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-              <div style={{ padding: '10px 16px', background: 'rgba(78,110,150,0.12)', borderBottom: '1px solid var(--blue-bdr)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ fontSize: 13 }}>✦</span>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--blue)' }}>AI Acquisition Signal</span>
+              {/* AI Acquisition Signal */}
+              <div style={{ background: V.blueBg, border: `1px solid ${V.blueBdr}`, borderRadius: V.radius, overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', background: 'rgba(78,110,150,0.12)', borderBottom: `1px solid ${V.blueBdr}`, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ fontSize: 13 }}>✦</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.blue }}>AI Acquisition Signal</span>
+                </div>
+                <div style={{ padding: '14px 16px', fontSize: 13.5, lineHeight: 1.75, color: V.ink2 }}>
+                  {property.building_sf && property.clear_height ? (
+                    <>
+                      <strong style={{ color: V.blue, fontWeight: 600 }}>{calcScore >= 85 ? 'Top-quartile' : calcScore >= 70 ? 'Strong' : 'Average'} {property.submarket || 'SGV'} asset.</strong>
+                      {` ${property.clear_height}' clear${dhRatio ? ` and ${dhRatio} DH ratio` : ''}.`}
+                      {property.in_place_rent && property.market_rent && property.in_place_rent < property.market_rent ? (
+                        <> At {fmtRent(property.in_place_rent)} {property.lease_type || 'NNN'}, rent is <span style={{ color: V.green, fontWeight: 600 }}>{(((property.market_rent - property.in_place_rent) / property.market_rent) * 100).toFixed(0)}% below market</span>.</>
+                      ) : null}
+                    </>
+                  ) : (
+                    'Insufficient building spec data to generate signal. Add clear height, dock doors, and power to enable.'
+                  )}
+                </div>
               </div>
-              <div style={{ padding: '14px 16px', fontSize: 13.5, lineHeight: 1.75, color: 'var(--ink2)' }}>
-                {p.ai_property_signal || <span style={{ fontStyle: 'italic', color: 'var(--ink4)' }}>AI signal not yet generated.</span>}
+
+              {/* Opportunity Memo */}
+              <div style={{ background: V.blueBg, border: `1px solid ${V.blueBdr}`, borderRadius: V.radius, overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', background: 'rgba(78,110,150,0.12)', borderBottom: `1px solid ${V.blueBdr}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.blue }}>Acquisition Opportunity Memo</span>
+                  <button onClick={saveMemo} disabled={memoSaving} style={{ fontSize: 11, color: V.blue, background: 'none', border: `1px solid ${V.blueBdr}`, borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>{memoSaving ? 'Saving…' : 'Save'}</button>
+                </div>
+                <div style={{ padding: '12px 16px' }}>
+                  <textarea
+                    value={memoText}
+                    onChange={e => setMemoText(e.target.value)}
+                    placeholder="Write your acquisition thesis, key observations, and strategy notes here…"
+                    style={{ width: '100%', minHeight: 100, border: 'none', background: 'transparent', fontFamily: "'Instrument Sans', sans-serif", fontSize: 13.5, lineHeight: 1.75, color: V.ink2, resize: 'vertical', outline: 'none' }}
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Acquisition Opportunity Memo */}
-            <div style={{ background: 'var(--blue-bg)', border: '1px solid var(--blue-bdr)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-              <div style={{ padding: '10px 16px', background: 'rgba(78,110,150,0.12)', borderBottom: '1px solid var(--blue-bdr)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--blue)' }}>Acquisition Opportunity Memo</span>
-                <button onClick={() => oppMemoEditing ? handleSaveOppMemo() : setOppMemoEditing(true)} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', background: 'none', border: '1px solid var(--blue-bdr)', borderRadius: 6, padding: '3px 10px', fontFamily: "'Instrument Sans', sans-serif" }}>
-                  {oppMemoEditing ? '✓ Save' : '✎ Edit'}
-                </button>
-              </div>
-              <div style={{ padding: '14px 16px' }}>
-                {oppMemoEditing ? (
-                  <textarea value={oppMemoText} onChange={e => setOppMemoText(e.target.value)} placeholder="Write acquisition rationale, thesis, and strategy…"
-                    style={{ width: '100%', minHeight: 100, padding: 12, border: '1px solid var(--blue-bdr)', borderRadius: 8, fontSize: 13.5, lineHeight: 1.75, color: 'var(--ink2)', fontFamily: "'Instrument Sans', sans-serif", resize: 'vertical', background: 'rgba(255,255,255,0.7)', outline: 'none' }} />
-                ) : (
-                  <div style={{ fontSize: 13.5, lineHeight: 1.75, color: 'var(--ink2)' }}>
-                    {oppMemoText || oppMemo?.content || <span style={{ fontStyle: 'italic', color: 'var(--ink4)' }}>No memo yet. Click Edit to write.</span>}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
-        </div>
-
-        {/* ─── Owner + Tenant (full-width 2-col below) ─── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-          {/* Owner */}
-          <Card hdr="Owner" action="View Record →" onAction={() => p.owner_account_id && router.push(`/accounts/${p.owner_account_id}`)}>
-            {[['Company', p.owner], ['Primary Contact', p.owner_contact], ['Owner Type', p.owner_type], ['Owner Since', p.last_transfer_date ? new Date(p.last_transfer_date).getFullYear() : '—'], ['Account', p.account_name], ['APN(s)', apns.map(a => a.apn).filter(Boolean).join(' · ')]].map(([k, v], i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 16px', borderBottom: i < 5 ? '1px solid var(--line2)' : 'none' }}>
-                <span style={{ fontSize: 12.5, color: 'var(--ink4)' }}>{k}</span>
-                <span style={{ fontSize: 13, color: k === 'Primary Contact' || k === 'Account' ? 'var(--blue)' : 'var(--ink2)', textAlign: 'right', maxWidth: 180, cursor: k === 'Primary Contact' || k === 'Account' ? 'pointer' : 'default', ...(k === 'APN(s)' || k === 'Owner Since' ? { fontFamily: "'DM Mono', monospace", fontSize: 12 } : {}) }}>{v || '—'}</span>
-              </div>
-            ))}
-          </Card>
-
-          {/* Tenant / Lease */}
-          <Card hdr="Tenant">
-            <div style={{ padding: '14px 16px 10px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 2 }}>Tenant</div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)', marginBottom: 2 }}>{p.tenant_name || '—'}</div>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: 'var(--rust)', lineHeight: 1, marginTop: 4, letterSpacing: '-0.02em' }}>{fmtExpiry(p.lease_expiration)}</div>
-              {leaseMonths != null && <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: 'var(--rust)', marginTop: 2 }}>{leaseMonths} months remaining</div>}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--line2)' }}>
-              <RateCell l="Current Rate" v={p.in_place_rent ? `$${p.in_place_rent}/SF` : '—'} c="rust" />
-              <RateCell l="Market Rate" v={p.market_rent ? `$${p.market_rent}` : '—'} c="green" />
-              <RateCell l="Type" v={p.lease_type || '—'} c="blue" bt />
-              <RateCell l="Spread" v={p.in_place_rent && p.market_rent ? `+${Math.round((parseFloat(String(p.market_rent).replace(/[^0-9.]/g,'')) / parseFloat(String(p.in_place_rent).replace(/[^0-9.]/g,'')) - 1) * 100)}%` : '—'} c="green" bt />
-            </div>
-          </Card>
-        </div>
-
-      </div>
-
-      {/* ═══ LOG ACTIVITY MODAL ═══ */}
-      {showLogModal && (
-        <Modal onClose={() => setShowLogModal(false)} title={`Log ${logType === 'call' ? 'Call' : logType === 'email' ? 'Email' : logType === 'task' ? 'Task' : 'Note'}`}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            {['call', 'email', 'note', 'task'].map(t => (
-              <button key={t} onClick={() => setLogType(t)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: '1px solid', fontFamily: "'Instrument Sans', sans-serif", textTransform: 'capitalize', borderColor: logType === t ? 'var(--blue-bdr)' : 'var(--line)', background: logType === t ? 'var(--blue-bg)' : 'var(--card)', color: logType === t ? 'var(--blue)' : 'var(--ink3)' }}>
-                {t === 'call' ? '📞 Call' : t === 'email' ? '✉ Email' : t === 'note' ? '📝 Note' : '+ Task'}
-              </button>
-            ))}
+        ) : (
+          /* Non-timeline tabs render full width */
+          <div style={{ minHeight: 200 }}>
+            {activeTab === 'buildings' && <BuildingsTab buildings={buildings} property={property} />}
+            {activeTab === 'apns' && <ApnsTab apns={apns} />}
+            {activeTab === 'lease_comps' && <CompsTab comps={leaseComps} type="lease" />}
+            {activeTab === 'sale_comps' && <CompsTab comps={saleComps} type="sale" />}
+            {activeTab === 'contacts' && <ContactsTab contacts={contacts} />}
+            {activeTab === 'deals' && <DealsTab deals={deals} />}
+            {activeTab === 'leads' && <LeadsTab leads={leads} />}
+            {activeTab === 'files' && <FilesTab propertyId={id} />}
           </div>
-          <textarea value={logNote} onChange={e => setLogNote(e.target.value)} placeholder={`Details about this ${logType}…`}
-            style={{ width: '100%', minHeight: 100, padding: 12, borderRadius: 8, border: '1px solid var(--line)', fontSize: 14, lineHeight: 1.6, fontFamily: "'Instrument Sans', sans-serif", resize: 'vertical', color: 'var(--ink2)', outline: 'none' }} />
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-            <button onClick={() => setShowLogModal(false)} style={btnGhost}>Cancel</button>
-            <button onClick={handleLogActivity} style={{ ...btnGhost, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>Save Activity</button>
-          </div>
-        </Modal>
-      )}
+        )}
 
-      {/* ═══ EDIT PROPERTY MODAL ═══ */}
-      {showEditModal && (
-        <Modal onClose={() => setShowEditModal(false)} title="Edit Property" wide>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {['property_name', 'address', 'city', 'zip', 'submarket', 'market', 'property_type', 'total_sf', 'clear_height', 'year_built', 'estimated_value', 'in_place_rent', 'market_rent', 'lease_type', 'owner', 'owner_type', 'tenant_name', 'zoning'].map(field => (
-              <div key={field}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3, display: 'block' }}>{field.replace(/_/g, ' ')}</label>
-                <input value={editFields[field] ?? ''} onChange={e => setEditFields(prev => ({ ...prev, [field]: e.target.value || null }))}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--line)', fontSize: 13, color: 'var(--ink2)', fontFamily: "'Instrument Sans', sans-serif", background: 'var(--bg)', outline: 'none' }} />
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-            <button onClick={() => setShowEditModal(false)} style={btnGhost}>Cancel</button>
-            <button onClick={handleSaveEdit} style={{ ...btnGhost, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>Save Changes</button>
-          </div>
-        </Modal>
-      )}
+      </div>{/* /inner */}
 
-      <style jsx global>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}`}</style>
-    </>
-  );
-}
-
-// ═══════════════════════════════════════════════
-// SUB-COMPONENTS
-// ═══════════════════════════════════════════════
-
-function HeroBadge({ children, c }) {
-  const m = { green: { bg: 'rgba(21,102,54,0.30)', bdr: 'rgba(60,180,110,0.45)', text: '#B8F0D0' }, amber: { bg: 'rgba(140,90,4,0.30)', bdr: 'rgba(220,160,50,0.45)', text: '#FFE0A0' }, blue: { bg: 'rgba(78,110,150,0.30)', bdr: 'rgba(137,168,198,0.45)', text: '#C8E0F8' } };
-  const s = m[c] || m.blue;
-  return <span style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, letterSpacing: '0.02em', border: '1px solid', backdropFilter: 'blur(6px)', background: s.bg, borderColor: s.bdr, color: s.text }}>{children}</span>;
-}
-
-function ScoreChip({ label, grade, value, color, borderColor }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 14px', background: 'var(--card)', border: `1px solid ${borderColor}`, borderRadius: 8, marginRight: 6, flexShrink: 0 }}>
-      <div><div style={{ fontSize: 11, color: 'var(--ink3)' }}>{label}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color, marginTop: 1 }}>{grade}</div></div>
-      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{value ?? '—'}</div>
+      {/* Blink animation for live dot */}
+      <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}`}</style>
     </div>
   );
 }
 
-function Divider() { return <div style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 3px' }} />; }
+// ═══════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════
+
+function HeroBadge({ color, children }) {
+  const colors = {
+    green: { bg: 'rgba(21,102,54,0.30)', bdr: 'rgba(60,180,110,0.45)', c: '#B8F0D0' },
+    amber: { bg: 'rgba(140,90,4,0.30)', bdr: 'rgba(220,160,50,0.45)', c: '#FFE0A0' },
+    blue:  { bg: 'rgba(78,110,150,0.30)', bdr: 'rgba(137,168,198,0.45)', c: '#C8E0F8' },
+  };
+  const s = colors[color] || colors.blue;
+  return <span style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500, letterSpacing: '0.02em', border: `1px solid ${s.bdr}`, backdropFilter: 'blur(6px)', background: s.bg, color: s.c }}>{children}</span>;
+}
+
+function ScoreChip({ label, score, grade, color, borderColor }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 14px', background: V.card, border: `1px solid ${borderColor}`, borderRadius: 8, marginRight: 6, flexShrink: 0 }}>
+      <div>
+        <div style={{ fontSize: 11, color: V.ink3 }}>{label}</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color, marginTop: 1 }}>{grade}</div>
+      </div>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{score ?? '—'}</div>
+    </div>
+  );
+}
 
 function StatCell({ label, value, sub, color, sm, last }) {
   return (
-    <div style={{ padding: '13px 14px', borderRight: last ? 'none' : '1px solid var(--line2)' }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 5 }}>{label}</div>
-      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: sm ? 16 : 22, fontWeight: sm ? 500 : 700, color: color ? `var(--${color})` : 'var(--ink)', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--ink4)', marginTop: 2 }}>{sub}</div>}
+    <div style={{ padding: '13px 14px', borderRight: last ? 'none' : `1px solid ${V.line2}` }}>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink4, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: sm ? 16 : 22, fontWeight: sm ? 500 : 700, color: color || V.ink, lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: V.ink4, marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
 
-function SpecRow({ k, v, hi }) {
+function Card({ children }) {
+  return <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden' }}>{children}</div>;
+}
+function CardHeader({ title, action }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5.5px 0', borderBottom: '1px solid var(--line3)' }}>
-      <span style={{ fontSize: 12.5, color: 'var(--ink4)' }}>{k}</span>
-      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12.5, color: hi ? 'var(--blue)' : 'var(--ink2)' }}>{v}</span>
+    <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.line}`, fontSize: 11, fontWeight: 500, letterSpacing: '0.09em', textTransform: 'uppercase', color: V.ink3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {title}
+      {action && <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.blue2, cursor: 'pointer', fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}>{action}</span>}
     </div>
   );
 }
-
-function RateCell({ l, v, c, bt }) {
+function CardRow({ label, value, mono, link }) {
   return (
-    <div style={{ padding: '10px 16px', borderRight: '1px solid var(--line2)', borderTop: bt ? '1px solid var(--line2)' : 'none' }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink4)', marginBottom: 4 }}>{l}</div>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, fontWeight: 600, color: `var(--${c})` }}>{v}</div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 16px', borderBottom: `1px solid ${V.line2}` }}>
+      <span style={{ fontSize: 12.5, color: V.ink4 }}>{label}</span>
+      <span style={{ fontSize: 13, color: link ? V.blue : V.ink2, textAlign: 'right', maxWidth: 180, fontFamily: mono ? "'DM Mono', monospace" : 'inherit', fontSize: mono ? 12 : 13, cursor: link ? 'pointer' : 'default' }}>{value}</span>
     </div>
   );
 }
-
-function Card({ hdr, action, onAction, children }) {
+function RateCell({ label, value, color, bottom }) {
   return (
-    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', fontSize: 11, fontWeight: 500, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{hdr}</span>
-        {action && <span onClick={onAction} style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13.5, fontStyle: 'italic', color: 'var(--blue2)', cursor: 'pointer', fontWeight: 400, letterSpacing: 0, textTransform: 'none', whiteSpace: 'nowrap' }}>{action}</span>}
-      </div>
-      {children}
+    <div style={{ padding: '10px 16px', borderRight: `1px solid ${V.line2}`, borderTop: bottom ? `1px solid ${V.line2}` : 'none' }}>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: V.ink4, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, fontWeight: 600, color }}>{value}</div>
     </div>
   );
 }
-
-function ActRow({ a }) {
-  const type = (a.activity_type || '').toLowerCase();
-  const icons = { call: '📞', email: '✉', note: '📝', alert: '⚠', deal: '◈', task: '✓' };
-  const colors = { call: 'blue', email: 'purple', note: 'amber', alert: 'rust', deal: 'green', task: 'blue' };
-  const bg = colors[type] || 'blue';
+function SignalBar({ label, pts, color }) {
   return (
-    <div style={{ display: 'flex', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--line2)' }}>
-      <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.5, flexShrink: 0, marginTop: 1, background: `var(--${bg}-bg)`, color: `var(--${bg})` }}>{icons[type] || '•'}</div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13.5, color: 'var(--ink2)', lineHeight: 1.4 }}>{a.notes || '—'}</div>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12, fontStyle: 'italic', color: 'var(--ink4)', marginTop: 2 }}>{a.created_by || 'System'}</div>
-      </div>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: 'var(--ink4)', flexShrink: 0, paddingTop: 2 }}>{a.created_at ? fmtDate(a.created_at) : '—'}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: V.ink3, flex: 1 }}>{label}</span>
+      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color, fontWeight: 600 }}>+{pts}</span>
     </div>
   );
 }
-
-function DataTable({ headers, rows, empty, onRow }) {
+function SpecRow({ label, value, hi }) {
   return (
-    <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--line2)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5.5px 0', borderBottom: `1px solid ${V.line3}` }}>
+      <span style={{ fontSize: 12.5, color: V.ink4 }}>{label}</span>
+      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12.5, color: hi ? V.blue : V.ink2 }}>{value}</span>
+    </div>
+  );
+}
+function Divider() { return <div style={{ width: 1, height: 22, background: V.line, margin: '0 3px' }} />; }
+
+const btnStyle = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontFamily: "'Instrument Sans', sans-serif", fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid', transition: 'all 0.12s', whiteSpace: 'nowrap' };
+function Btn({ ghost, green, children, onClick }) {
+  const s = green ? { ...btnStyle, background: V.green, color: '#fff', borderColor: V.green }
+    : ghost ? { ...btnStyle, background: V.card, color: V.ink3, borderColor: V.line }
+    : { ...btnStyle, background: V.blue, color: '#fff', borderColor: V.blue };
+  return <button onClick={onClick} style={s}>{children}</button>;
+}
+function BtnLink({ children, onClick }) {
+  return <button onClick={onClick} style={{ background: 'none', border: 'none', color: V.blue2, fontSize: 12.5, padding: '7px 10px', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', fontFamily: "'Instrument Sans', sans-serif" }}>{children}</button>;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB PANELS
+// ═══════════════════════════════════════════════════════════
+
+function BuildingsTab({ buildings, property }) {
+  if (buildings.length === 0) {
+    return (
+      <Card>
+        <CardHeader title="Buildings" />
+        <div style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+            {[
+              ['Building SF', fmt(property.building_sf)],
+              ['Clear Height', property.clear_height ? `${property.clear_height}'` : '—'],
+              ['Dock-High Doors', property.dock_doors || '—'],
+              ['Grade-Level Doors', property.grade_doors || '—'],
+              ['Year Built', property.year_built || '—'],
+              ['Sprinklers', property.sprinklers || '—'],
+            ].map(([k, v], i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${V.line3}` }}>
+                <span style={{ fontSize: 13, color: V.ink4 }}>{k}</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: V.ink2 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr>{headers.map((h, i) => <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink3)', borderBottom: '1px solid var(--line)', background: 'var(--bg)', fontFamily: "'Instrument Sans', sans-serif" }}>{h}</th>)}</tr></thead>
+        <thead><tr>
+          {['Building', 'SF', 'Clear Ht', 'Docks', 'Year Built'].map(h => (
+            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: V.ink4, borderBottom: `2px solid ${V.line}`, background: V.bg }}>{h}</th>
+          ))}
+        </tr></thead>
         <tbody>
-          {rows.length === 0 ? <tr><td colSpan={headers.length} style={{ padding: 24, textAlign: 'center', color: 'var(--ink4)', fontSize: 13 }}>{empty}</td></tr> :
-          rows.map((row, ri) => (
-            <tr key={ri} onClick={() => onRow?.(ri)} style={{ borderBottom: '1px solid var(--line2)', cursor: onRow ? 'pointer' : 'default' }} onMouseEnter={e => { if (onRow) e.currentTarget.style.background = '#F8F6F2'; }} onMouseLeave={e => e.currentTarget.style.background = ''}>
-              {row.map((cell, ci) => <td key={ci} style={{ padding: '10px 14px', fontSize: 13, color: 'var(--ink2)', verticalAlign: 'middle' }}>{cell}</td>)}
+          {buildings.map(b => (
+            <tr key={b.id} style={{ borderBottom: `1px solid ${V.line2}` }}>
+              <td style={{ padding: '10px 14px', fontSize: 14, fontWeight: 500 }}>{b.building_name || 'Building'}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{fmt(b.building_sf)}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{b.clear_height ? `${b.clear_height}'` : '—'}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{b.dock_doors || '—'}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{b.year_built || '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -712,20 +885,159 @@ function DataTable({ headers, rows, empty, onRow }) {
   );
 }
 
-function Modal({ onClose, title, wide, children }) {
+function ApnsTab({ apns }) {
+  if (apns.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No APNs linked — add parcels to this property</div>;
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: 'var(--card)', borderRadius: 12, boxShadow: 'var(--shadow-md)', padding: 24, width: wide ? 560 : 480, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 16, color: 'var(--ink)' }}>{title}</div>
-        {children}
-      </div>
+    <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead><tr>
+          {['APN', 'Acres', 'Lot SF', 'County'].map(h => (
+            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: V.ink4, borderBottom: `2px solid ${V.line}`, background: V.bg }}>{h}</th>
+          ))}
+        </tr></thead>
+        <tbody>
+          {apns.map(a => (
+            <tr key={a.id} style={{ borderBottom: `1px solid ${V.line2}` }}>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13, color: V.blue }}>{a.apn}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{a.acres ? Number(a.acres).toFixed(2) : '—'}</td>
+              <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{a.lot_sf ? fmt(a.lot_sf) : '—'}</td>
+              <td style={{ padding: '10px 14px', fontSize: 13, color: V.ink4 }}>{a.county || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// ─── Shared Styles ───────────────────────────
-const btnGhost = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7, fontFamily: "'Instrument Sans', sans-serif", fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink3)', whiteSpace: 'nowrap' };
-const btnLink = { background: 'none', border: 'none', color: 'var(--blue2)', fontSize: 12.5, padding: '7px 10px', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(100,128,162,0.3)', fontFamily: "'Instrument Sans', sans-serif" };
-const btnPrimary = { ...btnGhost, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' };
-const synthBtn = { fontFamily: "'Instrument Sans', sans-serif", fontSize: 12, color: 'var(--purple)', cursor: 'pointer', background: 'none', border: '1px solid rgba(88,56,160,0.22)', borderRadius: 6, padding: '4px 11px' };
-const secLabel = { fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink4)', paddingBottom: 6, borderBottom: '1px solid var(--line)', marginBottom: 6 };
+function CompsTab({ comps, type }) {
+  if (comps.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No {type} comps in this submarket</div>;
+  const isLease = type === 'lease';
+  return (
+    <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: `1px solid ${V.line2}`, overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead><tr>
+          {(isLease ? ['Address', 'Tenant', 'SF', 'Rate', 'Type', 'Date'] : ['Address', 'SF', '$/SF', 'Price', 'Cap Rate', 'Date']).map(h => (
+            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: V.ink4, borderBottom: `2px solid ${V.line}`, background: V.bg }}>{h}</th>
+          ))}
+        </tr></thead>
+        <tbody>
+          {comps.map(c => (
+            <tr key={c.id} style={{ borderBottom: `1px solid ${V.line2}` }}>
+              <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 500 }}>{c.address || '—'}</td>
+              {isLease ? (
+                <>
+                  <td style={{ padding: '10px 14px', fontSize: 13, color: V.ink4 }}>{c.tenant || '—'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{c.rsf ? fmt(c.rsf) : (c.building_sf ? fmt(c.building_sf) : '—')}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13, color: V.blue }}>{c.rate ? `$${Number(c.rate).toFixed(2)}` : '—'}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 12 }}>{c.lease_type || 'NNN'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: V.ink4 }}>{c.start_date ? fmtDate(c.start_date) : (c.created_at ? fmtDate(c.created_at) : '—')}</td>
+                </>
+              ) : (
+                <>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{c.building_sf ? fmt(c.building_sf) : '—'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13, color: V.blue }}>{c.price_psf ? `$${Number(c.price_psf).toFixed(0)}` : '—'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{c.sale_price ? fmtCurrency(c.sale_price) : '—'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13 }}>{c.cap_rate ? `${Number(c.cap_rate).toFixed(2)}%` : '—'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: V.ink4 }}>{c.sale_date ? fmtDate(c.sale_date) : (c.created_at ? fmtDate(c.created_at) : '—')}</td>
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ContactsTab({ contacts }) {
+  if (contacts.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No contacts linked to this property</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {contacts.map(c => (
+        <Card key={c.id}>
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: V.blueBg, color: V.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+              {(c.first_name?.[0] || '') + (c.last_name?.[0] || '')}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
+              <div style={{ fontSize: 13, color: V.ink4 }}>{c.title}{c.company ? ` · ${c.company}` : ''}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {c.phone && <a href={`tel:${c.phone}`} style={{ ...btnStyle, padding: '5px 10px', fontSize: 12, background: V.card, color: V.ink3, borderColor: V.line, textDecoration: 'none' }}>📞</a>}
+              {c.email && <a href={`mailto:${c.email}`} style={{ ...btnStyle, padding: '5px 10px', fontSize: 12, background: V.card, color: V.ink3, borderColor: V.line, textDecoration: 'none' }}>✉</a>}
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function DealsTab({ deals }) {
+  if (deals.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No deals linked — convert to acquisition to create one</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {deals.map(d => (
+        <Card key={d.id}>
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{d.deal_name || '—'}</span>
+            <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 5, fontSize: 12, fontWeight: 500, background: V.blueBg, border: `1px solid ${V.blueBdr}`, color: V.blue }}>{d.stage || '—'}</span>
+            {d.deal_value && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: V.ink3 }}>{fmtCurrency(d.deal_value)}</span>}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function LeadsTab({ leads }) {
+  if (leads.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No leads linked to this property</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {leads.map(l => (
+        <Card key={l.id}>
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{l.lead_name || l.company || 'Unnamed Lead'}</span>
+            <span style={{ display: 'inline-flex', padding: '3px 10px', borderRadius: 5, fontSize: 12, fontWeight: 500, background: V.amberBg, border: `1px solid ${V.amberBdr}`, color: V.amber }}>{l.stage || '—'}</span>
+            {l.ai_score != null && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: V.ink4 }}>Score: {l.ai_score}</span>}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function FilesTab({ propertyId }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const { data } = await supabase.from('file_attachments').select('id, file_name, file_url, file_type, created_at').eq('property_id', propertyId).order('created_at', { ascending: false });
+        setFiles(data || []);
+      } catch {}
+      setLoading(false);
+    }
+    load();
+  }, [propertyId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4 }}>Loading files…</div>;
+  if (files.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: V.ink4, fontSize: 14 }}>No files — upload BOVs, flyers, inspection reports, leases</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {files.map(f => (
+        <Card key={f.id}>
+          <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16 }}>📄</span>
+            <span style={{ fontSize: 14, flex: 1 }}>{f.file_name}</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: V.ink4 }}>{fmtDateShort(f.created_at)}</span>
+            {f.file_url && <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle, padding: '4px 10px', fontSize: 12, background: V.card, color: V.blue, borderColor: V.blueBdr, textDecoration: 'none' }}>Open</a>}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
