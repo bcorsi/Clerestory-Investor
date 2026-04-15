@@ -4,12 +4,6 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
-// ══════════════════════════════════════════════════════════════════
-// CLERESTORY INVESTOR — Layout.jsx
-// Sidebar: Intelligence / Acquisitions / Portfolio / Records / Analytics
-// April 14, 2026
-// ══════════════════════════════════════════════════════════════════
-
 const NAV_SECTIONS = [
   {
     label: 'INTELLIGENCE',
@@ -33,9 +27,8 @@ const NAV_SECTIONS = [
   {
     label: 'PORTFOLIO',
     items: [
-      { href: '/portfolio',     icon: PortfolioIcon,  label: 'Holdings' },
-      { href: '/asset-mgmt',    icon: AssetMgmtIcon,  label: 'Asset Mgmt' },
-      { href: '/dispositions',  icon: DispositionIcon, label: 'Dispositions' },
+      { href: '/portfolio',    icon: PortfolioIcon,   label: 'Holdings' },
+      { href: '/dispositions', icon: DispositionIcon,  label: 'Dispositions' },
     ],
   },
   {
@@ -67,7 +60,6 @@ const PAGE_META = {
   '/deals':              { title: 'Acq Pipeline',     parent: 'Acquisitions' },
   '/tasks':              { title: 'Tasks',             parent: 'Acquisitions' },
   '/portfolio':          { title: 'Holdings',          parent: 'Portfolio' },
-  '/asset-mgmt':         { title: 'Asset Mgmt',       parent: 'Portfolio' },
   '/dispositions':       { title: 'Dispositions',      parent: 'Portfolio' },
   '/properties':         { title: 'Properties',        parent: 'Records' },
   '/contacts':           { title: 'Contacts',          parent: 'Records' },
@@ -119,7 +111,6 @@ export default function Layout({ children }) {
 
   return (
     <div className="cl-shell">
-      {/* Sidebar */}
       <aside className={`cl-sidebar ${collapsed ? 'cl-sidebar--collapsed' : ''}`}>
     <div className="cl-logo-wrap">
   <Link href="/" className="cl-logo-link" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -175,17 +166,12 @@ export default function Layout({ children }) {
         )}
       </aside>
 
-      {/* Main content */}
       <main className="cl-page-content">
         {children}
       </main>
     </div>
   );
 } 
-
-// ══════════════════════════════════════════════════════════════════
-// Logo
-// ══════════════════════════════════════════════════════════════════
 
 function ClerestoryEye() {
   return (
@@ -234,10 +220,6 @@ function ClerestoryEye() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════
-// SHARED ICONS (identical to broker version)
-// ══════════════════════════════════════════════════════════════════
-
 function GridIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.4"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.4"/></svg>; }
 function BoltIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9 1L3 9h5l-1 6 7-8H9l1-6z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>; }
 function NewsIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4 6h8M4 9h6M4 12h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
@@ -255,53 +237,6 @@ function SettingsIcon() { return <svg width="16" height="16" viewBox="0 0 16 16"
 function ChevronLeftIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ChevronRightIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 11l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function ScaleIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M4 14h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M2 6l2-3 2 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 6l2-3 2 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 6h4M10 6h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
-
-// ══════════════════════════════════════════════════════════════════
-// INVESTOR-ONLY ICONS (new)
-// ══════════════════════════════════════════════════════════════════
-
-// Crosshair / target — for Acq Targets
-function TargetIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
-      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
-// Stacked layers / portfolio — for Holdings
-function PortfolioIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="2" y="7" width="12" height="7" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-      <path d="M4 7V5a1 1 0 011-1h6a1 1 0 011 1v2" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1.2"/>
-      <path d="M2 10h12" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4"/>
-    </svg>
-  );
-}
-
-// Building + wrench — for Asset Mgmt
-function AssetMgmtIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 14V7L5.5 3l4.5 4v7H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <rect x="3" y="9" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.1"/>
-      <circle cx="12.5" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M14.3 8L12 10.5 11 9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-// Arrow out of box — for Dispositions
-function DispositionIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1" y="5" width="10" height="9" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M12 10l3-3-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M7 7h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>
-  );
-}
+function TargetIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/><path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
+function PortfolioIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="7" width="12" height="7" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M4 7V5a1 1 0 011-1h6a1 1 0 011 1v2" stroke="currentColor" strokeWidth="1.3"/><path d="M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1.2"/><path d="M2 10h12" stroke="currentColor" strokeWidth="1" strokeOpacity="0.4"/></svg>; }
+function DispositionIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="5" width="10" height="9" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M12 10l3-3-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 7h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
