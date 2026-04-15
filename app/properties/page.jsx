@@ -272,15 +272,21 @@ export default function PropertiesPage() {
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {/* ② VIEW TOGGLE */}
           <div style={{ display:'flex', background:V.bg2, border:`1px solid ${V.line}`, borderRadius:7, overflow:'hidden' }}>
-            {['table','map','cards'].map(v => (
-              <button key={v} onClick={() => v === 'table' ? setViewMode(v) : alert(`${v.charAt(0).toUpperCase()+v.slice(1)} view coming in next build — Leaflet satellite map with clustered markers.`)}
-                style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode===v?V.card:'transparent', color:viewMode===v?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:viewMode===v?'0 1px 3px rgba(0,0,0,0.08)':'none' }}>
-                {v==='table'?'☰ Table':v==='map'?'🗺 Map':'◫ Cards'}
-              </button>
-            ))}
+            <button onClick={() => setViewMode('table')}
+              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='table'?V.card:'transparent', color:viewMode==='table'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:viewMode==='table'?'0 1px 3px rgba(0,0,0,0.08)':'none' }}>
+              ☰ Table
+            </button>
+            <button onClick={() => alert('Map view coming in next build — Leaflet satellite map with clustered markers.')}
+              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='map'?V.card:'transparent', color:viewMode==='map'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
+              🗺 Map
+            </button>
+            <button onClick={() => alert('Cards view coming in next build — grid with aerial thumbnails and score rings.')}
+              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:viewMode==='cards'?V.card:'transparent', color:viewMode==='cards'?V.blue:V.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
+              ◫ Cards
+            </button>
           </div>
-          <button style={ghostBtn} onClick={() => setShowFilters(v => !v)}>⊕ {showFilters ? 'Hide' : 'Advanced'} Filters</button>
-          <button style={ghostBtn} onClick={() => setShowCompare(v => !v)}>⊞ Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ''}</button>
+          <button style={ghostBtn} onClick={() => setShowFilters(prev => !prev)}>⊕ {showFilters ? 'Hide' : 'Advanced'} Filters</button>
+          <button style={ghostBtn} onClick={() => setShowCompare(prev => !prev)}>⊞ Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ''}</button>
           <button onClick={() => setShowAddModal(true)} style={primaryBtn}>+ Add Property</button>
         </div>
       </div>
@@ -365,7 +371,7 @@ export default function PropertiesPage() {
 
         {/* ⑤ Saved Views */}
         <div style={{ position:'relative', marginLeft:8 }}>
-          <button onClick={() => setShowSaved(v => !v)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${V.purpleBdr}`, background:V.purpleBg, color:V.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
+          <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${V.purpleBdr}`, background:V.purpleBg, color:V.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
           {showSaved && (
             <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, width:260, background:V.card, borderRadius:10, boxShadow:V.shadowMd, border:`1px solid ${V.line2}`, zIndex:50, overflow:'hidden' }}>
               {savedViews.length === 0 && <div style={{ padding:'14px 14px', fontSize:13, color:V.ink4 }}>No saved views yet</div>}
