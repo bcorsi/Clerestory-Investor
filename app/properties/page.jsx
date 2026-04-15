@@ -124,8 +124,11 @@ export default function PropertiesPage() {
     { key: 'submarket', label: 'Market / Submarket' },
     { key: 'prop_type', label: 'Type' },
     { key: 'ai_score', label: 'Score' },
-    { key: 'building_sf', label: 'SF' },
+    { key: 'building_sf', label: 'Property SF' },
     { key: 'clear_height', label: 'Clear Ht' },
+    { key: 'land_acres', label: 'Land AC' },
+    { key: null, label: 'Coverage' },
+    { key: 'year_built', label: 'Yr Built' },
     { key: 'owner', label: 'Owner' },
     { key: 'tenant', label: 'Tenant' },
     { key: 'lease_expiration', label: 'Lease Exp.' },
@@ -192,8 +195,8 @@ export default function PropertiesPage() {
             <th style={{ padding: '12px 8px', borderBottom: '2px solid rgba(0,0,0,0.08)', background: '#F4F1EC', width: 28 }} />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={12} style={{ padding:48, textAlign:'center', color:'#6E6860', fontSize:16 }}>Loading properties…</td></tr> :
-             filtered.length === 0 ? <tr><td colSpan={12} style={{ padding:48, textAlign:'center', color:'#6E6860', fontSize:16 }}>No properties found.</td></tr> :
+            {loading ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:'#6E6860', fontSize:16 }}>Loading properties…</td></tr> :
+             filtered.length === 0 ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:'#6E6860', fontSize:16 }}>No properties found.</td></tr> :
              filtered.map(p => {
               const mo = monthsUntil(p.lease_expiration);
               return (
@@ -213,6 +216,9 @@ export default function PropertiesPage() {
                   </td>
                   <td style={tdMono}>{fmt(p.building_sf)}</td>
                   <td style={tdMono}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
+                  <td style={tdMono}>{p.land_acres ? `${Number(p.land_acres).toFixed(2)}` : '—'}</td>
+                  <td style={tdMono}>{p.building_sf && p.land_acres ? `${((p.building_sf / (p.land_acres * 43560)) * 100).toFixed(1)}%` : '—'}</td>
+                  <td style={tdMono}>{p.year_built || '—'}</td>
                   <td style={{ ...tdM, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
                   <td style={{ ...tdM, maxWidth:150, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.tenant||'—'}</td>
                   <td style={{ ...tdMono, color: mo!=null&&mo<=12?'#B83714':mo!=null&&mo<=24?'#8C5A04':'#2C2822' }}>{fmtExpiry(p.lease_expiration)}</td>
