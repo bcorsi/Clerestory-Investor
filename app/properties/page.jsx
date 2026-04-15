@@ -34,10 +34,16 @@ const CL = {
 const getTagStyle = (tag) => {
   if (!tag) return { bg: CL.blueBg, bdr: CL.blueBdr, c: CL.blue };
   const t = tag.toLowerCase();
-  if (t.includes('warn')||t.includes('vacant')||t.includes('owner')||t.includes('legacy')||t.includes('long hold')||t.includes('age 55')||t.includes('expired')) return { bg:CL.rustBg, bdr:CL.rustBdr, c:CL.rust };
-  if (t.includes('lease')||t.includes('partial')||t.includes('below market')) return { bg:CL.amberBg, bdr:CL.amberBdr, c:CL.amber };
-  if (t.includes('slb')||t.includes('occupied')||t.includes('market')) return { bg:CL.greenBg, bdr:CL.greenBdr, c:CL.green };
-  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
+  // RUST = owner distress signals only
+  if (t.includes('warn')||t.includes('owner-user')||t.includes('owner age')||t.includes('owner distress')||t.includes('nod filed')||t.includes('bankruptcy')||t.includes('legacy hold')||t.includes('long hold')) return { bg:CL.rustBg, bdr:CL.rustBdr, c:CL.rust };
+  // AMBER = occupancy + lease signals
+  if (t.includes('lease')||t.includes('partial')||t.includes('below market')||t.includes('vacant')||t.includes('lease-up')||t.includes('expired')||t.includes('tenant credit')||t.includes('downsizing')) return { bg:CL.amberBg, bdr:CL.amberBdr, c:CL.amber };
+  // GREEN = market + SLB
+  if (t.includes('slb')||t.includes('market rent growth')||t.includes('expansion')||t.includes('hiring')) return { bg:CL.greenBg, bdr:CL.greenBdr, c:CL.green };
+  // BLUE = financial + institutional
+  if (t.includes('institutional')||t.includes('investment grade')||t.includes('private llc')||t.includes('estate')||t.includes('trust')||t.includes('debt')||t.includes('prior listing')||t.includes('no broker')) return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
+  // PURPLE = building + capex
+  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')||t.includes('multi-parcel')||t.includes('roof')||t.includes('environmental')||t.includes('rezoning')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
   return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
 };
 
@@ -87,13 +93,21 @@ export default function PropertiesPage() {
       const list = data || [];
       setProperties(list);
 
-      // ① Build signal ticker from recent tag changes
-      const sigs = list
+      // ① Build market intel ticker — news articles first, then property signals
+      let tickerItems = [];
+      try {
+        const { data: news } = await supabase.from('news_articles').select('title, source, published_at, url').order('published_at', { ascending: false }).limit(10);
+        if (news && news.length > 0) {
+          tickerItems = news.map(n => ({ tag: n.source || 'Market Intel', addr: n.title || '—', city: '', time: n.published_at }));
+        }
+      } catch {}
+      // Fill remaining slots with property catalyst signals
+      const propSigs = list
         .filter(p => (p.catalyst_tags||[]).length > 0 && p.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        .slice(0, 15)
+        .slice(0, Math.max(0, 15 - tickerItems.length))
         .map(p => ({ tag: (p.catalyst_tags||[])[0], addr: p.property_name||p.address||'—', city: p.city, time: p.updated_at }));
-      setSignals(sigs);
+      setSignals([...tickerItems, ...propSigs]);
 
       // ③ Deltas — count added/changed in last 7 days
       const cutoff = new Date(Date.now() - 7*864e5).toISOString();
@@ -196,8 +210,13 @@ export default function PropertiesPage() {
     ie: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')).length,
   }), [properties]);
 
-  // Get unique submarkets for filter dropdown
+  // Get unique submarkets and catalyst tags for filter dropdowns
   const submarkets = useMemo(() => [...new Set(properties.map(p => p.submarket).filter(Boolean))].sort(), [properties]);
+  const allTags = useMemo(() => {
+    const tagCounts = {};
+    properties.forEach(p => (p.catalyst_tags||[]).forEach(t => { tagCounts[t] = (tagCounts[t]||0) + 1; }));
+    return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
+  }, [properties]);
 
   const handleSort = useCallback((col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -213,7 +232,7 @@ export default function PropertiesPage() {
   const toggleCompareItem = (id) => {
     setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
   };
-  const compareProps = useMemo(() => compareIds.map(id => properties.find(p => p.id === id)).filter(Boolean), [compareIds, properties]);
+  const compareProps = useMemo(() => [...selected].slice(0, 3).map(id => properties.find(p => p.id === id)).filter(Boolean), [selected, properties]);
 
   // Add property
   const [newProp, setNewProp] = useState({ property_name:'', address:'', city:'', state:'CA', zip:'' });
@@ -248,7 +267,7 @@ export default function PropertiesPage() {
         <div style={{ background:'linear-gradient(90deg,#1A2130,#1F2840,#1A2130)', borderRadius:CL.radius, overflow:'hidden', marginBottom:20, height:38, position:'relative', border:'1px solid rgba(100,128,162,0.15)' }}>
           <div style={{ position:'absolute', left:0, top:0, bottom:0, width:110, background:'linear-gradient(90deg,#1A2130 70%,transparent)', zIndex:5, display:'flex', alignItems:'center', paddingLeft:14, gap:6 }}>
             <span style={{ width:6, height:6, borderRadius:'50%', background:'#F08880', animation:'blink 1.4s infinite' }} />
-            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:'.08em', textTransform:'uppercase', color:'rgba(240,235,225,0.7)' }}>Live Signals</span>
+            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:'.08em', textTransform:'uppercase', color:'rgba(240,235,225,0.7)' }}>Market Intel</span>
           </div>
           <div style={{ display:'flex', gap:32, animation:'tickerScroll 40s linear infinite', paddingLeft:120, alignItems:'center', height:'100%' }}>
             {[...signals, ...signals].map((s, i) => (
@@ -286,7 +305,7 @@ export default function PropertiesPage() {
             </button>
           </div>
           <button style={ghostBtn} onClick={() => setShowFilters(prev => !prev)}>⊕ {showFilters ? 'Hide' : 'Advanced'} Filters</button>
-          <button style={ghostBtn} onClick={() => setShowCompare(prev => !prev)}>⊞ Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ''}</button>
+          <button style={ghostBtn} onClick={() => setShowCompare(prev => !prev)}>⊞ Compare{selected.size > 0 ? ` (${Math.min(selected.size, 3)})` : ''}</button>
           <button onClick={() => setShowAddModal(true)} style={primaryBtn}>+ Add Property</button>
         </div>
       </div>
@@ -347,7 +366,7 @@ export default function PropertiesPage() {
             </FilterField>
             <FilterField label="Catalyst Tag">
               <select value={advFilters.catalyst} onChange={e => setAdvFilters(f => ({ ...f, catalyst:e.target.value }))} style={fpSelect}>
-                {['Any','WARN','Vacant','Owner-User','Below Market','SLB','Long Hold','Legacy','Lease'].map(o => <option key={o}>{o}</option>)}
+                {['Any', ...allTags].map(o => <option key={o}>{o}</option>)}
               </select>
             </FilterField>
           </div>
@@ -501,7 +520,7 @@ export default function PropertiesPage() {
       {showCompare && (
         <div style={{ position:'fixed', right:0, top:0, bottom:0, width:480, background:CL.card, boxShadow:'-8px 0 30px rgba(0,0,0,0.12)', zIndex:200, borderLeft:`1px solid ${CL.line2}`, display:'flex', flexDirection:'column', animation:'slideIn .3s ease' }}>
           <div style={{ padding:'18px 24px', borderBottom:`1px solid ${CL.line}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span style={{ fontSize:14, fontWeight:600 }}>⊞ Property Comparison <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:CL.ink4, marginLeft:4 }}>{compareIds.length} of 3 max</span></span>
+            <span style={{ fontSize:14, fontWeight:600 }}>⊞ Property Comparison <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, color:CL.ink4, marginLeft:4 }}>{Math.min(selected.size, 3)} of 3 max</span></span>
             <span onClick={() => setShowCompare(false)} style={{ color:CL.ink4, cursor:'pointer', fontSize:18 }}>✕</span>
           </div>
           {compareProps.length === 0 ? (
