@@ -2,461 +2,350 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
+import Link from 'next/link';
 
 const TABS = [
-  { key: 'overview',  label: 'Overview' },
-  { key: 'timeline',  label: 'Timeline' },
-  { key: 'comps',     label: 'Comps' },
-  { key: 'contacts',  label: 'Contacts' },
-  { key: 'deals',     label: 'Deals' },
-  { key: 'leads',     label: 'Leads' },
-  { key: 'files',     label: 'Files' },
-];
-
-const SCORE_FACTORS = [
-  { key: 'lease_expiry_score', label: 'Lease Expiry',  color: 'var(--rust)' },
-  { key: 'hold_period_score',  label: 'Hold Period',   color: 'var(--amber)' },
-  { key: 'building_age_score', label: 'Building Age',  color: 'var(--blue)' },
-  { key: 'vacancy_score',      label: 'Vacancy',       color: 'var(--purple)' },
-  { key: 'market_score',       label: 'Market Signal', color: 'var(--green)' },
-  { key: 'owner_score',        label: 'Owner Profile', color: 'var(--amber)' },
+  { key: 'overview', label: 'Overview' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'comps',    label: 'Comps' },
+  { key: 'contacts', label: 'Contacts' },
+  { key: 'deals',    label: 'Deals' },
+  { key: 'files',    label: 'Files' },
 ];
 
 export default function PropertyDetail({ id, inline = false }) {
-  const [property, setProperty]     = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [activeTab, setActiveTab]   = useState('overview');
+  const [property, setProperty] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
   const [activities, setActivities] = useState([]);
-  const [contacts, setContacts]     = useState([]);
-  const [deals, setDeals]           = useState([]);
-  const [leads, setLeads]           = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [deals, setDeals] = useState([]);
   const [leaseComps, setLeaseComps] = useState([]);
+  const [saleComps, setSaleComps] = useState([]);
   const [warnNotice, setWarnNotice] = useState(null);
 
-  useEffect(() => {
-    if (id) loadProperty(id);
-  }, [id]);
+  useEffect(() => { if (id) loadProperty(id); }, [id]);
 
   async function loadProperty(propId) {
     setLoading(true);
     try {
-      const supabase = createClient();
-
-      const { data: prop, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('id', propId)
-        .single();
+      const sb = createClient();
+      const { data: prop, error } = await sb.from('properties').select('*').eq('id', propId).single();
       if (error) throw error;
       setProperty(prop);
 
-      const { data: acts } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('property_id', propId)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setActivities(acts || []);
+      const [acts, ctcts, dls] = await Promise.all([
+        sb.from('activities').select('*').eq('property_id', propId).order('created_at', { ascending: false }).limit(20),
+        sb.from('contacts').select('*').eq('property_id', propId).limit(10),
+        sb.from('deals').select('*').eq('property_id', propId).order('created_at', { ascending: false }).limit(5),
+      ]);
+      setActivities(acts.data || []);
+      setContacts(ctcts.data || []);
+      setDeals(dls.data || []);
 
-      const { data: ctcts } = await supabase
-        .from('contacts')
-        .select('id, first_name, last_name, title, company, phone, email')
-        .eq('property_id', propId)
-        .limit(10);
-      setContacts(ctcts || []);
-
-      const { data: dls } = await supabase
-        .from('deals')
-        .select('id, name, stage, asking_price, commission_est, created_at')
-        .eq('property_id', propId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      setDeals(dls || []);
-
-      const { data: lds } = await supabase
-        .from('leads')
-        .select('id, lead_name, company, stage, score, catalyst_tags')
-        .eq('property_id', propId)
-        .limit(5);
-      setLeads(lds || []);
-
-      if (prop?.city) {
-        const { data: comps } = await supabase
-          .from('lease_comps')
-          .select('id, address, tenant, lease_date, lease_rate, size_sf, lease_type')
-          .eq('city', prop.city)
-          .order('lease_date', { ascending: false })
-          .limit(6);
-        setLeaseComps(comps || []);
+      if (prop?.market) {
+        const [lc, sc] = await Promise.all([
+          sb.from('lease_comps').select('*').eq('market', prop.market).order('commencement_date', { ascending: false }).limit(8),
+          sb.from('sale_comps').select('*').eq('market', prop.market).order('sale_date', { ascending: false }).limit(8),
+        ]);
+        setLeaseComps(lc.data || []);
+        setSaleComps(sc.data || []);
       }
 
-      // Linked WARN notice
-      const { data: warnMatch } = await supabase
-        .from('warn_notices')
-        .select('id, company, notice_date, effective_date, employees')
-        .eq('matched_property_id', propId)
-        .limit(1)
-        .single();
-      if (warnMatch) setWarnNotice(warnMatch);
-
-    } catch (e) {
-      console.error('PropertyDetail load error:', e);
-    } finally {
-      setLoading(false);
-    }
+      const { data: wm } = await sb.from('warn_notices').select('id, company, notice_date, employees').eq('matched_property_id', propId).limit(1).maybeSingle();
+      if (wm) setWarnNotice(wm);
+    } catch (e) { console.error('PropertyDetail error:', e); }
+    finally { setLoading(false); }
   }
 
   if (loading) return <div className="cl-loading"><div className="cl-spinner" />Loading property…</div>;
   if (!property) return <div className="cl-empty"><div className="cl-empty-label">Property not found</div></div>;
 
-  const tags = Array.isArray(property.catalyst_tags) ? property.catalyst_tags : [];
+  const p = property;
+  const tags = Array.isArray(p.catalyst_tags) ? p.catalyst_tags : [];
+  const isIDS = p.owner === 'IDS Real Estate Group';
 
   return (
     <div style={{ fontFamily: 'var(--font-ui)' }}>
 
+      {/* Full page header (not shown in drawer) */}
       {!inline && (
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '-0.02em', marginBottom: 4 }}>
-            {property.address}
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            {[property.city, property.state, property.zip].filter(Boolean).join(', ')}
-          </p>
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 4 }}>{p.address}</h1>
+          <p style={{ color: '#888', fontSize: 14 }}>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}{p.market ? ' · ' + p.market : ''}</p>
         </div>
       )}
 
-      {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10, marginBottom: 20 }}>
-        {[
-          { label: 'SIZE',        value: property.size_sf ? `${Number(property.size_sf).toLocaleString()} SF` : '—' },
-          { label: 'YEAR BUILT',  value: property.year_built || '—' },
-          { label: 'CLEAR HT',    value: property.clear_height_ft ? `${property.clear_height_ft}'` : '—' },
-          { label: 'ZONING',      value: property.zoning || '—' },
-          { label: 'ASKING RENT', value: property.asking_rent ? `$${Number(property.asking_rent).toFixed(2)}/SF` : '—' },
-          { label: 'LEASE EXP',   value: property.lease_expiry ? new Date(property.lease_expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
-        ].map(kpi => (
-          <div key={kpi.label} style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--card-border)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 4 }}>{kpi.label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{kpi.value}</div>
-          </div>
-        ))}
+      {/* ── KPI Strip ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginBottom: 18 }}>
+        <KBox l="Building SF" v={p.building_sf ? Number(p.building_sf).toLocaleString() + ' SF' : '—'} />
+        <KBox l="Year Built" v={p.year_built || '—'} />
+        <KBox l="Clear Height" v={p.clear_height ? p.clear_height + "'" : '—'} />
+        <KBox l="Dock Doors" v={p.dock_doors || '—'} />
+        <KBox l="Land Acres" v={p.land_acres ? Number(p.land_acres).toFixed(2) : '—'} />
+        <KBox l="Zoning" v={p.zoning || '—'} />
       </div>
 
-      {/* Building score */}
-      {property.score != null && (
-        <div className="cl-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span className="cl-card-title">BUILDING SCORE</span>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: property.score >= 75 ? 'var(--rust)' : property.score >= 50 ? 'var(--amber)' : 'var(--blue)' }}>
-              {property.score}
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {SCORE_FACTORS.map(factor => {
-              const val = property[factor.key] ?? Math.floor(Math.random() * 20);
-              return (
-                <div key={factor.key}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>{factor.label.toUpperCase()}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>{val}</span>
-                  </div>
-                  <div style={{ height: 3, background: 'rgba(0,0,0,0.07)', borderRadius: 99 }}>
-                    <div style={{ height: '100%', width: `${Math.min(val, 100)}%`, background: factor.color, borderRadius: 99 }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ── Owner Strip ── */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, padding: '10px 14px', background: isIDS ? 'rgba(78,110,150,0.06)' : 'rgba(0,0,0,0.02)', borderRadius: 8, border: '1px solid rgba(0,0,0,0.06)', alignItems: 'center' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#888', marginBottom: 3 }}>Owner</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: isIDS ? '#4E6E96' : '#1A1A1A' }}>{p.owner || '—'}</div>
         </div>
-      )}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#888', marginBottom: 3 }}>Market</div>
+          <div style={{ fontSize: 13, color: '#444' }}>{p.market || '—'}{p.submarket ? ' · ' + p.submarket : ''}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#888', marginBottom: 3 }}>Status</div>
+          <div style={{ fontSize: 13, color: p.vacancy_status === 'vacant' ? '#B83714' : '#156636', fontWeight: 500 }}>{p.vacancy_status || '—'}</div>
+        </div>
+      </div>
 
-      {/* Catalyst tags */}
+      {/* ── Catalysts ── */}
       {tags.length > 0 && (
-        <div className="cl-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
-          <div className="cl-card-title" style={{ marginBottom: 10 }}>ACTIVE CATALYSTS</div>
+        <div className="cl-card" style={{ marginBottom: 16, padding: '12px 14px' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 8 }}>Active Catalysts</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {tags.map((tag, i) => {
               const cat = typeof tag === 'object' ? tag.category : 'asset';
               const lbl = typeof tag === 'object' ? tag.tag : tag;
-              const pri = typeof tag === 'object' ? tag.priority : null;
-              return (
-                <span key={i} className={`cl-catalyst cl-catalyst--${cat || 'asset'}`} style={{ fontSize: 10, padding: '3px 8px' }}>
-                  {pri === 'high' && '⚡ '}{lbl}
-                </span>
-              );
+              return <span key={i} className={`cl-catalyst cl-catalyst--${cat || 'asset'}`} style={{ fontSize: 11, padding: '3px 9px' }}>{lbl}</span>;
             })}
           </div>
         </div>
       )}
 
-      {/* Quick actions */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['Log Call', 'Log Email', 'Add Note', '+ Task', 'Create Lead'].map(action => (
-          <button key={action} className="cl-btn cl-btn-secondary cl-btn-sm">{action}</button>
+      {/* ── Quick Actions ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        {['Log Call', 'Log Email', 'Add Note', '+ Task'].map(a => (
+          <button key={a} className="cl-btn cl-btn-secondary cl-btn-sm">{a}</button>
         ))}
       </div>
 
-      {/* Tabs */}
+      {/* ── Tabs ── */}
       <div className="cl-tabs">
-        {TABS.map(tab => (
-          <button key={tab.key} className={`cl-tab ${activeTab === tab.key ? 'cl-tab--active' : ''}`} onClick={() => setActiveTab(tab.key)}>
-            {tab.label}
-            {tab.key === 'timeline' && activities.length > 0 && (
-              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>{activities.length}</span>
-            )}
-            {tab.key === 'contacts' && contacts.length > 0 && (
-              <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>{contacts.length}</span>
-            )}
+        {TABS.map(t => (
+          <button key={t.key} className={`cl-tab ${activeTab === t.key ? 'cl-tab--active' : ''}`} onClick={() => setActiveTab(t.key)}>
+            {t.label}
+            {t.key === 'timeline' && activities.length > 0 && <CT>{activities.length}</CT>}
+            {t.key === 'contacts' && contacts.length > 0 && <CT>{contacts.length}</CT>}
+            {t.key === 'deals' && deals.length > 0 && <CT>{deals.length}</CT>}
           </button>
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* ── Tab Content ── */}
       <div style={{ minHeight: 200 }}>
-        {activeTab === 'overview'  && <OverviewTab property={property} warnNotice={warnNotice} />}
-        {activeTab === 'timeline'  && <TimelineTab activities={activities} />}
-        {activeTab === 'comps'     && <CompsTab comps={leaseComps} />}
-        {activeTab === 'contacts'  && <ContactsTab contacts={contacts} />}
-        {activeTab === 'deals'     && <DealsTab deals={deals} />}
-        {activeTab === 'leads'     && <LeadsTab leads={leads} />}
-        {activeTab === 'files'     && <FilesTab propertyId={id} />}
+        {activeTab === 'overview' && <OverviewTab p={p} warn={warnNotice} />}
+        {activeTab === 'timeline' && <TimelineTab acts={activities} />}
+        {activeTab === 'comps' && <CompsTab lease={leaseComps} sale={saleComps} />}
+        {activeTab === 'contacts' && <ContactsTab contacts={contacts} />}
+        {activeTab === 'deals' && <DealsTab deals={deals} />}
+        {activeTab === 'files' && <FilesTab propId={id} />}
       </div>
     </div>
   );
 }
 
-function OverviewTab({ property, warnNotice }) {
+// ── Overview Tab ──────────────────────────────────────────────
+function OverviewTab({ p, warn }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8 }}>
 
-      {/* WARN notice link */}
-      {warnNotice && (
-        <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--rust)' }}>
-          <div className="cl-card-title" style={{ marginBottom: 10 }}>⚡ LINKED WARN FILING</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{warnNotice.company}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
-            {warnNotice.employees ? `${Number(warnNotice.employees).toLocaleString()} workers affected` : ''}
-            {warnNotice.notice_date ? ` · Filed ${new Date(warnNotice.notice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
-          </div>
-          <a href={`/warn-intel/${warnNotice.id}`} style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>
-            View WARN Filing →
-          </a>
+      {/* WARN Notice */}
+      {warn && (
+        <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid #B83714' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#B83714', marginBottom: 8 }}>⚡ Linked WARN Filing</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>{warn.company}</div>
+          <div style={{ fontSize: 13, color: '#888' }}>{warn.employees ? Number(warn.employees).toLocaleString() + ' workers affected' : ''}{warn.notice_date ? ' · Filed ' + new Date(warn.notice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+          <Link href={'/warn-intel/' + warn.id} style={{ fontSize: 13, color: '#4E6E96', textDecoration: 'none', fontWeight: 500, display: 'inline-block', marginTop: 6 }}>View WARN Filing →</Link>
         </div>
       )}
 
-      {property.notes && (
+      {/* Notes */}
+      {p.notes && (
         <div className="cl-card" style={{ padding: '14px 16px' }}>
-          <div className="cl-card-title" style={{ marginBottom: 8 }}>NOTES</div>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{property.notes}</p>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 8 }}>Notes</div>
+          <p style={{ fontSize: 14, color: '#444', lineHeight: 1.65 }}>{p.notes}</p>
         </div>
       )}
 
-      <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid var(--blue3)' }}>
-        <div className="cl-card-title" style={{ marginBottom: 8 }}>AI PROPERTY SIGNAL</div>
-        <p style={{ fontFamily: 'var(--font-editorial)', fontStyle: 'italic', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-          {property.tenant
-            ? `${property.tenant} occupies ${Number(property.size_sf || 0).toLocaleString()} SF${property.lease_expiry ? `, lease expiring ${new Date(property.lease_expiry).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : ''}. ${property.score >= 60 ? 'Strong catalyst signal — recommend proactive outreach to ownership.' : 'Monitor for emerging signals.'}`
-            : 'No tenant on record. Vacancy is a primary catalyst — contact owner directly regarding repositioning or sale.'}
-        </p>
-      </div>
+      {/* AI Property Signal */}
+      {p.ai_signal && (
+        <div className="cl-card" style={{ padding: '14px 16px', borderLeft: '3px solid #8C5A04' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8C5A04', marginBottom: 8 }}>AI Property Signal</div>
+          <p style={{ fontSize: 13, color: '#444', lineHeight: 1.6, fontStyle: 'italic' }}>{p.ai_signal}</p>
+        </div>
+      )}
 
+      {/* Full Building Specs */}
       <div className="cl-card" style={{ padding: '14px 16px' }}>
-        <div className="cl-card-title" style={{ marginBottom: 12 }}>PROPERTY DETAILS</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
-          {[
-            ['APN',        property.apn],
-            ['Owner',      property.owner_name],
-            ['Dock Doors', property.dock_doors],
-            ['Grade Level',property.grade_level_doors],
-            ['Sprinklers', property.sprinklers],
-            ['Power',      property.power_amps ? `${property.power_amps}A` : null],
-            ['Lot SF',     property.lot_sf ? Number(property.lot_sf).toLocaleString() : null],
-            ['Parking',    property.parking_spaces ? `${property.parking_spaces} stalls` : null],
-          ].filter(([, v]) => v != null).map(([label, value]) => (
-            <div key={label}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-tertiary)', marginBottom: 2 }}>{label.toUpperCase()}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{value}</div>
-            </div>
-          ))}
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 12 }}>Building Specifications</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+          <DR k="Building SF" v={p.building_sf ? Number(p.building_sf).toLocaleString() : '—'} mono />
+          <DR k="Land Acres" v={p.land_acres ? Number(p.land_acres).toFixed(2) : '—'} mono />
+          <DR k="Year Built" v={p.year_built || '—'} mono />
+          <DR k="Clear Height" v={p.clear_height ? p.clear_height + "'" : '—'} mono />
+          <DR k="Dock Doors" v={p.dock_doors || '—'} mono />
+          <DR k="Grade Doors" v={p.grade_doors || '—'} mono />
+          <DR k="Power" v={p.power || '—'} mono />
+          <DR k="Sprinklers" v={p.sprinklers || '—'} />
+          <DR k="Zoning" v={p.zoning || '—'} mono />
+          <DR k="Construction" v={p.construction_type || '—'} />
+          <DR k="Parking Ratio" v={p.parking_ratio || '—'} mono />
+          <DR k="Column Spacing" v={p.column_spacing || '—'} mono />
+          <DR k="Property Type" v={p.prop_type || '—'} />
+          <DR k="Building Class" v={p.building_class || '—'} />
         </div>
+      </div>
+
+      {/* Ownership & Transaction */}
+      <div className="cl-card" style={{ padding: '14px 16px' }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 12 }}>Ownership & Transaction History</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+          <DR k="Owner" v={p.owner || '—'} />
+          <DR k="Owner Type" v={p.owner_type || '—'} />
+          <DR k="Last Transfer" v={p.last_transfer_date ? new Date(p.last_transfer_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'} />
+          <DR k="APN" v={p.apn || '—'} mono />
+          <DR k="In-Place Rent" v={p.in_place_rent ? '$' + Number(p.in_place_rent).toFixed(2) + '/SF' : '—'} mono />
+          <DR k="Lease Expiration" v={p.lease_expiration ? new Date(p.lease_expiration).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'} />
+          <DR k="Tenant" v={p.tenant || '—'} />
+          <DR k="Vacancy Status" v={p.vacancy_status || '—'} />
+        </div>
+      </div>
+
+      {/* Building Score */}
+      {p.ai_score != null && (
+        <div className="cl-card" style={{ padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A' }}>Building Score</span>
+            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: p.ai_score >= 75 ? '#B83714' : p.ai_score >= 50 ? '#8C5A04' : '#4E6E96' }}>{p.ai_score}</span>
+          </div>
+          {p.building_grade && <div style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>Grade: {p.building_grade}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Timeline Tab ─────────────────────────────────────────────
+function TimelineTab({ acts }) {
+  if (acts.length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: 14 }}>No activity logged yet.</div>;
+  return <div style={{ paddingTop: 8 }}>{acts.map(a => (
+    <div key={a.id} style={{ display: 'flex', gap: 9, padding: '9px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+      <div style={{ width: 27, height: 27, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0,
+        background: a.activity_type === 'call' ? 'rgba(78,110,150,0.08)' : a.activity_type === 'email' ? 'rgba(88,56,160,0.08)' : 'rgba(140,90,4,0.08)',
+        color: a.activity_type === 'call' ? '#4E6E96' : a.activity_type === 'email' ? '#5838A0' : '#8C5A04',
+      }}>{a.activity_type === 'call' ? '☏' : a.activity_type === 'email' ? '✉' : '✎'}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>{a.subject || a.activity_type}</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#888', marginTop: 2 }}>{a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</div>
+      </div>
+    </div>
+  ))}</div>;
+}
+
+// ── Comps Tab ────────────────────────────────────────────────
+function CompsTab({ lease, sale }) {
+  return (
+    <div style={{ paddingTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 8 }}>Sale Comps</div>
+        {sale.length === 0 ? <div style={{ color: '#888', fontSize: 13 }}>No sale comps yet.</div>
+        : sale.map(c => (
+          <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.04)', fontSize: 13 }}>
+            <div style={{ fontWeight: 500, color: '#1A1A1A' }}>{c.address || c.property_name || '—'}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#888', marginTop: 2 }}>
+              {c.sale_price ? '$' + (Number(c.sale_price) / 1e6).toFixed(1) + 'M' : ''} {c.price_per_sf ? '· $' + Math.round(c.price_per_sf) + '/SF' : ''} {c.cap_rate ? '· ' + Number(c.cap_rate).toFixed(1) + '% cap' : ''}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#78726A', marginBottom: 8 }}>Lease Comps</div>
+        {lease.length === 0 ? <div style={{ color: '#888', fontSize: 13 }}>No lease comps yet.</div>
+        : lease.map(c => (
+          <div key={c.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0,0,0,0.04)', fontSize: 13 }}>
+            <div style={{ fontWeight: 500, color: '#1A1A1A' }}>{c.address || c.property_name || '—'}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#888', marginTop: 2 }}>
+              {c.effective_rent ? '$' + Number(c.effective_rent).toFixed(2) + '/SF' : ''} {c.lease_type || ''} {c.term_months ? '· ' + c.term_months + 'mo' : ''}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function TimelineTab({ activities }) {
-  if (activities.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No activity yet</div>
-      <div className="cl-empty-sub">Log a call or note to start the timeline</div>
-    </div>
-  );
-  const ACT_ICONS = { call: '📞', email: '✉️', note: '📝', meeting: '🤝', task: '✓', default: '·' };
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {activities.map((act) => (
-        <div key={act.id} style={{ display: 'flex', gap: 12, paddingBottom: 16, borderLeft: '2px solid var(--card-border)', marginLeft: 8, paddingLeft: 16, position: 'relative' }}>
-          <div style={{ position: 'absolute', left: -5, top: 4, width: 8, height: 8, borderRadius: '50%', background: 'var(--blue3)', border: '2px solid var(--bg)' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-              <span style={{ fontSize: 12 }}>{ACT_ICONS[act.activity_type] || ACT_ICONS.default}</span>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>{act.subject || act.activity_type}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
-                {new Date(act.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-            {act.body && <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{act.body}</p>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CompsTab({ comps }) {
-  if (comps.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No nearby comps</div>
-      <div className="cl-empty-sub">Lease comps in the same city will appear here</div>
-    </div>
-  );
-  return (
-    <div className="cl-table-wrap">
-      <table className="cl-table">
-        <thead>
-          <tr><th>Address</th><th>Tenant</th><th>SF</th><th>Rate</th><th>Type</th><th>Date</th></tr>
-        </thead>
-        <tbody>
-          {comps.map(c => (
-            <tr key={c.id}>
-              <td style={{ fontSize: 12 }}>{c.address}</td>
-              <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{c.tenant || '—'}</td>
-              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{c.size_sf ? Number(c.size_sf).toLocaleString() : '—'}</td>
-              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--blue)' }}>{c.lease_rate ? `$${Number(c.lease_rate).toFixed(2)}` : '—'}</td>
-              <td><span className="cl-badge cl-badge-gray" style={{ fontSize: 9 }}>{c.lease_type || 'NNN'}</span></td>
-              <td style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)' }}>
-                {c.lease_date ? new Date(c.lease_date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : '—'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
+// ── Contacts Tab ─────────────────────────────────────────────
 function ContactsTab({ contacts }) {
-  if (contacts.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No contacts linked</div>
-      <div className="cl-empty-sub">Add contacts associated with this property</div>
+  if (contacts.length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: 14 }}>No contacts linked.</div>;
+  return <div style={{ paddingTop: 8 }}>{contacts.map(c => (
+    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+      <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#4E6E96', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{(c.name || '?').slice(0, 2).toUpperCase()}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{c.name || '—'}</div>
+        <div style={{ fontSize: 12, color: '#888' }}>{c.title}{c.company ? ' · ' + c.company : ''}</div>
+      </div>
+      {c.phone && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#4E6E96' }}>{c.phone}</span>}
     </div>
-  );
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {contacts.map(c => (
-        <div key={c.id} className="cl-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--blue-bg)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-            {(c.first_name?.[0] || '') + (c.last_name?.[0] || '')}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{c.first_name} {c.last_name}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{c.title}{c.company ? ` · ${c.company}` : ''}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {c.phone && <a href={`tel:${c.phone}`} className="cl-btn cl-btn-ghost cl-btn-sm">📞</a>}
-            {c.email && <a href={`mailto:${c.email}`} className="cl-btn cl-btn-ghost cl-btn-sm">✉️</a>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  ))}</div>;
 }
 
+// ── Deals Tab ────────────────────────────────────────────────
 function DealsTab({ deals }) {
-  if (deals.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No deals</div>
-      <div className="cl-empty-sub">Convert a lead or create a deal from this property</div>
-    </div>
-  );
-  const DEAL_STAGE_COLORS = { 'Tracking': 'gray', 'LOI': 'amber', 'LOI Accepted': 'amber', 'Due Diligence': 'blue', 'Closed Won': 'green', 'Closed Lost': 'rust' };
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {deals.map(d => (
-        <div key={d.id} className="cl-card" style={{ padding: '12px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{d.name}</span>
-            <span className={`cl-badge cl-badge-${DEAL_STAGE_COLORS[d.stage] || 'gray'}`}>{d.stage}</span>
-            {d.commission_est && <span className="cl-commission">${Number(d.commission_est).toLocaleString()}</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  if (deals.length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: 14 }}>No deals linked.</div>;
+  return <div style={{ paddingTop: 8 }}>{deals.map(d => (
+    <Link key={d.id} href={'/deals/' + d.id} style={{ textDecoration: 'none', color: 'inherit', display: 'block', padding: '10px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+      <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{d.deal_name || d.company || '—'}</div>
+      <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+        {d.stage || '—'} {d.deal_value ? '· $' + (Number(d.deal_value) / 1e6).toFixed(1) + 'M' : ''} {d.going_in_cap ? '· ' + Number(d.going_in_cap).toFixed(1) + '% cap' : ''}
+      </div>
+    </Link>
+  ))}</div>;
 }
 
-function LeadsTab({ leads }) {
-  if (leads.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No leads</div>
-      <div className="cl-empty-sub">Create a lead from this property to start tracking</div>
-    </div>
-  );
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {leads.map(l => (
-        <div key={l.id} className="cl-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>{l.lead_name || l.company || 'Unnamed Lead'}</span>
-          <span className={`cl-badge cl-badge-${l.stage === 'New' || l.stage === 'Contacted' ? 'blue' : l.stage === 'Converted' ? 'green' : 'gray'}`}>{l.stage || '—'}</span>
-          {l.score != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)' }}>Score: {l.score}</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FilesTab({ propertyId }) {
-  const [files, setFiles]   = useState([]);
-  const [loading, setLoading] = useState(true);
-
+// ── Files Tab ────────────────────────────────────────────────
+function FilesTab({ propId }) {
+  const [files, setFiles] = useState([]);
   useEffect(() => {
     async function load() {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from('file_attachments')
-          .select('id, file_name, file_url, file_type, created_at')
-          .eq('property_id', propertyId)
-          .order('created_at', { ascending: false });
-        setFiles(data || []);
-      } catch {}
-      setLoading(false);
+      const sb = createClient();
+      const { data } = await sb.from('file_attachments').select('*').eq('property_id', propId).order('created_at', { ascending: false });
+      setFiles(data || []);
     }
-    load();
-  }, [propertyId]);
+    if (propId) load();
+  }, [propId]);
 
-  if (loading) return <div className="cl-loading"><div className="cl-spinner" /></div>;
-  if (files.length === 0) return (
-    <div className="cl-empty">
-      <div className="cl-empty-label">No files</div>
-      <div className="cl-empty-sub">Upload BOVs, flyers, inspection reports, leases</div>
+  if (files.length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: 14 }}>No files attached.</div>;
+  return <div style={{ paddingTop: 8 }}>{files.map(f => (
+    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(78,110,150,0.08)', color: '#4E6E96', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>📄</div>
+      <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>{f.file_name || f.name || 'File'}</div><div style={{ fontSize: 10, color: '#888' }}>{f.created_at ? new Date(f.created_at).toLocaleDateString() : ''}</div></div>
     </div>
-  );
+  ))}</div>;
+}
+
+// ── Shared Components ────────────────────────────────────────
+function KBox({ l, v }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {files.map(f => (
-        <div key={f.id} className="cl-card" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 16 }}>📄</span>
-          <span style={{ fontSize: 13, flex: 1 }}>{f.file_name}</span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-tertiary)' }}>
-            {new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </span>
-          {f.file_url && (
-            <a href={f.file_url} target="_blank" rel="noopener noreferrer" className="cl-btn cl-btn-secondary cl-btn-sm">Open</a>
-          )}
-        </div>
-      ))}
+    <div style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 8, padding: '10px 12px', border: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', color: '#888', marginBottom: 4, textTransform: 'uppercase' }}>{l}</div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{v}</div>
     </div>
   );
+}
+
+function DR({ k, v, mono }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '5px 0', borderBottom: '1px solid rgba(0,0,0,0.04)', fontSize: 13 }}>
+      <span style={{ color: '#888' }}>{k}</span>
+      <span style={{ color: '#1A1A1A', fontWeight: 500, textAlign: 'right', fontFamily: mono ? 'var(--font-mono)' : undefined, fontSize: mono ? 12 : undefined }}>{v}</span>
+    </div>
+  );
+}
+
+function CT({ children }) {
+  return <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 9, color: '#888' }}>{children}</span>;
 }
