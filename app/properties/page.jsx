@@ -81,7 +81,7 @@ export default function PropertiesPage() {
   const [signals, setSignals] = useState([]);
   const [deltas, setDeltas] = useState({ props: 0, signals: 0 });
   const [showFilters, setShowFilters] = useState(false);
-  const [advFilters, setAdvFilters] = useState({ minScore:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' });
+  const [advFilters, setAdvFilters] = useState({ minScore:0, minFit:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' });
   const [savedViews, setSavedViews] = useState([]);
   const [showSaved, setShowSaved] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -179,9 +179,12 @@ export default function PropertiesPage() {
       case 'WARN': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('warn'))); break;
       case 'Lease Expiry': list = list.filter(p => { const m = monthsUntil(p.lease_expiration); return m != null && m <= 24; }); break;
       case 'SLB': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('slb'))); break;
+      case 'High Fit': list = list.filter(p => (p.fit_score||0) >= 65); break;
+      case 'Acq Target': list = list.filter(p => p.is_acq_target === true); break;
     }
     const af = advFilters;
     if (af.minScore > 0) list = list.filter(p => (p.ai_score||0) >= af.minScore);
+    if (af.minFit > 0) list = list.filter(p => (p.fit_score||0) >= af.minFit);
     if (af.minOrs > 0) list = list.filter(p => (p.probability||0) >= af.minOrs);
     if (af.minSF) list = list.filter(p => (p.building_sf||0) >= parseInt(af.minSF.replace(/,/g,''))||0);
     if (af.maxSF) list = list.filter(p => (p.building_sf||0) <= parseInt(af.maxSF.replace(/,/g,''))||Infinity);
@@ -214,7 +217,8 @@ export default function PropertiesPage() {
     const occupied = filtered.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')).length;
     const vacantPartial = filtered.filter(p => { const s = (p.vacancy_status||'').toLowerCase(); return s.includes('vacant') || s.includes('partial'); }).length;
     const sigs = filtered.filter(p => (p.catalyst_tags||[]).length > 0).length;
-    return { total: filtered.length, totalSF, occupied, vacantPartial, signals: sigs };
+    const acqTargets = filtered.filter(p => p.is_acq_target === true).length;
+    return { total: filtered.length, totalSF, occupied, vacantPartial, signals: sigs, acqTargets };
   }, [filtered]);
 
   const counts = useMemo(() => ({
@@ -285,7 +289,7 @@ export default function PropertiesPage() {
   const handleExportCSV = () => {
     const rows = properties.filter(p => selected.has(p.id));
     if (rows.length === 0) return;
-    const headers = ['Property Name','Address','City','Market','Submarket','Building SF','Clear Height','Land Acres','Year Built','Owner','Owner Type','Tenant','Vacancy Status','Lease Expiration','In-Place Rent','Market Rent','Building Score','Catalyst Tags'];
+    const headers = ['Property Name','Address','City','Market','Submarket','Building SF','Clear Height','Land Acres','Year Built','Owner','Owner Type','Tenant','Vacancy Status','Lease Expiration','In-Place Rent','Market Rent','Building Score','Fit Score','Fit Grade','Acq Target','Catalyst Tags'];
     const csvRows = [headers.join(',')];
     rows.forEach(p => {
       csvRows.push([
@@ -306,6 +310,9 @@ export default function PropertiesPage() {
         p.in_place_rent||'',
         p.market_rent||'',
         p.ai_score||'',
+        p.fit_score||'',
+        `"${(p.fit_grade||'').replace(/"/g,'""')}"`,
+        p.is_acq_target ? 'Yes' : 'No',
         `"${(p.catalyst_tags||[]).join('; ')}"`,
       ].join(','));
     });
@@ -449,7 +456,8 @@ export default function PropertiesPage() {
   const cols = [
     { key: 'property_name', label: 'Property' },
     { key: 'submarket', label: 'Market' },
-    { key: 'ai_score', label: 'Score' },
+    { key: 'fit_score', label: 'Fit' },
+    { key: 'ai_score', label: 'Bldg' },
     { key: 'probability', label: 'Seller Readiness' },
     { key: 'building_sf', label: 'Property SF' },
     { key: 'clear_height', label: 'Clear Ht' },
@@ -508,7 +516,7 @@ export default function PropertiesPage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:20 }}>
         <KPI icon="🏢" bg={CL.blueBg} color={CL.blue} value={kpis.total} label="Total Properties" delta={deltas.props > 0 ? `+${deltas.props}` : null} up />
         <KPI icon="◫" bg={CL.amberBg} color={CL.amber} value={fmtSF(kpis.totalSF)} label="Total SF Tracked" />
-        <KPI icon="◉" bg={CL.greenBg} color={CL.green} value={kpis.occupied} label="Occupied" />
+        <KPI icon="◈" bg={CL.greenBg} color={CL.green} value={kpis.acqTargets} label="Acq Targets" />
         <KPI icon="◎" bg={CL.rustBg} color={CL.rust} value={kpis.vacantPartial} label="Vacant / Partial" />
         <KPI icon="⚡" bg={CL.purpleBg} color={CL.purple} value={kpis.signals} label="Active Catalysts" delta={deltas.signals > 0 ? `+${deltas.signals}` : null} up />
       </div>
@@ -522,6 +530,12 @@ export default function PropertiesPage() {
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <input type="range" min="0" max="100" value={advFilters.minScore} onChange={e => setAdvFilters(f => ({ ...f, minScore: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.blue }} />
                 <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.blue, minWidth:28, textAlign:'right' }}>{advFilters.minScore}</span>
+              </div>
+            </FilterField>
+            <FilterField label="Min IDS Fit Score">
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <input type="range" min="0" max="100" value={advFilters.minFit} onChange={e => setAdvFilters(f => ({ ...f, minFit: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.green }} />
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.green, minWidth:28, textAlign:'right' }}>{advFilters.minFit}</span>
               </div>
             </FilterField>
             <FilterField label="Min Seller Readiness (ORS)">
@@ -571,7 +585,7 @@ export default function PropertiesPage() {
             </FilterField>
           </div>
           <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16, paddingTop:14, borderTop:`1px solid ${CL.line}` }}>
-            <button onClick={() => setAdvFilters({ minScore:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' })} style={ghostBtn}>Clear All</button>
+            <button onClick={() => setAdvFilters({ minScore:0, minFit:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' })} style={ghostBtn}>Clear All</button>
             <button onClick={() => setShowFilters(false)} style={primaryBtn}>Apply · {filtered.length} results</button>
           </div>
         </div>
@@ -585,8 +599,8 @@ export default function PropertiesPage() {
         {[{k:'Occupied',dot:CL.green},{k:'Vacant',dot:CL.rust},{k:'Partial',dot:CL.amber}].map(f =>
           <Chip key={f.k} label={f.k} dot={f.dot} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
         <Sep />
-        {['WARN','Lease Expiry','SLB'].map(f =>
-          <Chip key={f} label={f==='WARN'?'⚡ WARN':f} active={activeFilter===f} onClick={() => setActiveFilter(f)} />)}
+        {['WARN','Lease Expiry','SLB','High Fit','Acq Target'].map(f =>
+          <Chip key={f} label={f==='WARN'?'⚡ WARN':f==='High Fit'?'★ High Fit':f==='Acq Target'?'◈ Acq Target':f} active={activeFilter===f} onClick={() => setActiveFilter(f)} />)}
 
         <div style={{ position:'relative', marginLeft:8 }}>
           <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.purpleBdr}`, background:CL.purpleBg, color:CL.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
@@ -659,7 +673,31 @@ export default function PropertiesPage() {
                     <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
                   </td>
                   <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
-                  {/* ③ Animated Score Ring — A+ glow */}
+                  {/* Fit Score — IDS Portfolio Fit */}
+                  <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
+                    {p.fit_score != null ? (() => {
+                      const fg = p.fit_grade || '—';
+                      const fc = p.fit_score >= 65 ? CL.green : p.fit_score >= 35 ? CL.amber : CL.ink4;
+                      const fbg = p.fit_score >= 65 ? CL.greenBg : p.fit_score >= 35 ? CL.amberBg : 'rgba(0,0,0,0.03)';
+                      const fbdr = p.fit_score >= 65 ? CL.greenBdr : p.fit_score >= 35 ? CL.amberBdr : CL.line;
+                      const isAcq = p.is_acq_target;
+                      return (
+                        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                          <div className={isAcq ? 'score-ring fit-ring-glow' : 'score-ring'} style={{
+                            width:38, height:38, borderRadius:'50%',
+                            border:`2.5px solid ${fbdr}`, background:fbg,
+                            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                            animation:'scoreIn 0.5s ease both', animationDelay:`${idx * 30}ms`,
+                          }}>
+                            <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:fc, lineHeight:1 }}>{p.fit_score}</span>
+                            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:fc, marginTop:1 }}>{fg}</span>
+                          </div>
+                          {isAcq && <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, fontWeight:700, color:CL.green, background:CL.greenBg, border:`1px solid ${CL.greenBdr}`, borderRadius:3, padding:'1px 4px' }}>ACQ</span>}
+                        </div>
+                      );
+                    })() : <span style={{ fontFamily:"'DM Mono',monospace", fontSize:12, color:CL.ink4 }}>—</span>}
+                  </td>
+                  {/* ③ Animated Building Score Ring — A+ glow */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
                     <div className={isTopTier ? 'score-ring score-ring-glow' : 'score-ring'} style={{
                       width:38, height:38, borderRadius:'50%',
@@ -766,6 +804,7 @@ export default function PropertiesPage() {
                 { label:'Dock Doors', fn:p=>p.dock_doors||'—', best:'max', key:'dock_doors' },
                 { label:'Truck Court', fn:p=>p.truck_court_depth?`${p.truck_court_depth}'`:'—', best:'max', key:'truck_court_depth' },
                 { label:'Building Score', fn:p=>p.ai_score!=null?`${p.ai_score} ${getGrade(p.ai_score)}`:'—', best:'max', key:'ai_score' },
+                { label:'IDS Fit Score', fn:p=>p.fit_score!=null?`${p.fit_score} ${p.fit_grade||''} ${p.is_acq_target?'◈ ACQ':''}`:'—', best:'max', key:'fit_score' },
                 { label:'Land AC', fn:p=>p.land_acres?Number(p.land_acres).toFixed(2):'—', best:'max', key:'land_acres' },
                 { label:'Coverage', fn:p=>(p.building_sf&&p.land_acres)?`${((p.building_sf/(p.land_acres*43560))*100).toFixed(1)}%`:'—' },
                 { label:'In-Place Rent', fn:p=>p.in_place_rent?`$${Number(p.in_place_rent).toFixed(2)}/SF`:'—' },
@@ -895,8 +934,10 @@ export default function PropertiesPage() {
         @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
         @keyframes scoreIn{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
         @keyframes glowPulse{0%,100%{box-shadow:0 0 4px rgba(78,110,150,0.15)}50%{box-shadow:0 0 14px rgba(78,110,150,0.50),0 0 28px rgba(78,110,150,0.20)}}
+        @keyframes fitGlow{0%,100%{box-shadow:0 0 4px rgba(21,102,54,0.15)}50%{box-shadow:0 0 14px rgba(21,102,54,0.50),0 0 28px rgba(21,102,54,0.20)}}
         @keyframes catalystPulse{0%,100%{opacity:1}50%{opacity:0.6}}
         .score-ring-glow{animation:scoreIn 0.5s ease both, glowPulse 2.4s ease-in-out infinite 0.6s !important;}
+        .fit-ring-glow{animation:scoreIn 0.5s ease both, fitGlow 2.4s ease-in-out infinite 0.6s !important;}
         .catalyst-pulse{animation:catalystPulse 1.8s ease-in-out infinite;}
       `}</style>
     </>
