@@ -6,6 +6,12 @@ import { supabase } from '@/lib/supabase';
 /* ═══════════════════════════════════════════════════════════
    Properties — Physical Asset Database + Live Features
    app/properties/page.jsx  (Clerestory-Investor)
+
+   Updates in this version:
+   ① Bulk action buttons fully wired (Export CSV, Bulk Tag,
+     Add to Campaign, Convert to Acquisition)
+   ② KPI delta labels show "7d" suffix
+   ③ Score rings animate in, A+ scores glow, urgent catalysts pulse
    ═══════════════════════════════════════════════════════════ */
 
 const fmt = (n) => n == null ? '—' : Number(n).toLocaleString();
@@ -34,15 +40,10 @@ const CL = {
 const getTagStyle = (tag) => {
   if (!tag) return { bg: CL.blueBg, bdr: CL.blueBdr, c: CL.blue };
   const t = tag.toLowerCase();
-  // RUST = owner distress signals only
   if (t.includes('warn')||t.includes('owner-user')||t.includes('owner age')||t.includes('owner distress')||t.includes('nod filed')||t.includes('bankruptcy')||t.includes('legacy hold')||t.includes('long hold')) return { bg:CL.rustBg, bdr:CL.rustBdr, c:CL.rust };
-  // AMBER = occupancy + lease signals
   if (t.includes('lease')||t.includes('partial')||t.includes('below market')||t.includes('vacant')||t.includes('lease-up')||t.includes('expired')||t.includes('tenant credit')||t.includes('downsizing')) return { bg:CL.amberBg, bdr:CL.amberBdr, c:CL.amber };
-  // GREEN = market + SLB
   if (t.includes('slb')||t.includes('market rent growth')||t.includes('expansion')||t.includes('hiring')) return { bg:CL.greenBg, bdr:CL.greenBdr, c:CL.green };
-  // BLUE = financial + institutional
   if (t.includes('institutional')||t.includes('investment grade')||t.includes('private llc')||t.includes('estate')||t.includes('trust')||t.includes('debt')||t.includes('prior listing')||t.includes('no broker')) return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
-  // PURPLE = building + capex
   if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')||t.includes('multi-parcel')||t.includes('roof')||t.includes('environmental')||t.includes('rezoning')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
   return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
 };
@@ -53,6 +54,12 @@ const getSignalColor = (tag) => {
   if (t.includes('lease')||t.includes('below market')) return CL.amber;
   if (t.includes('slb')) return CL.green;
   return CL.purple;
+};
+
+// Urgency check — used for catalyst pulse animation
+const isUrgentTag = (tag) => {
+  const t = (tag||'').toLowerCase();
+  return t.includes('warn') || t.includes('nod') || t.includes('bankruptcy') || t.includes('expired') || t.includes('vacant') || t.includes('owner distress');
 };
 
 const ghostBtn = { display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:7, fontFamily:"'Instrument Sans',sans-serif", fontSize:13, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.line}`, background:CL.card, color:CL.ink3, whiteSpace:'nowrap', transition:'all .12s' };
@@ -82,6 +89,14 @@ export default function PropertiesPage() {
   const [showCompare, setShowCompare] = useState(false);
   const [hoverIdx, setHoverIdx] = useState(null);
 
+  // ① Bulk action modals
+  const [showBulkTag, setShowBulkTag] = useState(false);
+  const [showCampaignPicker, setShowCampaignPicker] = useState(false);
+  const [campaigns, setCampaigns] = useState([]);
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [bulkTagMode, setBulkTagMode] = useState('add'); // 'add' | 'remove'
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
   // ── FETCH ───────────────────────────────────────────────
   useEffect(() => { fetchProperties(); loadSavedViews(); }, []);
 
@@ -93,7 +108,7 @@ export default function PropertiesPage() {
       const list = data || [];
       setProperties(list);
 
-      // ① Build market intel ticker — news articles first, then property signals
+      // Build market intel ticker
       let tickerItems = [];
       try {
         const { data: news } = await supabase.from('news_articles').select('title, source, published_at, url').order('published_at', { ascending: false }).limit(10);
@@ -101,7 +116,6 @@ export default function PropertiesPage() {
           tickerItems = news.map(n => ({ tag: n.source || 'Market Intel', addr: n.title || '—', city: '', time: n.published_at }));
         }
       } catch {}
-      // Fill remaining slots with property catalyst signals
       const propSigs = list
         .filter(p => (p.catalyst_tags||[]).length > 0 && p.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
@@ -109,7 +123,7 @@ export default function PropertiesPage() {
         .map(p => ({ tag: (p.catalyst_tags||[])[0], addr: p.property_name||p.address||'—', city: p.city, time: p.updated_at }));
       setSignals([...tickerItems, ...propSigs]);
 
-      // ③ Deltas — count added/changed in last 7 days
+      // Deltas — count added/changed in last 7 days
       const cutoff = new Date(Date.now() - 7*864e5).toISOString();
       setDeltas({
         props: list.filter(p => p.created_at > cutoff).length,
@@ -119,7 +133,7 @@ export default function PropertiesPage() {
     finally { setLoading(false); }
   };
 
-  // ⑤ Saved views
+  // Saved views
   const loadSavedViews = () => {
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('cl_saved_views') : null;
@@ -150,12 +164,10 @@ export default function PropertiesPage() {
   // ── FILTERING + SORTING ─────────────────────────────────
   const filtered = useMemo(() => {
     let list = [...properties];
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(p => [p.property_name,p.address,p.city,p.submarket,p.owner,p.tenant].some(f => (f||'').toLowerCase().includes(q)));
     }
-    // Quick filter chips
     switch (activeFilter) {
       case 'SGV': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')); break;
       case 'IE': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')); break;
@@ -166,7 +178,6 @@ export default function PropertiesPage() {
       case 'Lease Expiry': list = list.filter(p => { const m = monthsUntil(p.lease_expiration); return m != null && m <= 24; }); break;
       case 'SLB': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('slb'))); break;
     }
-    // ④ Advanced filters
     const af = advFilters;
     if (af.minScore > 0) list = list.filter(p => (p.ai_score||0) >= af.minScore);
     if (af.minSF) list = list.filter(p => (p.building_sf||0) >= parseInt(af.minSF.replace(/,/g,''))||0);
@@ -185,7 +196,6 @@ export default function PropertiesPage() {
       if (yrs) list = list.filter(p => { if (!p.last_transfer_date) return false; return (new Date().getFullYear() - new Date(p.last_transfer_date).getFullYear()) >= yrs; });
     }
     if (af.catalyst !== 'Any') list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes(af.catalyst.toLowerCase())));
-    // Sort
     list.sort((a, b) => {
       let va = a[sortCol], vb = b[sortCol];
       if (va == null) va = sortDir === 'desc' ? -Infinity : Infinity;
@@ -210,7 +220,6 @@ export default function PropertiesPage() {
     ie: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')).length,
   }), [properties]);
 
-  // Get unique submarkets and catalyst tags for filter dropdowns
   const submarkets = useMemo(() => [...new Set(properties.map(p => p.submarket).filter(Boolean))].sort(), [properties]);
   const allTags = useMemo(() => {
     const tagCounts = {};
@@ -223,16 +232,172 @@ export default function PropertiesPage() {
     else { setSortCol(col); setSortDir('desc'); }
   }, [sortCol]);
 
-  // ⑦ Bulk selection
+  // Bulk selection
   const toggleSelect = (id) => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   const toggleAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map(p => p.id))); };
   const clearSelection = () => setSelected(new Set());
 
-  // ⑧ Compare
-  const toggleCompareItem = (id) => {
-    setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
-  };
+  // Compare
   const compareProps = useMemo(() => [...selected].slice(0, 3).map(id => properties.find(p => p.id === id)).filter(Boolean), [selected, properties]);
+
+  // ═══════════════════════════════════════════════════════
+  // ① BULK ACTION HANDLERS
+  // ═══════════════════════════════════════════════════════
+
+  // Export CSV
+  const handleExportCSV = () => {
+    const rows = properties.filter(p => selected.has(p.id));
+    if (rows.length === 0) return;
+    const headers = ['Property Name','Address','City','Market','Submarket','Building SF','Clear Height','Land Acres','Year Built','Owner','Owner Type','Tenant','Vacancy Status','Lease Expiration','In-Place Rent','Market Rent','Building Score','Catalyst Tags'];
+    const csvRows = [headers.join(',')];
+    rows.forEach(p => {
+      csvRows.push([
+        `"${(p.property_name||'').replace(/"/g,'""')}"`,
+        `"${(p.address||'').replace(/"/g,'""')}"`,
+        `"${(p.city||'').replace(/"/g,'""')}"`,
+        `"${(p.market||'').replace(/"/g,'""')}"`,
+        `"${(p.submarket||'').replace(/"/g,'""')}"`,
+        p.building_sf||'',
+        p.clear_height||'',
+        p.land_acres||'',
+        p.year_built||'',
+        `"${(p.owner||'').replace(/"/g,'""')}"`,
+        `"${(p.owner_type||'').replace(/"/g,'""')}"`,
+        `"${(p.tenant||'').replace(/"/g,'""')}"`,
+        `"${(p.vacancy_status||'').replace(/"/g,'""')}"`,
+        p.lease_expiration||'',
+        p.in_place_rent||'',
+        p.market_rent||'',
+        p.ai_score||'',
+        `"${(p.catalyst_tags||[]).join('; ')}"`,
+      ].join(','));
+    });
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clerestory_properties_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export IC Memo (text file with synthesis for selected properties)
+  const handleExportMemo = () => {
+    const rows = properties.filter(p => selected.has(p.id));
+    if (rows.length === 0) return;
+    let text = `CLERESTORY — PROPERTY INTELLIGENCE MEMO\nGenerated ${new Date().toLocaleString()}\n${'═'.repeat(60)}\n\n`;
+    rows.forEach(p => {
+      text += `${'─'.repeat(50)}\n`;
+      text += `${p.property_name || p.address || '—'}\n`;
+      text += `${[p.city,'CA',p.zip].filter(Boolean).join(', ')}\n`;
+      text += `Market: ${p.market || '—'} · ${p.submarket || '—'}\n`;
+      text += `SF: ${p.building_sf ? Number(p.building_sf).toLocaleString() : '—'} | Clear Ht: ${p.clear_height ? `${p.clear_height}'` : '—'} | Year: ${p.year_built||'—'}\n`;
+      text += `Owner: ${p.owner||'—'} (${p.owner_type||'—'})\n`;
+      text += `Tenant: ${p.tenant||'Vacant'} | Status: ${p.vacancy_status||'—'}\n`;
+      text += `Score: ${p.ai_score||'—'} | Tags: ${(p.catalyst_tags||[]).join(', ')||'None'}\n\n`;
+      if (p.ai_synthesis) { text += `AI SYNTHESIS:\n${p.ai_synthesis}\n\n`; }
+    });
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clerestory_memo_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Bulk Tag — add or remove a tag from all selected properties
+  const handleBulkTag = async () => {
+    if (!bulkTagInput.trim()) return;
+    setBulkProcessing(true);
+    const tag = bulkTagInput.trim();
+    const ids = [...selected];
+    try {
+      for (const id of ids) {
+        const prop = properties.find(p => p.id === id);
+        if (!prop) continue;
+        const existing = Array.isArray(prop.catalyst_tags) ? [...prop.catalyst_tags] : [];
+        let updated;
+        if (bulkTagMode === 'add') {
+          updated = existing.includes(tag) ? existing : [...existing, tag];
+        } else {
+          updated = existing.filter(t => t !== tag);
+        }
+        await supabase.from('properties').update({ catalyst_tags: updated, updated_at: new Date().toISOString() }).eq('id', id);
+      }
+      setShowBulkTag(false);
+      setBulkTagInput('');
+      fetchProperties();
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { setBulkProcessing(false); }
+  };
+
+  // Add to Campaign
+  const openCampaignPicker = async () => {
+    setShowCampaignPicker(true);
+    try {
+      const { data } = await supabase.from('research_campaigns').select('id, name, market, status').order('created_at', { ascending: false }).limit(20);
+      setCampaigns(data || []);
+    } catch {}
+  };
+  const handleAddToCampaign = async (campaignId) => {
+    setBulkProcessing(true);
+    const ids = [...selected];
+    try {
+      const targets = ids.map(id => {
+        const p = properties.find(pp => pp.id === id);
+        return {
+          campaign_id: campaignId,
+          owner: p?.owner || '—',
+          address: p?.address || '—',
+          city: p?.city || '',
+          apn: '',
+          status: 'New',
+          property_id: id,
+          notes: `Added from bulk action · ${(p?.catalyst_tags||[]).slice(0,2).join(', ')}`,
+        };
+      });
+      const { error } = await supabase.from('campaign_targets').insert(targets);
+      if (error) throw error;
+      alert(`✓ ${ids.length} properties added to campaign`);
+      setShowCampaignPicker(false);
+      clearSelection();
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { setBulkProcessing(false); }
+  };
+
+  // Convert to Acquisition (creates deal records)
+  const handleConvertToAcq = async () => {
+    const ids = [...selected];
+    const count = ids.length;
+    if (!confirm(`Create ${count} acquisition deal${count > 1 ? 's' : ''} from selected properties?`)) return;
+    setBulkProcessing(true);
+    let created = 0;
+    try {
+      for (const id of ids) {
+        const p = properties.find(pp => pp.id === id);
+        if (!p) continue;
+        const { error } = await supabase.from('deals').insert({
+          deal_name: p.property_name || p.address || 'New Acquisition',
+          address: p.address,
+          city: p.city,
+          market: p.market,
+          stage: 'Screening',
+          deal_type: 'Acquisition',
+          property_id: id,
+          notes: `Converted from property · Score: ${p.ai_score||'—'} · Tags: ${(p.catalyst_tags||[]).join(', ')}`,
+        });
+        if (!error) created++;
+      }
+      alert(`✓ ${created} acquisition${created > 1 ? 's' : ''} created`);
+      clearSelection();
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { setBulkProcessing(false); }
+  };
 
   // Add property
   const [newProp, setNewProp] = useState({ property_name:'', address:'', city:'', state:'CA', zip:'' });
@@ -262,7 +427,7 @@ export default function PropertiesPage() {
   // ── RENDER ──────────────────────────────────────────────
   return (
     <>
-      {/* ═══ ① LIVE SIGNAL TICKER ═══ */}
+      {/* ═══ LIVE SIGNAL TICKER ═══ */}
       {signals.length > 0 && (
         <div style={{ background:'linear-gradient(90deg,#1A2130,#1F2840,#1A2130)', borderRadius:CL.radius, overflow:'hidden', marginBottom:20, height:38, position:'relative', border:'1px solid rgba(100,128,162,0.15)' }}>
           <div style={{ position:'absolute', left:0, top:0, bottom:0, width:110, background:'linear-gradient(90deg,#1A2130 70%,transparent)', zIndex:5, display:'flex', alignItems:'center', paddingLeft:14, gap:6 }}>
@@ -290,19 +455,10 @@ export default function PropertiesPage() {
           </p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          {/* ② VIEW TOGGLE */}
           <div style={{ display:'flex', background:CL.bg2, border:`1px solid ${CL.line}`, borderRadius:7, overflow:'hidden' }}>
-            <button style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:CL.card, color:CL.blue, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'0 1px 3px rgba(0,0,0,0.08)' }}>
-              ☰ Table
-            </button>
-            <button onClick={() => alert('Map view coming in next build — Leaflet satellite map with clustered markers.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
-              🗺 Map
-            </button>
-            <button onClick={() => alert('Cards view coming in next build — grid with aerial thumbnails and score rings.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
-              ◫ Cards
-            </button>
+            <button style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:CL.card, color:CL.blue, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'0 1px 3px rgba(0,0,0,0.08)' }}>☰ Table</button>
+            <button onClick={() => alert('Map view coming in next build — Leaflet satellite map with clustered markers.')} style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif" }}>🗺 Map</button>
+            <button onClick={() => alert('Cards view coming in next build — grid with aerial thumbnails and score rings.')} style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif" }}>◫ Cards</button>
           </div>
           <button style={ghostBtn} onClick={() => setShowFilters(prev => !prev)}>⊕ {showFilters ? 'Hide' : 'Advanced'} Filters</button>
           <button style={ghostBtn} onClick={() => setShowCompare(prev => !prev)}>⊞ Compare{selected.size > 0 ? ` (${Math.min(selected.size, 3)})` : ''}</button>
@@ -310,7 +466,7 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* ═══ ③ KPI STRIP WITH DELTAS ═══ */}
+      {/* ═══ KPI STRIP WITH ② "7d" DELTA LABELS ═══ */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:20 }}>
         <KPI icon="🏢" bg={CL.blueBg} color={CL.blue} value={kpis.total} label="Total Properties" delta={deltas.props > 0 ? `+${deltas.props}` : null} up />
         <KPI icon="◫" bg={CL.amberBg} color={CL.amber} value={fmtSF(kpis.totalSF)} label="Total SF Tracked" />
@@ -319,7 +475,7 @@ export default function PropertiesPage() {
         <KPI icon="⚡" bg={CL.purpleBg} color={CL.purple} value={kpis.signals} label="Active Catalysts" delta={deltas.signals > 0 ? `+${deltas.signals}` : null} up />
       </div>
 
-      {/* ═══ ④ ADVANCED FILTER PANEL ═══ */}
+      {/* ═══ ADVANCED FILTER PANEL ═══ */}
       {showFilters && (
         <div style={{ background:CL.card, borderRadius:CL.radius, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
           <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
@@ -377,7 +533,7 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* ═══ FILTER CHIPS + ⑤ SAVED VIEWS + SEARCH ═══ */}
+      {/* ═══ FILTER CHIPS + SAVED VIEWS + SEARCH ═══ */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, flexWrap:'wrap' }}>
         {[{k:'All',ct:counts.all},{k:'SGV',ct:counts.sgv},{k:'IE',ct:counts.ie}].map(f =>
           <Chip key={f.k} label={f.k} count={f.ct} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
@@ -388,7 +544,6 @@ export default function PropertiesPage() {
         {['WARN','Lease Expiry','SLB'].map(f =>
           <Chip key={f} label={f==='WARN'?'⚡ WARN':f} active={activeFilter===f} onClick={() => setActiveFilter(f)} />)}
 
-        {/* ⑤ Saved Views */}
         <div style={{ position:'relative', marginLeft:8 }}>
           <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.purpleBdr}`, background:CL.purpleBg, color:CL.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
           {showSaved && (
@@ -405,7 +560,6 @@ export default function PropertiesPage() {
           )}
         </div>
 
-        {/* Search */}
         <div style={{ position:'relative', flex:1, maxWidth:360, marginLeft:'auto' }}>
           <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:14, color:CL.ink4, pointerEvents:'none' }}>⌕</span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search properties, owners, tenants…"
@@ -443,52 +597,54 @@ export default function PropertiesPage() {
               const mo = monthsUntil(p.lease_expiration);
               const isSel = selected.has(p.id);
               const cov = (p.building_sf && p.land_acres) ? ((p.building_sf / (p.land_acres * 43560)) * 100).toFixed(1) : null;
+              const grade = getGrade(p.ai_score);
+              const isTopTier = grade === 'A+';
               return (
                 <tr key={p.id} onClick={() => router.push(`/properties/${p.id}`)}
                   style={{ borderBottom:`1px solid ${CL.line2}`, cursor:'pointer', transition:'background .1s', background:isSel?'rgba(78,110,150,0.05)':'' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background='#F8F6F2'; setHoverIdx(idx); }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background=''; setHoverIdx(null); }}>
-                  {/* Checkbox */}
                   <td style={{ padding:'12px 10px', verticalAlign:'middle' }}>
                     <div onClick={e => { e.stopPropagation(); toggleSelect(p.id); }}
                       style={{ width:18, height:18, border:`2px solid ${isSel?CL.blue:CL.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:isSel?CL.blue:'transparent', transition:'all .12s' }}>
                       {isSel?'✓':''}
                     </div>
                   </td>
-                  {/* Property */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle', maxWidth:220 }}>
                     <div style={{ fontWeight:600, color:CL.ink, fontSize:14 }}>{p.property_name||p.address||'—'}</div>
                     <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
                   </td>
-                  {/* Market */}
                   <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
-                  {/* Score ring */}
+                  {/* ③ Animated Score Ring — A+ glow */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
-                    <div style={{ width:38, height:38, borderRadius:'50%', border:`2px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                    <div className={isTopTier ? 'score-ring score-ring-glow' : 'score-ring'} style={{
+                      width:38, height:38, borderRadius:'50%',
+                      border:`2px solid ${getScoreColor(p.ai_score)}`,
+                      background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)',
+                      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                      animation: 'scoreIn 0.5s ease both',
+                      animationDelay: `${idx * 30}ms`,
+                    }}>
                       <span style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:getScoreColor(p.ai_score), lineHeight:1 }}>{p.ai_score??'—'}</span>
-                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{getGrade(p.ai_score)}</span>
+                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{grade}</span>
                     </div>
                   </td>
-                  {/* SF */}
                   <td style={tdMono}>{fmt(p.building_sf)}</td>
-                  {/* Clear Ht */}
                   <td style={tdMono}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
-                  {/* Land AC */}
                   <td style={tdMono}>{p.land_acres ? Number(p.land_acres).toFixed(2) : '—'}</td>
-                  {/* Coverage */}
                   <td style={tdMono}>{cov ? `${cov}%` : '—'}</td>
-                  {/* Year Built */}
                   <td style={tdMono}>{p.year_built || '—'}</td>
-                  {/* Owner */}
                   <td style={{ ...tdM, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
-                  {/* Lease Exp */}
                   <td style={{ ...tdMono, color:mo!=null&&mo<=12?CL.rust:mo!=null&&mo<=24?CL.amber:CL.ink2 }}>{fmtExpiry(p.lease_expiration)}</td>
-                  {/* Status */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
-                  {/* Catalysts + ⑥ AI Sparkle */}
+                  {/* ③ Catalyst tags — urgent ones pulse */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
                     <div style={{ display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
-                      {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c }}>{tag}</span>; })}
+                      {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => {
+                        const s = getTagStyle(tag);
+                        const urgent = isUrgentTag(tag);
+                        return <span key={i} className={urgent ? 'catalyst-pulse' : ''} style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c }}>{tag}</span>;
+                      })}
                       {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:11, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
                       {p.ai_synthesis && <AISparkle text={p.ai_synthesis} />}
                     </div>
@@ -502,21 +658,21 @@ export default function PropertiesPage() {
       </div>
       {!loading && filtered.length > 0 && <div style={{ padding:'14px 0', fontSize:14, color:CL.ink4 }}>Showing {filtered.length} of {properties.length} properties</div>}
 
-      {/* ═══ ⑦ BULK ACTION BAR ═══ */}
+      {/* ═══ ① BULK ACTION BAR — all buttons wired ═══ */}
       {selected.size > 0 && (
         <div style={{ position:'fixed', bottom:0, left:242, right:0, background:'linear-gradient(90deg,#1A2130,#1F2840)', padding:'12px 24px', display:'flex', alignItems:'center', gap:12, zIndex:50, boxShadow:'0 -4px 20px rgba(0,0,0,0.15)', borderTop:'2px solid rgba(100,128,162,0.25)' }}>
           <span style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:'#fff', marginRight:4 }}>{selected.size}</span>
           <span style={{ fontSize:13, color:'rgba(245,240,232,0.7)', marginRight:12 }}>selected</span>
-          <BulkBtn>📄 Export IC Memo</BulkBtn>
-          <BulkBtn>📊 Export CSV</BulkBtn>
-          <BulkBtn>🏷 Bulk Tag</BulkBtn>
-          <BulkBtn>📬 Add to Campaign</BulkBtn>
-          <BulkBtn green>◈ Convert to Acq</BulkBtn>
+          <BulkBtn onClick={handleExportMemo}>📄 Export IC Memo</BulkBtn>
+          <BulkBtn onClick={handleExportCSV}>📊 Export CSV</BulkBtn>
+          <BulkBtn onClick={() => setShowBulkTag(true)}>🏷 Bulk Tag</BulkBtn>
+          <BulkBtn onClick={openCampaignPicker}>📬 Add to Campaign</BulkBtn>
+          <BulkBtn green onClick={handleConvertToAcq}>◈ Convert to Acq</BulkBtn>
           <span onClick={clearSelection} style={{ marginLeft:'auto', color:'rgba(245,240,232,0.5)', cursor:'pointer', fontSize:18, padding:'4px 8px' }}>✕</span>
         </div>
       )}
 
-      {/* ═══ ⑧ COMPARE DRAWER ═══ */}
+      {/* ═══ COMPARE DRAWER ═══ */}
       {showCompare && (
         <div style={{ position:'fixed', right:0, top:0, bottom:0, width:480, background:CL.card, boxShadow:'-8px 0 30px rgba(0,0,0,0.12)', zIndex:200, borderLeft:`1px solid ${CL.line2}`, display:'flex', flexDirection:'column', animation:'slideIn .3s ease' }}>
           <div style={{ padding:'18px 24px', borderBottom:`1px solid ${CL.line}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -530,12 +686,10 @@ export default function PropertiesPage() {
             </div>
           ) : (
             <div style={{ flex:1, overflowY:'auto' }}>
-              {/* Header row */}
               <div style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${CL.line2}`, background:CL.bg }}>
                 <div style={{ padding:'9px 14px' }} />
                 {compareProps.map(p => <div key={p.id} style={{ padding:'9px 14px', fontWeight:600, fontSize:12, color:CL.blue }}>{p.property_name||p.address||'—'}</div>)}
               </div>
-              {/* Comparison rows */}
               {[
                 { label:'Building SF', fn:p=>fmt(p.building_sf), best:'max', key:'building_sf' },
                 { label:'Clear Height', fn:p=>p.clear_height?`${p.clear_height}'`:'—', best:'max', key:'clear_height' },
@@ -567,7 +721,66 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* ADD MODAL */}
+      {/* ═══ ① BULK TAG MODAL ═══ */}
+      {showBulkTag && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShowBulkTag(false)}>
+          <div style={{ background:'#fff', borderRadius:14, boxShadow:CL.shadowMd, padding:28, width:440, maxWidth:'90vw' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize:20, fontWeight:500, marginBottom:4 }}>🏷 Bulk Tag — {selected.size} Properties</h2>
+            <p style={{ fontSize:13, color:CL.ink4, marginBottom:20 }}>Add or remove a catalyst tag from all selected properties.</p>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              <button onClick={() => setBulkTagMode('add')} style={{ ...ghostBtn, ...(bulkTagMode==='add' ? { background:CL.blue, color:'#fff', borderColor:CL.blue } : {}) }}>+ Add Tag</button>
+              <button onClick={() => setBulkTagMode('remove')} style={{ ...ghostBtn, ...(bulkTagMode==='remove' ? { background:CL.rust, color:'#fff', borderColor:CL.rust } : {}) }}>− Remove Tag</button>
+            </div>
+            <input value={bulkTagInput} onChange={e => setBulkTagInput(e.target.value)} placeholder="Type tag name or select below…"
+              style={{ width:'100%', padding:'10px 14px', borderRadius:8, border:`1px solid ${CL.line}`, fontFamily:"'Instrument Sans',sans-serif", fontSize:15, color:CL.ink2, background:CL.bg, outline:'none', marginBottom:12 }} />
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:20, maxHeight:120, overflowY:'auto' }}>
+              {allTags.slice(0, 20).map(tag => {
+                const s = getTagStyle(tag);
+                return <span key={tag} onClick={() => setBulkTagInput(tag)} style={{ display:'inline-flex', padding:'4px 10px', borderRadius:5, fontSize:12, fontWeight:500, background: bulkTagInput === tag ? s.c : s.bg, border:`1px solid ${s.bdr}`, color: bulkTagInput === tag ? '#fff' : s.c, cursor:'pointer', transition:'all .12s' }}>{tag}</span>;
+              })}
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setShowBulkTag(false)} style={ghostBtn}>Cancel</button>
+              <button onClick={handleBulkTag} disabled={bulkProcessing || !bulkTagInput.trim()} style={{ ...primaryBtn, opacity: bulkProcessing || !bulkTagInput.trim() ? 0.5 : 1 }}>
+                {bulkProcessing ? '⟳ Processing…' : `${bulkTagMode === 'add' ? 'Add' : 'Remove'} "${bulkTagInput}" → ${selected.size} properties`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ① CAMPAIGN PICKER MODAL ═══ */}
+      {showCampaignPicker && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShowCampaignPicker(false)}>
+          <div style={{ background:'#fff', borderRadius:14, boxShadow:CL.shadowMd, padding:28, width:480, maxWidth:'90vw' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize:20, fontWeight:500, marginBottom:4 }}>📬 Add to Research Campaign</h2>
+            <p style={{ fontSize:13, color:CL.ink4, marginBottom:20 }}>Select a campaign to add {selected.size} properties as targets.</p>
+            {campaigns.length === 0 ? (
+              <div style={{ padding:24, textAlign:'center', color:CL.ink4, fontSize:14 }}>No campaigns found. Create one in Research first.</div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:300, overflowY:'auto' }}>
+                {campaigns.map(c => (
+                  <div key={c.id} onClick={() => handleAddToCampaign(c.id)}
+                    style={{ padding:'14px 18px', borderRadius:10, border:`1px solid ${CL.line2}`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', transition:'all .12s', background:CL.card }}
+                    onMouseEnter={e => e.currentTarget.style.background = CL.bg}
+                    onMouseLeave={e => e.currentTarget.style.background = CL.card}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:500, color:CL.ink2 }}>{c.name}</div>
+                      <div style={{ fontSize:12, color:CL.ink4, marginTop:2 }}>{c.market || '—'} · {c.status || 'Active'}</div>
+                    </div>
+                    <span style={{ fontSize:12, color:CL.blue }}>Add →</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}>
+              <button onClick={() => setShowCampaignPicker(false)} style={ghostBtn}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD PROPERTY MODAL */}
       {showAddModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={() => setShowAddModal(false)}>
           <div style={{ background:'#fff', borderRadius:14, boxShadow:CL.shadowMd, padding:28, width:500, maxWidth:'90vw' }} onClick={e => e.stopPropagation()}>
@@ -587,12 +800,17 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* CSS Animations */}
+      {/* ═══ CSS ANIMATIONS — ② ③ ═══ */}
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
         @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
         @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        @keyframes scoreIn{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}
+        @keyframes glowPulse{0%,100%{box-shadow:0 0 4px rgba(78,110,150,0.15)}50%{box-shadow:0 0 14px rgba(78,110,150,0.50),0 0 28px rgba(78,110,150,0.20)}}
+        @keyframes catalystPulse{0%,100%{opacity:1}50%{opacity:0.6}}
+        .score-ring-glow{animation:scoreIn 0.5s ease both, glowPulse 2.4s ease-in-out infinite 0.6s !important;}
+        .catalyst-pulse{animation:catalystPulse 1.8s ease-in-out infinite;}
       `}</style>
     </>
   );
@@ -609,7 +827,12 @@ function KPI({ icon, bg, color, value, label, delta, up }) {
       <div>
         <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
           <span style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700, color:CL.ink, lineHeight:1, letterSpacing:'-0.02em' }}>{value}</span>
-          {delta && <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:600, padding:'1px 5px', borderRadius:3, color:up?CL.green:CL.rust, background:up?CL.greenBg:CL.rustBg }}>{delta}</span>}
+          {/* ② Delta badge now includes "7d" suffix */}
+          {delta && (
+            <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:600, padding:'1px 5px', borderRadius:3, color:up?CL.green:CL.rust, background:up?CL.greenBg:CL.rustBg }}>
+              {delta} <span style={{ opacity:0.6, fontWeight:400 }}>7d</span>
+            </span>
+          )}
         </div>
         <div style={{ fontSize:13, color:CL.ink3, marginTop:4 }}>{label}</div>
       </div>
@@ -662,9 +885,9 @@ function AISparkle({ text }) {
   );
 }
 
-function BulkBtn({ children, green }) {
+function BulkBtn({ children, green, onClick }) {
   return (
-    <button style={{ padding:'7px 14px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${green?'rgba(60,180,110,0.35)':'rgba(255,255,255,0.15)'}`, background:green?'rgba(21,102,54,0.30)':'rgba(255,255,255,0.08)', color:green?'#B8F0D0':'rgba(245,240,232,0.9)', fontFamily:"'Instrument Sans',sans-serif", whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5 }}>
+    <button onClick={onClick} style={{ padding:'7px 14px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${green?'rgba(60,180,110,0.35)':'rgba(255,255,255,0.15)'}`, background:green?'rgba(21,102,54,0.30)':'rgba(255,255,255,0.08)', color:green?'#B8F0D0':'rgba(245,240,232,0.9)', fontFamily:"'Instrument Sans',sans-serif", whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5 }}>
       {children}
     </button>
   );
