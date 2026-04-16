@@ -35,8 +35,6 @@ const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('en-US', { month:
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
 const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
 const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
-const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
-const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
 const getEquityGap = (d) => {
   if (!d) return null;
   const yr = new Date(d).getFullYear();
