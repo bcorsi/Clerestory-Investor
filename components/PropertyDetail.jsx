@@ -291,10 +291,27 @@ export default function PropertyDetail({ id, inline = false }) {
         last_transfer_date: property.last_transfer_date, catalyst_tags: property.catalyst_tags,
         building_score: calcScore, activities: activities.slice(0, 5).map(a => ({ type: a.activity_type, subject: a.subject, body: a.body, date: a.created_at })),
       };
-      const prompt = buildSynthesisPrompt(property, {
-  activities: activities.slice(0, 5),
-  comps: [...leaseComps.slice(0, 3), ...saleComps.slice(0, 3)],
-});
+      const signalStr = generateSignalString(property);
+const prompt = `You are Clerestory, an AI acquisition intelligence system for institutional industrial real estate investors in Southern California.
+
+Write a deal intelligence brief for this property. Follow this pattern precisely:
+- Lead with the COMPANY — who they are, what they do, revenue if known, employee count
+- Then OWNER SIGNAL — founder age/succession, PE backing, out-of-state HQ, estate/trust, hold period
+- Then PROPERTY SIGNAL — hold period, basis dislocation, vacancy, lease vintage, rent spread
+- Then COMP EVIDENCE — cite specific nearby sales with $/SF and buyer name
+- End with CLEAR VERDICT — one sentence action recommendation
+
+DO NOT write generic analysis. DO NOT hedge with "may" or "might". Be specific. Use numbers. 4-5 sentences max.
+
+PROPERTY: ${property.address}, ${property.city}
+Owner: ${property.owner} (${property.owner_type || 'Unknown'})
+${property.last_transfer_date ? 'Acquired: ' + new Date(property.last_transfer_date).getFullYear() : ''}
+Building: ${property.building_sf ? Number(property.building_sf).toLocaleString() + ' SF' : '—'} · ${property.clear_height ? property.clear_height + "' clear" : '—'} · ${property.year_built || '—'}
+Tenant: ${property.tenant || 'Vacant'} · ${property.vacancy_status || '—'}
+${property.in_place_rent ? 'Rent: $' + Number(property.in_place_rent).toFixed(2) + '/SF' : ''}
+${property.market_rent ? 'Market: $' + Number(property.market_rent).toFixed(2) + '/SF' : ''}
+${signalStr ? 'Signals: ' + signalStr : ''}
+Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
 
       const res = await fetch('/api/ai', {
         method: 'POST',
