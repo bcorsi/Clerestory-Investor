@@ -449,8 +449,8 @@ export default function PropertiesPage() {
   const cols = [
     { key: 'property_name', label: 'Property' },
     { key: 'submarket', label: 'Market' },
-    { key: 'ai_score', label: 'Fit' },
-    { key: 'probability', label: 'ORS' },
+    { key: 'ai_score', label: 'Score' },
+    { key: 'probability', label: 'Seller Readiness' },
     { key: 'building_sf', label: 'Property SF' },
     { key: 'clear_height', label: 'Clear Ht' },
     { key: 'land_acres', label: 'Land AC' },
@@ -518,7 +518,7 @@ export default function PropertiesPage() {
         <div style={{ background:CL.card, borderRadius:CL.radius, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
           <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
-            <FilterField label="Min Portfolio Fit">
+            <FilterField label="Min Building Score">
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <input type="range" min="0" max="100" value={advFilters.minScore} onChange={e => setAdvFilters(f => ({ ...f, minScore: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.blue }} />
                 <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.blue, minWidth:28, textAlign:'right' }}>{advFilters.minScore}</span>
@@ -673,26 +673,29 @@ export default function PropertiesPage() {
                       <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{grade}</span>
                     </div>
                   </td>
-                  {/* ORS / Seller Readiness */}
+                  {/* Seller Readiness (ORS) */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
                     {p.probability != null ? (
-                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <div style={{
-                          width:30, height:30, borderRadius:'50%',
-                          border:`2px solid ${p.probability >= 75 ? CL.rustBdr : p.probability >= 50 ? CL.amberBdr : p.probability >= 25 ? CL.blueBdr : CL.line}`,
+                          width:40, height:40, borderRadius:'50%',
+                          border:`2.5px solid ${p.probability >= 75 ? CL.rustBdr : p.probability >= 50 ? CL.amberBdr : p.probability >= 25 ? CL.blueBdr : CL.line}`,
                           background: p.probability >= 75 ? CL.rustBg : p.probability >= 50 ? CL.amberBg : p.probability >= 25 ? CL.blueBg : 'rgba(0,0,0,0.03)',
-                          display:'flex', alignItems:'center', justifyContent:'center',
+                          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                           animation: 'scoreIn 0.5s ease both',
                           animationDelay: `${idx * 30 + 80}ms`,
                         }}>
-                          <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, fontWeight:700, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : p.probability >= 25 ? CL.blue : CL.ink4 }}>{p.probability}</span>
+                          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : p.probability >= 25 ? CL.blue : CL.ink4, lineHeight:1 }}>{p.probability}</span>
                         </div>
-                        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:9, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : CL.ink4, fontWeight:600 }}>
-                          {p.probability >= 75 ? 'ACT' : p.probability >= 50 ? 'WARM' : p.probability >= 25 ? 'WATCH' : 'COOL'}
-                        </span>
+                        <div style={{ display:'flex', flexDirection:'column' }}>
+                          <span style={{ fontFamily:"'DM Mono',monospace", fontSize:10, fontWeight:700, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : CL.ink4, lineHeight:1 }}>
+                            {p.probability >= 75 ? 'ACT NOW' : p.probability >= 50 ? 'WARM' : p.probability >= 25 ? 'WATCH' : 'COOL'}
+                          </span>
+                          <span style={{ fontFamily:"'DM Mono',monospace", fontSize:9, color:CL.ink4, marginTop:2 }}>ORS</span>
+                        </div>
                       </div>
                     ) : (
-                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.ink4 }}>—</span>
+                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:12, color:CL.ink4 }}>—</span>
                     )}
                   </td>
                   <td style={tdMono}>{fmt(p.building_sf)}</td>
