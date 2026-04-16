@@ -32,7 +32,16 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 const fmtDateFull = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
-
+const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
+const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
+const getEquityGap = (d) => {
+  if (!d) return null;
+  const yr = new Date(d).getFullYear();
+  if (yr <= 2010) return { label: 'Pre-2010 basis — 3-5x appreciation', icon: '🔥', color: '#B83714', priority: 'Priority Call' };
+  if (yr <= 2015) return { label: 'Pre-2015 basis — 2-3x appreciation', icon: '⭐', color: '#8C5A04', priority: 'Priority Call' };
+  if (yr <= 2020) return { label: 'Pre-2020 basis — 1.5-2x appreciation', icon: '✅', color: '#4E6E96', priority: 'Call List' };
+  return { label: 'Recent purchase', icon: '—', color: '#6E6860', priority: 'Call List' };
+};
 const getGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
 const getScoreColor = (s) => { if (s == null) return V.ink4; if (s >= 70) return V.blue; if (s >= 55) return V.amber; return V.ink4; };
 const getOrsLabel = (s) => { if (s == null) return 'N/A'; if (s >= 75) return 'ACT NOW'; if (s >= 50) return 'WARM'; if (s >= 25) return 'WATCH'; return 'COOL'; };
@@ -373,6 +382,7 @@ export default function PropertyDetail({ id, inline = false }) {
             {property.lease_expiration && <HeroBadge color="amber">Lease Exp. {fmtDate(property.lease_expiration)}</HeroBadge>}
             {property.prop_type && property.building_sf && <HeroBadge color="blue">{property.prop_type} · {fmtSF(property.building_sf)} SF</HeroBadge>}
             {property.owner_type && <HeroBadge color="blue">{property.owner_type}</HeroBadge>}
+             {property.building_status && property.building_status !== 'Existing' && <HeroBadge color="amber">{property.building_status}</HeroBadge>}
           </div>
         </div>
       </div>
@@ -605,14 +615,14 @@ export default function PropertyDetail({ id, inline = false }) {
 
               {/* Owner + Tenant below timeline */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                {/* OWNER CARD */}
-                <Card>
-                  <CardHeader title="Owner" action="View Record →" />
-                  <CardRow label="Company" value={property.owner || '—'} />
-                  <CardRow label="Owner Type" value={property.owner_type || '—'} />
-                  <CardRow label="Owner Since" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
-                  {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
-                </Card>
+               {/* OWNER CARD */}
+<Card>
+  <CardHeader title="Owner" action="View Record →" />
+  <CardRow label="Company" value={property.owner || '—'} />
+  <CardRow label="Owner Type" value={property.owner_type || '—'} />
+  <CardRow label="Owner Since" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
+  {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
+</Card>
                 {/* TENANT / LEASE CARD */}
                 <Card>
                   <CardHeader title="Tenant" />
