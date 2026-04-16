@@ -81,7 +81,7 @@ export default function PropertiesPage() {
   const [signals, setSignals] = useState([]);
   const [deltas, setDeltas] = useState({ props: 0, signals: 0 });
   const [showFilters, setShowFilters] = useState(false);
-  const [advFilters, setAdvFilters] = useState({ minScore:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' });
+  const [advFilters, setAdvFilters] = useState({ minScore:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' });
   const [savedViews, setSavedViews] = useState([]);
   const [showSaved, setShowSaved] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -96,6 +96,8 @@ export default function PropertiesPage() {
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [bulkTagMode, setBulkTagMode] = useState('add'); // 'add' | 'remove'
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [comparisonAI, setComparisonAI] = useState('');
+  const [comparisonLoading, setComparisonLoading] = useState(false);
 
   // ── FETCH ───────────────────────────────────────────────
   useEffect(() => { fetchProperties(); loadSavedViews(); }, []);
@@ -180,6 +182,7 @@ export default function PropertiesPage() {
     }
     const af = advFilters;
     if (af.minScore > 0) list = list.filter(p => (p.ai_score||0) >= af.minScore);
+    if (af.minOrs > 0) list = list.filter(p => (p.probability||0) >= af.minOrs);
     if (af.minSF) list = list.filter(p => (p.building_sf||0) >= parseInt(af.minSF.replace(/,/g,''))||0);
     if (af.maxSF) list = list.filter(p => (p.building_sf||0) <= parseInt(af.maxSF.replace(/,/g,''))||Infinity);
     if (af.minHt > 0) list = list.filter(p => (p.clear_height||0) >= af.minHt);
@@ -239,6 +242,40 @@ export default function PropertiesPage() {
 
   // Compare
   const compareProps = useMemo(() => [...selected].slice(0, 3).map(id => properties.find(p => p.id === id)).filter(Boolean), [selected, properties]);
+
+  // ⑤ AI Comparison Summary
+  const generateComparison = async () => {
+    if (compareProps.length < 2 || comparisonLoading) return;
+    setComparisonLoading(true);
+    setComparisonAI('');
+    try {
+      const context = compareProps.map(p => ({
+        name: p.property_name || p.address,
+        city: p.city, submarket: p.submarket,
+        sf: p.building_sf, clear_ht: p.clear_height, year: p.year_built,
+        dock_doors: p.dock_doors, truck_court: p.truck_court_depth,
+        score: p.ai_score, ors: p.probability,
+        owner: p.owner, owner_type: p.owner_type,
+        tenant: p.tenant, vacancy: p.vacancy_status,
+        lease_exp: p.lease_expiration, in_place_rent: p.in_place_rent, market_rent: p.market_rent,
+        tags: (p.catalyst_tags || []).slice(0, 5),
+      }));
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are Clerestory, an AI acquisition intelligence system. Compare these ${context.length} industrial properties for an institutional buyer. For each property, summarize its strengths and weaknesses. Then give a clear recommendation on which is the strongest acquisition target and why. Be specific with numbers. Keep it to 4-6 sentences per property plus a 2-3 sentence verdict.\n\nProperties:\n${JSON.stringify(context, null, 2)}`,
+          type: 'property_comparison',
+        }),
+      });
+      const data = await res.json();
+      setComparisonAI(data.content || data.text || 'Analysis unavailable — check API credits.');
+    } catch (e) {
+      setComparisonAI('Error generating comparison: ' + e.message);
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
 
   // ═══════════════════════════════════════════════════════
   // ① BULK ACTION HANDLERS
@@ -412,7 +449,8 @@ export default function PropertiesPage() {
   const cols = [
     { key: 'property_name', label: 'Property' },
     { key: 'submarket', label: 'Market' },
-    { key: 'ai_score', label: 'Score' },
+    { key: 'ai_score', label: 'Fit' },
+    { key: 'probability', label: 'ORS' },
     { key: 'building_sf', label: 'Property SF' },
     { key: 'clear_height', label: 'Clear Ht' },
     { key: 'land_acres', label: 'Land AC' },
@@ -480,10 +518,16 @@ export default function PropertiesPage() {
         <div style={{ background:CL.card, borderRadius:CL.radius, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
           <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
-            <FilterField label="Min Building Score">
+            <FilterField label="Min Portfolio Fit">
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <input type="range" min="0" max="100" value={advFilters.minScore} onChange={e => setAdvFilters(f => ({ ...f, minScore: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.blue }} />
                 <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.blue, minWidth:28, textAlign:'right' }}>{advFilters.minScore}</span>
+              </div>
+            </FilterField>
+            <FilterField label="Min Seller Readiness (ORS)">
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <input type="range" min="0" max="100" value={advFilters.minOrs} onChange={e => setAdvFilters(f => ({ ...f, minOrs: Number(e.target.value) }))} style={{ flex:1, accentColor:CL.rust }} />
+                <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.rust, minWidth:28, textAlign:'right' }}>{advFilters.minOrs}</span>
               </div>
             </FilterField>
             <FilterField label="Property SF Range">
@@ -527,7 +571,7 @@ export default function PropertiesPage() {
             </FilterField>
           </div>
           <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16, paddingTop:14, borderTop:`1px solid ${CL.line}` }}>
-            <button onClick={() => setAdvFilters({ minScore:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' })} style={ghostBtn}>Clear All</button>
+            <button onClick={() => setAdvFilters({ minScore:0, minOrs:0, minSF:'', maxSF:'', minHt:0, expiry:'Any', submarket:'Any', ownerType:'Any', holdYears:'Any', catalyst:'Any' })} style={ghostBtn}>Clear All</button>
             <button onClick={() => setShowFilters(false)} style={primaryBtn}>Apply · {filtered.length} results</button>
           </div>
         </div>
@@ -629,6 +673,28 @@ export default function PropertiesPage() {
                       <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{grade}</span>
                     </div>
                   </td>
+                  {/* ORS / Seller Readiness */}
+                  <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
+                    {p.probability != null ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <div style={{
+                          width:30, height:30, borderRadius:'50%',
+                          border:`2px solid ${p.probability >= 75 ? CL.rustBdr : p.probability >= 50 ? CL.amberBdr : p.probability >= 25 ? CL.blueBdr : CL.line}`,
+                          background: p.probability >= 75 ? CL.rustBg : p.probability >= 50 ? CL.amberBg : p.probability >= 25 ? CL.blueBg : 'rgba(0,0,0,0.03)',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          animation: 'scoreIn 0.5s ease both',
+                          animationDelay: `${idx * 30 + 80}ms`,
+                        }}>
+                          <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, fontWeight:700, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : p.probability >= 25 ? CL.blue : CL.ink4 }}>{p.probability}</span>
+                        </div>
+                        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:9, color: p.probability >= 75 ? CL.rust : p.probability >= 50 ? CL.amber : CL.ink4, fontWeight:600 }}>
+                          {p.probability >= 75 ? 'ACT' : p.probability >= 50 ? 'WARM' : p.probability >= 25 ? 'WATCH' : 'COOL'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:CL.ink4 }}>—</span>
+                    )}
+                  </td>
                   <td style={tdMono}>{fmt(p.building_sf)}</td>
                   <td style={tdMono}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
                   <td style={tdMono}>{p.land_acres ? Number(p.land_acres).toFixed(2) : '—'}</td>
@@ -716,6 +782,24 @@ export default function PropertiesPage() {
                   </div>
                 );
               })}
+              {/* ⑤ AI Comparison Summary */}
+              <div style={{ borderTop:`2px solid ${CL.line}`, padding:'16px 20px' }}>
+                {comparisonAI ? (
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                      <span style={{ fontSize:13, color:CL.purple }}>✦</span>
+                      <span style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.purple }}>AI Acquisition Comparison</span>
+                      <button onClick={generateComparison} disabled={comparisonLoading} style={{ marginLeft:'auto', fontSize:11, color:CL.purple, background:'none', border:`1px solid ${CL.purpleBdr}`, borderRadius:5, padding:'3px 9px', cursor:'pointer', fontFamily:"'Instrument Sans',sans-serif" }}>↻ Regenerate</button>
+                    </div>
+                    <div style={{ fontSize:13, lineHeight:1.72, color:CL.ink2, whiteSpace:'pre-wrap' }}>{comparisonAI}</div>
+                  </div>
+                ) : (
+                  <button onClick={generateComparison} disabled={comparisonLoading || compareProps.length < 2}
+                    style={{ width:'100%', padding:'14px', borderRadius:8, border:`1px solid ${CL.purpleBdr}`, background:CL.purpleBg, color:CL.purple, fontSize:13, fontWeight:600, cursor: compareProps.length < 2 ? 'default' : 'pointer', opacity: compareProps.length < 2 ? 0.4 : 1, fontFamily:"'Instrument Sans',sans-serif", display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                    {comparisonLoading ? '⟳ Analyzing properties…' : '✦ Generate AI Comparison Summary'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
