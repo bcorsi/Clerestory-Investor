@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { generateSignalString, getEquityGap, buildSynthesisPrompt } from '@/lib/signals';
+
 
 /* ═══════════════════════════════════════════════════════════
    PropertyDetail — Investor Acquisition Intelligence View
@@ -291,7 +291,26 @@ export default function PropertyDetail({ id, inline = false }) {
         last_transfer_date: property.last_transfer_date, catalyst_tags: property.catalyst_tags,
         building_score: calcScore, activities: activities.slice(0, 5).map(a => ({ type: a.activity_type, subject: a.subject, body: a.body, date: a.created_at })),
       };
-      const signalStr = generateSignalString(property);
+      const signalStr = (() => {
+  const sigs = [];
+  const ls = property.last_transfer_date ? new Date(property.last_transfer_date) : null;
+  if (ls) {
+    const hm = Math.round((new Date() - ls) / (1e3*60*60*24*30.44));
+    const sy = ls.getFullYear();
+    if (hm >= 240) sigs.push('LEGACY hold ' + hm + 'mo');
+    else if (hm >= 120) sigs.push('Long hold ' + hm + 'mo');
+    else if (hm >= 84) sigs.push('Mature hold ' + hm + 'mo');
+    else if (hm >= 24) sigs.push('Prime hold ' + hm + 'mo');
+    if (sy <= 2010) sigs.push('Pre-2010 buy');
+    else if (sy <= 2015) sigs.push('Pre-2015 buy');
+    else if (sy <= 2019) sigs.push('Pre-COVID buy');
+  }
+  const v = (property.vacancy_status || '').toLowerCase();
+  if (v === 'vacant' || v === 'available') sigs.push('VACANT');
+  else if (v.includes('partial')) sigs.push('Partial vacant');
+  if (property.owner_type) sigs.push(property.owner_type);
+  return sigs.join(' · ');
+})();
 const prompt = `You are Clerestory, an AI acquisition intelligence system for institutional industrial real estate investors in Southern California.
 
 Write a deal intelligence brief for this property. Follow this pattern precisely:
@@ -655,7 +674,15 @@ Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
   })()} mono />
   {property.last_sale_price && <CardRow label="Basis" value={`$${Number(property.last_sale_price).toLocaleString()}${property.price_psf ? ` ($${Number(property.price_psf).toFixed(0)}/SF)` : ''}`} mono />}
   {(() => {
-    const eq = getEquityGap(property.last_transfer_date);
+   const eq = (() => {
+  const d = property.last_transfer_date;
+  if (!d) return null;
+  const yr = new Date(d).getFullYear();
+  if (yr <= 2010) return { label: 'Pre-2010 basis — 3-5x appreciation', icon: '🔥', color: '#B83714', priority: 'Priority Call' };
+  if (yr <= 2015) return { label: 'Pre-2015 basis — 2-3x appreciation', icon: '⭐', color: '#8C5A04', priority: 'Priority Call' };
+  if (yr <= 2020) return { label: 'Pre-2020 basis — 1.5-2x appreciation', icon: '✅', color: '#4E6E96', priority: 'Call List' };
+  return { label: 'Recent purchase', icon: '—', color: '#6E6860', priority: 'Call List' };
+})();
     if (!eq) return null;
     return (
       <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.line2}` }}>
