@@ -119,18 +119,18 @@ async function researchProperty(property) {
     submarket ? `Submarket: ${submarket}` : null,
   ].filter(Boolean).join('\n');
 
-  const prompt = `You are Clerestory, an AI acquisition intelligence agent for industrial real estate in Southern California. Research this property and its owner/tenant to discover actionable signals.
+  const prompt = `You are Clerestory, an AI acquisition intelligence agent for industrial real estate in Southern California. Analyze this property and its owner/tenant to identify actionable acquisition signals.
 
 PROPERTY DATA:
 ${context}
 
-SEARCH FOR THESE SPECIFIC SIGNALS — run multiple web searches as needed:
+ANALYZE FOR THESE SPECIFIC SIGNALS:
 
-1. **Owner signals**: Is the owner in financial distress? Bankruptcy filings? NOD (Notice of Default) on any properties? Estate/probate proceedings? Are they selling other properties?
-2. **Tenant signals**: Is the tenant hiring (expansion signal) or laying off (downsizing/relocation risk)? Check LinkedIn, news, job boards. Any recent news about the company?
-3. **Property signals**: Has this property been listed for sale or lease before and withdrawn/expired? Any environmental issues? Any rezoning or entitlement activity nearby?
-4. **Market signals**: Any new large developments within 2 miles? Major infrastructure projects? Rent growth trends in ${submarket || city || 'this submarket'}?
-5. **Company signals**: Is "${owner}" or "${tenant || 'the tenant'}" expanding, relocating, or restructuring?
+1. **Owner signals**: Based on the owner name and type, what can you infer about likelihood to sell? Is this an institutional owner, private LLC, estate/trust, or owner-user?
+2. **Tenant signals**: Based on the tenant name, what industry are they in? Are they a growing or declining company? Any known expansion or contraction signals?
+3. **Property signals**: Based on the building specs and location, is this property well-positioned? Any value-add or repositioning opportunities?
+4. **Market signals**: What do you know about industrial real estate trends in ${submarket || city || 'Southern California'}? Rent growth? Vacancy? Development pipeline?
+5. **Acquisition thesis**: What would be the strongest acquisition rationale for this property?
 
 RESPOND WITH ONLY THIS JSON FORMAT (no markdown, no backticks):
 {
@@ -146,10 +146,10 @@ RESPOND WITH ONLY THIS JSON FORMAT (no markdown, no backticks):
   "owner_intel": "2-3 sentence summary of what you learned about the owner",
   "tenant_intel": ${tenant ? '"2-3 sentence summary of what you learned about the tenant"' : 'null'},
   "market_intel": "1-2 sentences on local market activity",
-  "searches_run": ["list of search queries you actually ran"]
+  "analysis_basis": ["list of what data points informed your analysis"]
 }
 
-If you find NOTHING relevant for a category, omit it from findings. Only include findings where you have actual evidence. Do not make things up.`;
+If you find NOTHING relevant for a category, omit it from findings. Only include findings where you have actual evidence from the data provided or your training knowledge. Do not make things up.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -161,7 +161,6 @@ If you find NOTHING relevant for a category, omit it from findings. Only include
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 2000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }],
     }),
   });
