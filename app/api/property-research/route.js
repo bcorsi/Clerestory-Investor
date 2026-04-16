@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
    ═══════════════════════════════════════════════════════════ */
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = 'claude-3-5-sonnet-20241022';
+const MODEL = 'claude-sonnet-4-20250514';
 
 const WEB_DISCOVERABLE_TAGS = [
   'Hiring Signal', 'Downsizing Signal', 'NOD Filed',
