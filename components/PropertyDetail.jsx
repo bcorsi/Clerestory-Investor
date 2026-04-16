@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { generateSignalString, getEquityGap, buildSynthesisPrompt } from '@/lib/signals';
 
 /* ═══════════════════════════════════════════════════════════
    PropertyDetail — Investor Acquisition Intelligence View
@@ -32,6 +33,8 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 const fmtDateFull = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
+const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
+const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
 const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
 const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
 const getEquityGap = (d) => {
@@ -288,7 +291,10 @@ export default function PropertyDetail({ id, inline = false }) {
         last_transfer_date: property.last_transfer_date, catalyst_tags: property.catalyst_tags,
         building_score: calcScore, activities: activities.slice(0, 5).map(a => ({ type: a.activity_type, subject: a.subject, body: a.body, date: a.created_at })),
       };
-      const prompt = `You are Clerestory, an AI acquisition intelligence system for industrial real estate. Analyze this property for an institutional buyer. Be specific with numbers. Use sections: Current Situation, Key Contacts / Owner, Outstanding Issues, Recommended Next Steps. Keep it concise and actionable.\n\nProperty data: ${JSON.stringify(context)}`;
+      const prompt = buildSynthesisPrompt(property, {
+  activities: activities.slice(0, 5),
+  comps: [...leaseComps.slice(0, 3), ...saleComps.slice(0, 3)],
+});
 
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -421,10 +427,13 @@ export default function PropertyDetail({ id, inline = false }) {
         <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, #8B6FCC, ${V.purple})` }} />
           <div onClick={() => setSynthOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px 11px 20px', borderBottom: synthOpen ? '1px solid rgba(88,56,160,0.12)' : 'none', cursor: 'pointer' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: V.purple }}>✦</span>
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: V.purple }}>AI Acquisition Intelligence</span>
-              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: V.ink4 }}>Property Status Report · {property.address || '—'}</span>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, color: V.purple }}>✦</span>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: V.purple }}>AI Acquisition Intelligence</span>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: V.ink4 }}>Property Status Report · {property.address || '—'}</span>
+              </div>
+              {generateSignalString(property) && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: V.ink4, marginTop: 4, paddingLeft: 21 }}>{generateSignalString(property)}</div>}
             </div>
             <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.purple, cursor: 'pointer' }}>{synthOpen ? 'Hide ▴' : 'Show ▾'}</span>
           </div>
@@ -615,12 +624,36 @@ export default function PropertyDetail({ id, inline = false }) {
 
               {/* Owner + Tenant below timeline */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-               {/* OWNER CARD */}
+              {/* OWNER CARD — hold period + equity gap */}
 <Card>
-  <CardHeader title="Owner" action="View Record →" />
+  <CardHeader title="Owner Profile" action="View Record →" />
   <CardRow label="Company" value={property.owner || '—'} />
   <CardRow label="Owner Type" value={property.owner_type || '—'} />
-  <CardRow label="Owner Since" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
+  <CardRow label="Acquired" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
+  <CardRow label="Hold Period" value={(() => {
+    const hm = holdMonths(property.last_transfer_date);
+    const hy = holdYears(property.last_transfer_date);
+    if (hm == null) return '—';
+    return `${hm} months (${hy} yrs)`;
+  })()} mono />
+  {property.last_sale_price && <CardRow label="Basis" value={`$${Number(property.last_sale_price).toLocaleString()}${property.price_psf ? ` ($${Number(property.price_psf).toFixed(0)}/SF)` : ''}`} mono />}
+  {(() => {
+    const eq = getEquityGap(property.last_transfer_date);
+    if (!eq) return null;
+    return (
+      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.line2}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>{eq.icon}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: eq.color }}>{eq.label}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: V.ink4, marginTop: 2 }}>
+              {eq.priority} · {holdYears(property.last_transfer_date)} yr hold
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })()}
   {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
 </Card>
                 {/* TENANT / LEASE CARD */}
