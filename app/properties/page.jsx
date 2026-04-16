@@ -170,9 +170,18 @@ export default function PropertiesPage() {
       const q = search.toLowerCase();
       list = list.filter(p => [p.property_name,p.address,p.city,p.submarket,p.owner,p.tenant].some(f => (f||'').toLowerCase().includes(q)));
     }
+    // Market filter helper
+    const mktMatch = (p, terms) => {
+      const s = [p.market,p.submarket,p.city].map(v=>(v||'').toLowerCase()).join(' ');
+      return terms.some(t => s.includes(t));
+    };
     switch (activeFilter) {
-      case 'SGV': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')); break;
-      case 'IE': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')); break;
+      case 'SGV': list = list.filter(p => mktMatch(p, ['sgv','san gabriel','city of industry','el monte','baldwin park','west covina','covina','azusa','irwindale','pomona','arcadia','monrovia','duarte','rowland','hacienda','pasadena'])); break;
+      case 'IE': list = list.filter(p => mktMatch(p, ['ie','inland empire','ontario','riverside','rancho cucamonga','fontana','rialto','san bernardino','chino','corona','moreno valley','perris','jurupa','eastvale','mira loma','colton','bloomington'])); break;
+      case 'OC': list = list.filter(p => mktMatch(p, ['orange county','oc','anaheim','fullerton','irvine','santa ana'])); break;
+      case 'SD': list = list.filter(p => mktMatch(p, ['san diego','carlsbad','oceanside','otay mesa','chula vista'])); break;
+      case 'SFV': list = list.filter(p => mktMatch(p, ['sfv','san fernando','sun valley','burbank','chatsworth','sylmar','pacoima','van nuys'])); break;
+      case 'South Bay': list = list.filter(p => mktMatch(p, ['south bay','long beach','carson','torrance','compton','gardena'])); break;
       case 'Occupied': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')); break;
       case 'Vacant': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('vacant')); break;
       case 'Partial': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('partial')); break;
@@ -221,11 +230,21 @@ export default function PropertiesPage() {
     return { total: filtered.length, totalSF, occupied, vacantPartial, signals: sigs, acqTargets };
   }, [filtered]);
 
-  const counts = useMemo(() => ({
-    all: properties.length,
-    sgv: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')).length,
-    ie: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')).length,
-  }), [properties]);
+  const counts = useMemo(() => {
+    const mktMatch = (p, terms) => {
+      const s = [p.market,p.submarket,p.city].map(v=>(v||'').toLowerCase()).join(' ');
+      return terms.some(t => s.includes(t));
+    };
+    return {
+      all: properties.length,
+      sgv: properties.filter(p => mktMatch(p, ['sgv','san gabriel','city of industry','el monte','baldwin park','west covina','covina','azusa','irwindale','pomona','arcadia','monrovia','duarte','rowland','hacienda','pasadena'])).length,
+      ie: properties.filter(p => mktMatch(p, ['ie','inland empire','ontario','riverside','rancho cucamonga','fontana','rialto','san bernardino','chino','corona','moreno valley','perris','jurupa','eastvale','mira loma','colton','bloomington'])).length,
+      oc: properties.filter(p => mktMatch(p, ['orange county','oc','anaheim','fullerton','irvine','santa ana'])).length,
+      sd: properties.filter(p => mktMatch(p, ['san diego','carlsbad','oceanside','otay mesa','chula vista'])).length,
+      sfv: properties.filter(p => mktMatch(p, ['sfv','san fernando','sun valley','burbank','chatsworth','sylmar','pacoima','van nuys'])).length,
+      sb: properties.filter(p => mktMatch(p, ['south bay','long beach','carson','torrance','compton','gardena'])).length,
+    };
+  }, [properties]);
 
   const submarkets = useMemo(() => [...new Set(properties.map(p => p.submarket).filter(Boolean))].sort(), [properties]);
   const allTags = useMemo(() => {
@@ -455,17 +474,13 @@ export default function PropertiesPage() {
 
   const cols = [
     { key: 'property_name', label: 'Property' },
-    { key: 'submarket', label: 'Market' },
-    { key: 'fit_score', label: 'Fit' },
-    { key: 'ai_score', label: 'Bldg' },
-    { key: 'probability', label: 'Seller Readiness' },
-    { key: 'building_sf', label: 'Property SF' },
-    { key: 'clear_height', label: 'Clear Ht' },
-    { key: 'land_acres', label: 'Land AC' },
-    { key: null, label: 'Coverage' },
-    { key: 'year_built', label: 'Yr Built' },
+    { key: 'fit_score', label: 'Scores' },
+    { key: 'building_sf', label: 'SF' },
+    { key: 'clear_height', label: 'Clr' },
+    { key: 'land_acres', label: 'Land' },
+    { key: null, label: 'Cov.' },
+    { key: 'year_built', label: 'Year' },
     { key: 'owner', label: 'Owner' },
-    { key: 'lease_expiration', label: 'Lease Exp.' },
     { key: null, label: 'Status' },
     { key: null, label: 'Catalysts' },
   ];
@@ -593,7 +608,7 @@ export default function PropertiesPage() {
 
       {/* ═══ FILTER CHIPS + SAVED VIEWS + SEARCH ═══ */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, flexWrap:'wrap' }}>
-        {[{k:'All',ct:counts.all},{k:'SGV',ct:counts.sgv},{k:'IE',ct:counts.ie}].map(f =>
+        {[{k:'All',ct:counts.all},{k:'SGV',ct:counts.sgv},{k:'IE',ct:counts.ie},{k:'OC',ct:counts.oc},{k:'SD',ct:counts.sd},{k:'SFV',ct:counts.sfv},{k:'South Bay',ct:counts.sb}].filter(f => f.ct > 0 || f.k === 'All').map(f =>
           <Chip key={f.k} label={f.k} count={f.ct} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
         <Sep />
         {[{k:'Occupied',dot:CL.green},{k:'Vacant',dot:CL.rust},{k:'Partial',dot:CL.amber}].map(f =>
@@ -670,9 +685,8 @@ export default function PropertiesPage() {
                   </td>
                   <td style={{ padding:'12px 14px', verticalAlign:'middle', maxWidth:220 }}>
                     <div style={{ fontWeight:600, color:CL.ink, fontSize:14 }}>{p.property_name||p.address||'—'}</div>
-                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city, p.submarket].filter(Boolean).join(' · ') || '—'}</div>
                   </td>
-                  <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
                   {/* Fit Score — IDS Portfolio Fit */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
                     {p.fit_score != null ? (() => {
@@ -742,7 +756,6 @@ export default function PropertiesPage() {
                   <td style={tdMono}>{cov ? `${cov}%` : '—'}</td>
                   <td style={tdMono}>{p.year_built || '—'}</td>
                   <td style={{ ...tdM, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
-                  <td style={{ ...tdMono, color:mo!=null&&mo<=12?CL.rust:mo!=null&&mo<=24?CL.amber:CL.ink2 }}>{fmtExpiry(p.lease_expiration)}</td>
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
                   {/* ③ Catalyst tags — urgent ones pulse */}
                   <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
