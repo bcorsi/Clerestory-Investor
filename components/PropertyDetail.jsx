@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
-
 /* ═══════════════════════════════════════════════════════════
    PropertyDetail — Investor Acquisition Intelligence View
    components/PropertyDetail.jsx
@@ -33,16 +32,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 const fmtDateFull = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
-const holdMonths = (d) => d ? Math.round((new Date() - new Date(d)) / (1e3*60*60*24*30.44)) : null;
-const holdYears = (d) => d ? ((new Date() - new Date(d)) / (1e3*60*60*24*365.25)).toFixed(1) : null;
-const getEquityGap = (d) => {
-  if (!d) return null;
-  const yr = new Date(d).getFullYear();
-  if (yr <= 2010) return { label: 'Pre-2010 basis — 3-5x appreciation', icon: '🔥', color: '#B83714', priority: 'Priority Call' };
-  if (yr <= 2015) return { label: 'Pre-2015 basis — 2-3x appreciation', icon: '⭐', color: '#8C5A04', priority: 'Priority Call' };
-  if (yr <= 2020) return { label: 'Pre-2020 basis — 1.5-2x appreciation', icon: '✅', color: '#4E6E96', priority: 'Call List' };
-  return { label: 'Recent purchase', icon: '—', color: '#6E6860', priority: 'Call List' };
-};
+
 const getGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
 const getScoreColor = (s) => { if (s == null) return V.ink4; if (s >= 70) return V.blue; if (s >= 55) return V.amber; return V.ink4; };
 const getOrsLabel = (s) => { if (s == null) return 'N/A'; if (s >= 75) return 'ACT NOW'; if (s >= 50) return 'WARM'; if (s >= 25) return 'WATCH'; return 'COOL'; };
@@ -289,46 +279,7 @@ export default function PropertyDetail({ id, inline = false }) {
         last_transfer_date: property.last_transfer_date, catalyst_tags: property.catalyst_tags,
         building_score: calcScore, activities: activities.slice(0, 5).map(a => ({ type: a.activity_type, subject: a.subject, body: a.body, date: a.created_at })),
       };
-      const signalStr = (() => {
-  const sigs = [];
-  const ls = property.last_transfer_date ? new Date(property.last_transfer_date) : null;
-  if (ls) {
-    const hm = Math.round((new Date() - ls) / (1e3*60*60*24*30.44));
-    const sy = ls.getFullYear();
-    if (hm >= 240) sigs.push('LEGACY hold ' + hm + 'mo');
-    else if (hm >= 120) sigs.push('Long hold ' + hm + 'mo');
-    else if (hm >= 84) sigs.push('Mature hold ' + hm + 'mo');
-    else if (hm >= 24) sigs.push('Prime hold ' + hm + 'mo');
-    if (sy <= 2010) sigs.push('Pre-2010 buy');
-    else if (sy <= 2015) sigs.push('Pre-2015 buy');
-    else if (sy <= 2019) sigs.push('Pre-COVID buy');
-  }
-  const v = (property.vacancy_status || '').toLowerCase();
-  if (v === 'vacant' || v === 'available') sigs.push('VACANT');
-  else if (v.includes('partial')) sigs.push('Partial vacant');
-  if (property.owner_type) sigs.push(property.owner_type);
-  return sigs.join(' · ');
-})();
-const prompt = `You are Clerestory, an AI acquisition intelligence system for institutional industrial real estate investors in Southern California.
-
-Write a deal intelligence brief for this property. Follow this pattern precisely:
-- Lead with the COMPANY — who they are, what they do, revenue if known, employee count
-- Then OWNER SIGNAL — founder age/succession, PE backing, out-of-state HQ, estate/trust, hold period
-- Then PROPERTY SIGNAL — hold period, basis dislocation, vacancy, lease vintage, rent spread
-- Then COMP EVIDENCE — cite specific nearby sales with $/SF and buyer name
-- End with CLEAR VERDICT — one sentence action recommendation
-
-DO NOT write generic analysis. DO NOT hedge with "may" or "might". Be specific. Use numbers. 4-5 sentences max.
-
-PROPERTY: ${property.address}, ${property.city}
-Owner: ${property.owner} (${property.owner_type || 'Unknown'})
-${property.last_transfer_date ? 'Acquired: ' + new Date(property.last_transfer_date).getFullYear() : ''}
-Building: ${property.building_sf ? Number(property.building_sf).toLocaleString() + ' SF' : '—'} · ${property.clear_height ? property.clear_height + "' clear" : '—'} · ${property.year_built || '—'}
-Tenant: ${property.tenant || 'Vacant'} · ${property.vacancy_status || '—'}
-${property.in_place_rent ? 'Rent: $' + Number(property.in_place_rent).toFixed(2) + '/SF' : ''}
-${property.market_rent ? 'Market: $' + Number(property.market_rent).toFixed(2) + '/SF' : ''}
-${signalStr ? 'Signals: ' + signalStr : ''}
-Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
+      const prompt = `You are Clerestory, an AI acquisition intelligence system for industrial real estate. Analyze this property for an institutional buyer. Be specific with numbers. Use sections: Current Situation, Key Contacts / Owner, Outstanding Issues, Recommended Next Steps. Keep it concise and actionable.\n\nProperty data: ${JSON.stringify(context)}`;
 
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -422,7 +373,6 @@ Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
             {property.lease_expiration && <HeroBadge color="amber">Lease Exp. {fmtDate(property.lease_expiration)}</HeroBadge>}
             {property.prop_type && property.building_sf && <HeroBadge color="blue">{property.prop_type} · {fmtSF(property.building_sf)} SF</HeroBadge>}
             {property.owner_type && <HeroBadge color="blue">{property.owner_type}</HeroBadge>}
-             {property.building_status && property.building_status !== 'Existing' && <HeroBadge color="amber">{property.building_status}</HeroBadge>}
           </div>
         </div>
       </div>
@@ -461,13 +411,10 @@ Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
         <div style={{ background: V.card, borderRadius: V.radius, boxShadow: V.shadow, border: '1px solid rgba(88,56,160,0.18)', overflow: 'hidden', marginBottom: 16, position: 'relative' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg, #8B6FCC, ${V.purple})` }} />
           <div onClick={() => setSynthOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px 11px 20px', borderBottom: synthOpen ? '1px solid rgba(88,56,160,0.12)' : 'none', cursor: 'pointer' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, color: V.purple }}>✦</span>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: V.purple }}>AI Acquisition Intelligence</span>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: V.ink4 }}>Property Status Report · {property.address || '—'}</span>
-              </div>
-              {generateSignalString(property) && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: V.ink4, marginTop: 4, paddingLeft: 21 }}>{generateSignalString(property)}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: V.purple }}>✦</span>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: V.purple }}>AI Acquisition Intelligence</span>
+              <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 12.5, fontStyle: 'italic', color: V.ink4 }}>Property Status Report · {property.address || '—'}</span>
             </div>
             <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontStyle: 'italic', color: V.purple, cursor: 'pointer' }}>{synthOpen ? 'Hide ▴' : 'Show ▾'}</span>
           </div>
@@ -658,46 +605,14 @@ Tags: ${(property.catalyst_tags || []).join(', ') || 'None'}`;
 
               {/* Owner + Tenant below timeline */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* OWNER CARD — hold period + equity gap */}
-<Card>
-  <CardHeader title="Owner Profile" action="View Record →" />
-  <CardRow label="Company" value={property.owner || '—'} />
-  <CardRow label="Owner Type" value={property.owner_type || '—'} />
-  <CardRow label="Acquired" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
-  <CardRow label="Hold Period" value={(() => {
-    const hm = holdMonths(property.last_transfer_date);
-    const hy = holdYears(property.last_transfer_date);
-    if (hm == null) return '—';
-    return `${hm} months (${hy} yrs)`;
-  })()} mono />
-  {property.last_sale_price && <CardRow label="Basis" value={`$${Number(property.last_sale_price).toLocaleString()}${property.price_psf ? ` ($${Number(property.price_psf).toFixed(0)}/SF)` : ''}`} mono />}
-  {(() => {
-   const eq = (() => {
-  const d = property.last_transfer_date;
-  if (!d) return null;
-  const yr = new Date(d).getFullYear();
-  if (yr <= 2010) return { label: 'Pre-2010 basis — 3-5x appreciation', icon: '🔥', color: '#B83714', priority: 'Priority Call' };
-  if (yr <= 2015) return { label: 'Pre-2015 basis — 2-3x appreciation', icon: '⭐', color: '#8C5A04', priority: 'Priority Call' };
-  if (yr <= 2020) return { label: 'Pre-2020 basis — 1.5-2x appreciation', icon: '✅', color: '#4E6E96', priority: 'Call List' };
-  return { label: 'Recent purchase', icon: '—', color: '#6E6860', priority: 'Call List' };
-})();
-    if (!eq) return null;
-    return (
-      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${V.line2}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14 }}>{eq.icon}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: eq.color }}>{eq.label}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: V.ink4, marginTop: 2 }}>
-              {eq.priority} · {holdYears(property.last_transfer_date)} yr hold
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  })()}
-  {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
-</Card>
+                {/* OWNER CARD */}
+                <Card>
+                  <CardHeader title="Owner" action="View Record →" />
+                  <CardRow label="Company" value={property.owner || '—'} />
+                  <CardRow label="Owner Type" value={property.owner_type || '—'} />
+                  <CardRow label="Owner Since" value={property.last_transfer_date ? new Date(property.last_transfer_date).getFullYear().toString() : '—'} mono />
+                  {property.owner_account_id && <CardRow label="Account" value="View Account →" link />}
+                </Card>
                 {/* TENANT / LEASE CARD */}
                 <Card>
                   <CardHeader title="Tenant" />
