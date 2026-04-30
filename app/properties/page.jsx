@@ -36,6 +36,33 @@ const getCompDot = (dc) => {
   return { show: false, color: null, label: `High confidence (${dc}%)` };
 };
 
+/* ── 30 real catalyst signal tags (from lib/catalyst-constants.js) ── */
+/* Everything in catalyst_tags NOT in this set = property tag (building characteristic) */
+const SIGNAL_TAGS = new Set([
+  'Long Hold','Long Hold (7+ yr)','Absentee Owner','Family Trust','Individual Owner',
+  'Succession Signal','No Refi in 5+ Years','SLB Potential',
+  'M&A / Corporate Restructuring','Repeat Seller',
+  'WARN Filing','WARN Match','Bankruptcy Filing','Distress Signal',
+  'Lease Expiry < 12 Mo','Expiring Lease < 24 Mo','Headcount Shrinking',
+  'Tenant Renewal Risk','Below Market Rent','Lease-Up Opportunity',
+  'Functional Obsolescence','Deferred Capex','Excess Land',
+  'Capex Permit Pulled','BESS / Energy Storage','Infrastructure',
+  'Sub-5% Vacancy Market','Rising Rents','Institutional Buyer Interest',
+  'Competing Listing Nearby','SLB Corridor','Succession Market','Owner Proximity',
+  'Legacy Hold','Legacy Hold (20+ yr)','Estate/Trust Owner','Institutional Owner',
+  'Owner-User','Private LLC','Pre-COVID Basis','Pre-2010 Basis','Pre-2015 Basis',
+  'Prior Listing — Expired/Withdrawn','Prior Listing — Expired',
+  'Vacant','Partial Vacancy','Short WALT','Debt Maturity',
+  'Market Rent Growth','NOD Filed',
+]);
+
+const splitTags = (tags) => {
+  const all = tags || [];
+  const signals = all.filter(t => SIGNAL_TAGS.has(t));
+  const props = all.filter(t => !SIGNAL_TAGS.has(t));
+  return { signals, props };
+};
+
 const CL = {
   bg:'#F4F1EC',bg2:'#EAE6DF',card:'#FFFFFF',
   ink:'#0F0D09',ink2:'#2C2822',ink3:'#524D46',ink4:'#6E6860',
@@ -225,14 +252,15 @@ export default function PropertiesPage() {
 
     const headers = [
       'Address','City','Submarket','Market','Building SF','Clear Height','Land Acres',
-      'Coverage %','Year Built','Owner','Owner Type','Tenant','Vacancy Status',
+      'Coverage %','Vintage','Owner','Owner Type','Tenant','Vacancy Status',
       'Building Score','Grade','Data Completeness %','Fit Score','Fit Grade','Acq Target',
       'Power Amps','Office %','Building Status','Lease Expiration',
-      'Last Sale Price','Price PSF','Last Transfer Date','Catalyst Tags'
+      'Last Sale Price','Price PSF','Last Transfer Date','Property Tags','Catalyst Signals'
     ];
 
     const csvRows = rows.map(p => {
       const cov = (p.building_sf && p.land_acres) ? Math.round((p.building_sf / (p.land_acres * 43560)) * 100) : '';
+      const { signals, props: ptags } = splitTags(p.catalyst_tags);
       return [
         p.address||'', p.city||'', p.submarket||'', p.market||'',
         p.building_sf||'', p.clear_height||'', p.land_acres||'',
@@ -243,7 +271,7 @@ export default function PropertiesPage() {
         p.power_amps||'', p.office_pct||'', p.building_status||'',
         p.lease_expiration||'',
         p.last_sale_price||'', p.price_psf||'', p.last_transfer_date||'',
-        (p.catalyst_tags||[]).join('; ')
+        ptags.join('; '), signals.join('; ')
       ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
     });
 
@@ -275,9 +303,9 @@ export default function PropertiesPage() {
     { key: 'clear_height', label: 'Clr Ht', w: 65 },
     { key: 'land_acres', label: 'Land', w: 60 },
     { key: null, label: 'Cov', w: 55 },
-    { key: 'year_built', label: 'Year', w: 55 },
+    { key: 'year_built', label: 'Vintage', w: 60 },
     { key: 'owner', label: 'Owner', w: null },
-    { key: null, label: 'Status', w: 80 },
+    { key: null, label: 'Prop Tags', w: null },
     { key: null, label: 'Catalysts', w: null },
   ];
 
@@ -500,15 +528,32 @@ export default function PropertiesPage() {
                   <td style={tdMono}>{p.year_built || '—'}</td>
                   {/* Owner */}
                   <td style={{ ...tdM, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
-                  {/* Status */}
-                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
-                  {/* Catalysts */}
+                  {/* Property Tags (building characteristics — NOT signal catalysts) */}
                   <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
-                    <div style={{ display:'flex', gap:3, flexWrap:'wrap', alignItems:'center' }}>
-                      {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'2px 6px', borderRadius:4, fontSize:10.5, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c, whiteSpace:'nowrap', maxWidth:100, overflow:'hidden', textOverflow:'ellipsis' }}>{tag}</span>; })}
-                      {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:10, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
-                      {p.ai_synthesis && <AISparkle text={p.ai_synthesis} />}
-                    </div>
+                    {(() => {
+                      const { props: ptags } = splitTags(p.catalyst_tags);
+                      if (ptags.length === 0) return <span style={{ fontSize:12, color:CL.ink4 }}>—</span>;
+                      return (
+                        <div style={{ display:'flex', gap:3, flexWrap:'wrap', alignItems:'center' }}>
+                          {ptags.slice(0,2).map((tag, i) => <span key={i} style={{ display:'inline-flex', padding:'2px 6px', borderRadius:4, fontSize:10.5, fontWeight:600, background:CL.purpleBg, border:`1px solid ${CL.purpleBdr}`, color:CL.purple, whiteSpace:'nowrap', maxWidth:100, overflow:'hidden', textOverflow:'ellipsis' }}>{tag}</span>)}
+                          {ptags.length > 2 && <span style={{ fontSize:10, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{ptags.length-2}</span>}
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  {/* Catalysts (signal tags ONLY — the 30 you act on) */}
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
+                    {(() => {
+                      const { signals: stags } = splitTags(p.catalyst_tags);
+                      if (stags.length === 0 && !p.ai_synthesis) return <span style={{ fontSize:12, color:CL.ink4 }}>—</span>;
+                      return (
+                        <div style={{ display:'flex', gap:3, flexWrap:'wrap', alignItems:'center' }}>
+                          {stags.slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'2px 6px', borderRadius:4, fontSize:10.5, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c, whiteSpace:'nowrap', maxWidth:100, overflow:'hidden', textOverflow:'ellipsis' }}>{tag}</span>; })}
+                          {stags.length > 2 && <span style={{ fontSize:10, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{stags.length-2}</span>}
+                          {p.ai_synthesis && <AISparkle text={p.ai_synthesis} />}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding:'10px 4px', color:CL.ink4, fontSize:14, opacity:0.4, verticalAlign:'middle' }}>›</td>
                 </tr>
@@ -565,7 +610,7 @@ export default function PropertiesPage() {
                 { label:'Market Rent', fn:p=>p.market_rent?`$${Number(p.market_rent).toFixed(2)}/SF`:'—' },
                 { label:'Lease Expiry', fn:p=>fmtExpiry(p.lease_expiration) },
                 { label:'Owner Type', fn:p=>p.owner_type||'—' },
-                { label:'Catalysts', fn:p=>(p.catalyst_tags||[]).slice(0,3).join(', ')||'—' },
+                { label:'Catalysts', fn:p=>{ const { signals } = splitTags(p.catalyst_tags); return signals.slice(0,3).join(', ')||'—'; } },
               ].map((row, ri) => {
                 const bestVal = row.key && row.best === 'max' ? Math.max(...compareProps.map(p => p[row.key]||0)) : null;
                 return (
