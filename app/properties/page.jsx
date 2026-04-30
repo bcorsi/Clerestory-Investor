@@ -23,6 +23,8 @@ const fmtK = (n) => { if (n == null) return '—'; if (n >= 1e6) return `${(n/1e
 const fmtSF = (n) => { if (n == null) return '—'; if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`; return fmt(n); };
 const getGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
 const getScoreColor = (s) => { if (s == null) return '#6E6860'; if (s >= 70) return '#4E6E96'; if (s >= 55) return '#8C5A04'; return '#6E6860'; };
+const getFitColor = (s) => { if (s == null) return '#6E6860'; if (s >= 70) return '#1A6B6B'; if (s >= 55) return '#2D8A8A'; return '#6E6860'; };
+const getFitGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
 const fmtExpiry = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
 const ago = (d) => { if (!d) return ''; const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); if (h < 1) return 'now'; if (h < 24) return `${h}h`; const days = Math.round(h / 24); return days === 1 ? '1d' : `${days}d`; };
@@ -295,15 +297,16 @@ export default function PropertiesPage() {
     } catch (err) { alert('Error: ' + err.message); }
   };
 
-  /* ── Table columns (Market + Lease Exp REMOVED — filter-only now) ── */
+  /* ── Table columns ── */
   const cols = [
     { key: 'property_name', label: 'Property', w: null },
-    { key: 'ai_score', label: 'Score', w: 68 },
-    { key: 'building_sf', label: 'Property SF', w: 95 },
-    { key: 'clear_height', label: 'Clr Ht', w: 65 },
-    { key: 'land_acres', label: 'Land', w: 60 },
-    { key: null, label: 'Cov', w: 55 },
-    { key: 'year_built', label: 'Vintage', w: 60 },
+    { key: 'ai_score', label: 'Bldg', w: 58 },
+    { key: 'fit_score', label: 'Fit', w: 58 },
+    { key: 'building_sf', label: 'Property SF', w: 90 },
+    { key: 'clear_height', label: 'Clr Ht', w: 60 },
+    { key: 'land_acres', label: 'Land', w: 55 },
+    { key: null, label: 'Cov', w: 50 },
+    { key: 'year_built', label: 'Vintage', w: 55 },
     { key: 'owner', label: 'Owner', w: null },
     { key: null, label: 'Prop Tags', w: null },
     { key: null, label: 'Catalysts', w: null },
@@ -506,15 +509,28 @@ export default function PropertiesPage() {
                     <div style={{ fontWeight:600, color:CL.ink, fontSize:14, lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.property_name||p.address||'—'}</div>
                     <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:12.5, color:CL.ink4, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{[p.submarket, p.city].filter(Boolean).join(' · ')||'—'}</div>
                   </td>
-                  {/* Score ring + data completeness dot */}
+                  {/* Score ring + data completeness */}
                   <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
-                    <div style={{ position:'relative', width:40, height:40 }}>
+                    <div style={{ position:'relative', width:40 }}>
                       <div title={comp.label} style={{ width:40, height:40, borderRadius:'50%', border:`2.5px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
                         <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:getScoreColor(p.ai_score), lineHeight:1 }}>{p.ai_score??'—'}</span>
                         <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{getGrade(p.ai_score)}</span>
                       </div>
                       {comp.show && <span title={comp.label} style={{ position:'absolute', top:-1, right:-1, width:8, height:8, borderRadius:'50%', background:comp.color, border:'1.5px solid #fff' }} />}
+                      <div style={{ fontFamily:"'DM Mono',monospace", fontSize:9, color:comp.show?comp.color:CL.ink4, textAlign:'center', marginTop:2, opacity:0.8 }}>{p.data_completeness!=null?`${p.data_completeness}%`:'—'}</div>
                     </div>
+                  </td>
+                  {/* Portfolio Fit ring (teal) + ACQ badge */}
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
+                    {p.fit_score != null ? (
+                      <div style={{ position:'relative', width:40, height:40 }}>
+                        <div style={{ width:40, height:40, borderRadius:'50%', border:`2.5px solid ${getFitColor(p.fit_score)}`, background:p.fit_score>=70?'rgba(26,107,107,0.08)':p.fit_score>=55?'rgba(45,138,138,0.06)':'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:getFitColor(p.fit_score), lineHeight:1 }}>{p.fit_score}</span>
+                          <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getFitColor(p.fit_score), marginTop:1 }}>{getFitGrade(p.fit_score)}</span>
+                        </div>
+                        {p.is_acq_target && <span style={{ position:'absolute', top:-4, right:-8, fontSize:9, fontWeight:700, padding:'1px 4px', borderRadius:3, background:'rgba(26,107,107,0.12)', border:'1px solid rgba(26,107,107,0.25)', color:'#1A6B6B', fontFamily:"'DM Mono',monospace" }}>ACQ</span>}
+                      </div>
+                    ) : <span style={{ fontSize:12, color:CL.ink4 }}>—</span>}
                   </td>
                   {/* SF — rounded to K */}
                   <td style={tdMono}>{fmtK(p.building_sf)}</td>
@@ -601,6 +617,7 @@ export default function PropertiesPage() {
                 { label:'Clear Height', fn:p=>p.clear_height?`${p.clear_height}'`:'—', best:'max', key:'clear_height' },
                 { label:'Year Built', fn:p=>p.year_built||'—', best:'max', key:'year_built' },
                 { label:'Building Score', fn:p=>p.ai_score!=null?`${p.ai_score} ${getGrade(p.ai_score)}`:'—', best:'max', key:'ai_score' },
+                { label:'Portfolio Fit', fn:p=>p.fit_score!=null?`${p.fit_score} ${getFitGrade(p.fit_score)}${p.is_acq_target?' ◈':'':''}`:'—', best:'max', key:'fit_score' },
                 { label:'Data Confidence', fn:p=>p.data_completeness!=null?`${p.data_completeness}%`:'—', best:'max', key:'data_completeness' },
                 { label:'Land AC', fn:p=>p.land_acres?Number(p.land_acres).toFixed(1):'—', best:'max', key:'land_acres' },
                 { label:'Coverage', fn:p=>(p.building_sf&&p.land_acres)?`${Math.round((p.building_sf/(p.land_acres*43560))*100)}%`:'—' },
