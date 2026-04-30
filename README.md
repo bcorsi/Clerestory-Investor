@@ -13,14 +13,14 @@ Here's the problem it solves: in industrial real estate, the best deals never hi
 
 **If you can detect those changes before anyone else, you get the deal.**
 
-Clerestory monitors dozens of public and private data sources — corporate filings, county records, layoff notices, lease expirations, debt maturities, ownership transfers — and uses AI to connect the dots. When three signals converge on the same property (the owner is 70, the loan matures in 6 months, and the tenant just filed a WARN notice), Clerestory surfaces that property as a high-probability acquisition target before anyone else in the market.
+Clerestory monitors dozens of public and private data sources — corporate filings, county records, layoff notices, lease expirations, debt maturities, ownership transfers — and uses AI to connect the dots. When three signals converge on the same property (the owner is 70, the loan matures in 6 months, and the tenant just filed a WARN notice), Clerestory surfaces that property as a high-probability acquisition target before any broker knows about it.
 
 The platform replaces what a team of 5-10 analysts would do manually: track every property in a market, research every owner, monitor every signal, and rank them by likelihood of transacting. Clerestory does this automatically, continuously, and at scale.
 
 ### Who It's For
 
 - **Industrial real estate investors** — REITs, private equity funds, family offices, and owner-operators looking to acquire industrial properties off-market
-- **Acquisition teams** — analysts and principals who need deal flow intelligence without relying on traditional deal flow channels
+- **Acquisition teams** — analysts and principals who need deal flow intelligence without relying on broker relationships
 - **Portfolio managers** — investors monitoring existing holdings for disposition signals or value-add opportunities
 
 ### What Makes It Different
@@ -41,7 +41,7 @@ This is what Clerestory does that nothing else can:
 > 3. Debt maturity in 8 months, no refinance activity detected (Financial Signal: refi pressure)
 > 4. Three institutional buyers closed deals within 2 miles in the last 6 months (Market Signal: active corridor)
 >
-> **No single signal would trigger action. The convergence of all four makes this a top-5 acquisition target in the market — and Clerestory detected it before the deal hits the market.**
+> **No single signal would trigger action. The convergence of all four makes this a top-5 acquisition target in the market — and Clerestory detected it before any broker knew the building would trade.**
 
 Every property in the platform is continuously scored against this kind of multi-signal convergence. The more data sources connected, the more convergence events detected.
 
@@ -64,7 +64,7 @@ The defensibility compounds over time across three layers:
 
 ### Founder
 
-Built by **Briana Corso** — former institutional buy-side acquisitions at **Rexford Industrial Realty** (NYSE: REXR, $10B+ market cap, the only pure-play SoCal industrial REIT). The scoring methodology, signal taxonomy, and product logic are derived directly from the institutional acquisition process at Rexford — systematized into software.
+Built by **Briana Corso** — former institutional buy-side acquisitions professional in Southern California industrial real estate. The scoring methodology, signal taxonomy, and product logic are derived directly from real institutional acquisition processes — systematized into software.
 
 ### Scale
 
@@ -80,7 +80,7 @@ Four commercialization vectors identified:
 
 1. **Vertical SaaS** — subscription platform for acquisition teams ($2-5K/seat/month)
 2. **Intelligence API** — signal convergence scores and alerts sold per-property to institutional investors
-3. **Submarket Data** — proprietary submarket benchmarks and scoring methodology licensed to appraisers, lenders, and institutional investors
+3. **Submarket Data** — proprietary submarket benchmarks and scoring methodology licensed to appraisers, lenders, and brokers
 4. **White-Label** — the intelligence engine deployed behind a client's brand for internal use by large REITs and PE platforms
 
 ---
