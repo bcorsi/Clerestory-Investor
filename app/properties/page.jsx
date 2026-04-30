@@ -4,17 +4,37 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 /* ═══════════════════════════════════════════════════════════
-   Properties — Physical Asset Database + Live Features
-   app/properties/page.jsx  (Clerestory-Investor)
+   Properties — Physical Asset Database
+   app/properties/page.jsx  (Clerestory-Investor · v6)
+   ═══════════════════════════════════════════════════════════
+   v6 changes (Apr 29):
+   - Fetch limit 2000 (was 1000 default, missed 208 properties)
+   - Removed Market + Lease Exp columns (both still filterable)
+   - SF rounds to K (147K not 147,100)
+   - Land to 1 decimal (8.8 not 8.80)
+   - Coverage whole number (38% not 38.4%)
+   - Data completeness dot on score ring
+   - Export CSV wired with all new columns
+   - Tighter catalyst column
    ═══════════════════════════════════════════════════════════ */
 
 const fmt = (n) => n == null ? '—' : Number(n).toLocaleString();
+const fmtK = (n) => { if (n == null) return '—'; if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`; if (n >= 1000) return `${Math.round(n/1000)}K`; return fmt(n); };
 const fmtSF = (n) => { if (n == null) return '—'; if (n >= 1e6) return `${(n/1e6).toFixed(2)}M`; return fmt(n); };
 const getGrade = (s) => { if (s == null) return '—'; if (s >= 85) return 'A+'; if (s >= 70) return 'A'; if (s >= 55) return 'B+'; if (s >= 40) return 'B'; return 'C'; };
 const getScoreColor = (s) => { if (s == null) return '#6E6860'; if (s >= 70) return '#4E6E96'; if (s >= 55) return '#8C5A04'; return '#6E6860'; };
 const monthsUntil = (d) => d ? Math.round((new Date(d) - new Date()) / (1e3*60*60*24*30.44)) : null;
 const fmtExpiry = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
 const ago = (d) => { if (!d) return ''; const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); if (h < 1) return 'now'; if (h < 24) return `${h}h`; const days = Math.round(h / 24); return days === 1 ? '1d' : `${days}d`; };
+
+/* ── Data completeness thresholds ── */
+const getCompDot = (dc) => {
+  if (dc == null || dc === 0) return { show: true, color: '#6E6860', label: 'Unscored — no data' };
+  if (dc < 40) return { show: true, color: '#B83714', label: `Sparse data (${dc}%)` };
+  if (dc < 60) return { show: true, color: '#8C5A04', label: `Limited data (${dc}%)` };
+  if (dc < 80) return { show: true, color: '#6E6860', label: `Partial data (${dc}%)` };
+  return { show: false, color: null, label: `High confidence (${dc}%)` };
+};
 
 const CL = {
   bg:'#F4F1EC',bg2:'#EAE6DF',card:'#FFFFFF',
@@ -37,7 +57,7 @@ const getTagStyle = (tag) => {
   if (t.includes('warn')||t.includes('vacant')||t.includes('owner')||t.includes('legacy')||t.includes('long hold')||t.includes('age 55')||t.includes('expired')) return { bg:CL.rustBg, bdr:CL.rustBdr, c:CL.rust };
   if (t.includes('lease')||t.includes('partial')||t.includes('below market')) return { bg:CL.amberBg, bdr:CL.amberBdr, c:CL.amber };
   if (t.includes('slb')||t.includes('occupied')||t.includes('market')) return { bg:CL.greenBg, bdr:CL.greenBdr, c:CL.green };
-  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
+  if (t.includes('capex')||t.includes('vintage')||t.includes('low clear')||t.includes('coverage')||t.includes('high clear')||t.includes('dh ratio')||t.includes('truck')) return { bg:CL.purpleBg, bdr:CL.purpleBdr, c:CL.purple };
   return { bg:CL.blueBg, bdr:CL.blueBdr, c:CL.blue };
 };
 
@@ -51,8 +71,17 @@ const getSignalColor = (tag) => {
 
 const ghostBtn = { display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:7, fontFamily:"'Instrument Sans',sans-serif", fontSize:13, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.line}`, background:CL.card, color:CL.ink3, whiteSpace:'nowrap', transition:'all .12s' };
 const primaryBtn = { ...ghostBtn, background:CL.blue, color:'#fff', borderColor:CL.blue };
-const tdM = { padding:'12px 14px', fontSize:14, color:CL.ink4, verticalAlign:'middle' };
-const tdMono = { padding:'12px 14px', fontFamily:"'DM Mono',monospace", fontSize:13, color:CL.ink2, verticalAlign:'middle' };
+const tdM = { padding:'10px 12px', fontSize:14, color:CL.ink4, verticalAlign:'middle' };
+const tdMono = { padding:'10px 12px', fontFamily:"'DM Mono',monospace", fontSize:13, color:CL.ink2, verticalAlign:'middle', whiteSpace:'nowrap' };
+
+/* ── Market chip matching ── */
+const MARKET_MATCH = {
+  SGV: p => (p.market||p.submarket||'').toLowerCase().includes('sgv'),
+  IE: p => (p.market||p.submarket||'').toLowerCase().includes('ie'),
+  OC: p => { const c = (p.city||'').toLowerCase(); const s = (p.submarket||'').toLowerCase(); return s.includes('oc')||s.includes('orange')||['anaheim','fullerton','irvine','santa ana','orange','costa mesa','huntington beach','garden grove','tustin','brea','buena park','lake forest','laguna'].some(x=>c.includes(x)); },
+  SD: p => { const c = (p.city||'').toLowerCase(); const s = (p.submarket||'').toLowerCase(); return s.includes('sd')||s.includes('san diego')||['carlsbad','oceanside','otay mesa','chula vista','san diego','escondido','san marcos'].some(x=>c.includes(x)); },
+  SFV: p => { const c = (p.city||'').toLowerCase(); const s = (p.submarket||'').toLowerCase(); return s.includes('sfv')||s.includes('san fernando')||['sun valley','burbank','chatsworth','sylmar','pacoima','van nuys','north hollywood','arleta'].some(x=>c.includes(x)); },
+};
 
 export default function PropertiesPage() {
   const router = useRouter();
@@ -64,7 +93,6 @@ export default function PropertiesPage() {
   const [sortDir, setSortDir] = useState('desc');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Live feature state
   const [signals, setSignals] = useState([]);
   const [deltas, setDeltas] = useState({ props: 0, signals: 0 });
   const [showFilters, setShowFilters] = useState(false);
@@ -82,12 +110,16 @@ export default function PropertiesPage() {
   const fetchProperties = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('properties').select('*').order('ai_score', { ascending: false, nullsFirst: false });
+      /* Pull ALL properties — default Supabase limit is 1000, we have 1200+ */
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .order('ai_score', { ascending: false, nullsFirst: false })
+        .limit(5000);
       if (error) throw error;
       const list = data || [];
       setProperties(list);
 
-      // ① Build signal ticker from recent tag changes
       const sigs = list
         .filter(p => (p.catalyst_tags||[]).length > 0 && p.updated_at)
         .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
@@ -95,7 +127,6 @@ export default function PropertiesPage() {
         .map(p => ({ tag: (p.catalyst_tags||[])[0], addr: p.property_name||p.address||'—', city: p.city, time: p.updated_at }));
       setSignals(sigs);
 
-      // ③ Deltas — count added/changed in last 7 days
       const cutoff = new Date(Date.now() - 7*864e5).toISOString();
       setDeltas({
         props: list.filter(p => p.created_at > cutoff).length,
@@ -105,58 +136,37 @@ export default function PropertiesPage() {
     finally { setLoading(false); }
   };
 
-  // ⑤ Saved views
-  const loadSavedViews = () => {
-    try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('cl_saved_views') : null;
-      if (raw) setSavedViews(JSON.parse(raw));
-    } catch {}
-  };
-  const saveView = () => {
-    const name = prompt('Name this view:');
-    if (!name) return;
-    const view = { name, filter: activeFilter, adv: { ...advFilters }, search, sort: sortCol, dir: sortDir };
-    const next = [...savedViews, view];
-    setSavedViews(next);
-    try { localStorage.setItem('cl_saved_views', JSON.stringify(next)); } catch {}
-  };
-  const loadView = (v) => {
-    setActiveFilter(v.filter || 'All');
-    if (v.adv) setAdvFilters(v.adv);
-    if (v.search) setSearch(v.search);
-    if (v.sort) { setSortCol(v.sort); setSortDir(v.dir || 'desc'); }
-    setShowSaved(false);
-  };
-  const deleteView = (i) => {
-    const next = savedViews.filter((_, j) => j !== i);
-    setSavedViews(next);
-    try { localStorage.setItem('cl_saved_views', JSON.stringify(next)); } catch {}
-  };
+  // Saved views
+  const loadSavedViews = () => { try { const raw = typeof window !== 'undefined' ? localStorage.getItem('cl_saved_views') : null; if (raw) setSavedViews(JSON.parse(raw)); } catch {} };
+  const saveView = () => { const name = prompt('Name this view:'); if (!name) return; const view = { name, filter: activeFilter, adv: { ...advFilters }, search, sort: sortCol, dir: sortDir }; const next = [...savedViews, view]; setSavedViews(next); try { localStorage.setItem('cl_saved_views', JSON.stringify(next)); } catch {} };
+  const loadView = (v) => { setActiveFilter(v.filter || 'All'); if (v.adv) setAdvFilters(v.adv); if (v.search) setSearch(v.search); if (v.sort) { setSortCol(v.sort); setSortDir(v.dir || 'desc'); } setShowSaved(false); };
+  const deleteView = (i) => { const next = savedViews.filter((_, j) => j !== i); setSavedViews(next); try { localStorage.setItem('cl_saved_views', JSON.stringify(next)); } catch {} };
 
   // ── FILTERING + SORTING ─────────────────────────────────
   const filtered = useMemo(() => {
     let list = [...properties];
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(p => [p.property_name,p.address,p.city,p.submarket,p.owner,p.tenant].some(f => (f||'').toLowerCase().includes(q)));
     }
-    // Quick filter chips
-    switch (activeFilter) {
-      case 'SGV': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')); break;
-      case 'IE': list = list.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')); break;
-      case 'Occupied': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')); break;
-      case 'Vacant': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('vacant')); break;
-      case 'Partial': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('partial')); break;
-      case 'WARN': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('warn'))); break;
-      case 'Lease Expiry': list = list.filter(p => { const m = monthsUntil(p.lease_expiration); return m != null && m <= 24; }); break;
-      case 'SLB': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('slb'))); break;
+    // Quick filter chips — markets use MARKET_MATCH, rest unchanged
+    if (activeFilter !== 'All') {
+      if (MARKET_MATCH[activeFilter]) list = list.filter(MARKET_MATCH[activeFilter]);
+      else switch (activeFilter) {
+        case 'Occupied': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')); break;
+        case 'Vacant': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('vacant')); break;
+        case 'Partial': list = list.filter(p => (p.vacancy_status||'').toLowerCase().includes('partial')); break;
+        case 'WARN': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('warn'))); break;
+        case 'Lease Expiry': list = list.filter(p => { const m = monthsUntil(p.lease_expiration); return m != null && m <= 24; }); break;
+        case 'SLB': list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes('slb'))); break;
+        case 'Acq Target': list = list.filter(p => p.is_acq_target); break;
+      }
     }
-    // ④ Advanced filters
+    // Advanced filters
     const af = advFilters;
     if (af.minScore > 0) list = list.filter(p => (p.ai_score||0) >= af.minScore);
-    if (af.minSF) list = list.filter(p => (p.building_sf||0) >= parseInt(af.minSF.replace(/,/g,''))||0);
-    if (af.maxSF) list = list.filter(p => (p.building_sf||0) <= parseInt(af.maxSF.replace(/,/g,''))||Infinity);
+    if (af.minSF) list = list.filter(p => (p.building_sf||0) >= (parseInt(af.minSF.replace(/,/g,''))||0));
+    if (af.maxSF) list = list.filter(p => (p.building_sf||0) <= (parseInt(af.maxSF.replace(/,/g,''))||Infinity));
     if (af.minHt > 0) list = list.filter(p => (p.clear_height||0) >= af.minHt);
     if (af.expiry !== 'Any') {
       const map = { '≤6mo':6, '≤12mo':12, '≤24mo':24, '≤36mo':36, 'Expired':0 };
@@ -166,10 +176,7 @@ export default function PropertiesPage() {
     }
     if (af.submarket !== 'Any') list = list.filter(p => (p.submarket||'').toLowerCase().includes(af.submarket.toLowerCase()));
     if (af.ownerType !== 'Any') list = list.filter(p => (p.owner_type||'').toLowerCase().includes(af.ownerType.toLowerCase()));
-    if (af.holdYears !== 'Any') {
-      const yrs = parseInt(af.holdYears);
-      if (yrs) list = list.filter(p => { if (!p.last_transfer_date) return false; return (new Date().getFullYear() - new Date(p.last_transfer_date).getFullYear()) >= yrs; });
-    }
+    if (af.holdYears !== 'Any') { const yrs = parseInt(af.holdYears); if (yrs) list = list.filter(p => { if (!p.last_transfer_date) return false; return (new Date().getFullYear() - new Date(p.last_transfer_date).getFullYear()) >= yrs; }); }
     if (af.catalyst !== 'Any') list = list.filter(p => (p.catalyst_tags||[]).some(t => t.toLowerCase().includes(af.catalyst.toLowerCase())));
     // Sort
     list.sort((a, b) => {
@@ -187,16 +194,16 @@ export default function PropertiesPage() {
     const occupied = filtered.filter(p => (p.vacancy_status||'').toLowerCase().includes('occupied')).length;
     const vacantPartial = filtered.filter(p => { const s = (p.vacancy_status||'').toLowerCase(); return s.includes('vacant') || s.includes('partial'); }).length;
     const sigs = filtered.filter(p => (p.catalyst_tags||[]).length > 0).length;
-    return { total: filtered.length, totalSF, occupied, vacantPartial, signals: sigs };
+    const acqTargets = filtered.filter(p => p.is_acq_target).length;
+    return { total: filtered.length, totalSF, occupied, vacantPartial, signals: sigs, acqTargets };
   }, [filtered]);
 
-  const counts = useMemo(() => ({
-    all: properties.length,
-    sgv: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('sgv')).length,
-    ie: properties.filter(p => (p.market||p.submarket||'').toLowerCase().includes('ie')).length,
-  }), [properties]);
+  const counts = useMemo(() => {
+    const c = { all: properties.length };
+    Object.keys(MARKET_MATCH).forEach(k => { c[k] = properties.filter(MARKET_MATCH[k]).length; });
+    return c;
+  }, [properties]);
 
-  // Get unique submarkets for filter dropdown
   const submarkets = useMemo(() => [...new Set(properties.map(p => p.submarket).filter(Boolean))].sort(), [properties]);
 
   const handleSort = useCallback((col) => {
@@ -204,16 +211,51 @@ export default function PropertiesPage() {
     else { setSortCol(col); setSortDir('desc'); }
   }, [sortCol]);
 
-  // ⑦ Bulk selection
   const toggleSelect = (id) => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   const toggleAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map(p => p.id))); };
   const clearSelection = () => setSelected(new Set());
 
-  // ⑧ Compare
-  const toggleCompareItem = (id) => {
-    setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
-  };
+  const toggleCompareItem = (id) => { setCompareIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev); };
   const compareProps = useMemo(() => compareIds.map(id => properties.find(p => p.id === id)).filter(Boolean), [compareIds, properties]);
+
+  // ── EXPORT CSV ──────────────────────────────────────────
+  const exportCSV = useCallback(() => {
+    const rows = filtered.filter(p => selected.size === 0 || selected.has(p.id));
+    if (rows.length === 0) return;
+
+    const headers = [
+      'Address','City','Submarket','Market','Building SF','Clear Height','Land Acres',
+      'Coverage %','Year Built','Owner','Owner Type','Tenant','Vacancy Status',
+      'Building Score','Grade','Data Completeness %','Fit Score','Fit Grade','Acq Target',
+      'Power Amps','Office %','Building Status','Lease Expiration',
+      'Last Sale Price','Price PSF','Last Transfer Date','Catalyst Tags'
+    ];
+
+    const csvRows = rows.map(p => {
+      const cov = (p.building_sf && p.land_acres) ? Math.round((p.building_sf / (p.land_acres * 43560)) * 100) : '';
+      return [
+        p.address||'', p.city||'', p.submarket||'', p.market||'',
+        p.building_sf||'', p.clear_height||'', p.land_acres||'',
+        cov, p.year_built||'', p.owner||'', p.owner_type||'',
+        p.tenant||'', p.vacancy_status||'',
+        p.ai_score||'', p.building_grade||'', p.data_completeness||'',
+        p.fit_score||'', p.fit_grade||'', p.is_acq_target?'Yes':'No',
+        p.power_amps||'', p.office_pct||'', p.building_status||'',
+        p.lease_expiration||'',
+        p.last_sale_price||'', p.price_psf||'', p.last_transfer_date||'',
+        (p.catalyst_tags||[]).join('; ')
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    });
+
+    const csv = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clerestory_properties_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [filtered, selected]);
 
   // Add property
   const [newProp, setNewProp] = useState({ property_name:'', address:'', city:'', state:'CA', zip:'' });
@@ -225,25 +267,24 @@ export default function PropertiesPage() {
     } catch (err) { alert('Error: ' + err.message); }
   };
 
+  /* ── Table columns (Market + Lease Exp REMOVED — filter-only now) ── */
   const cols = [
-    { key: 'property_name', label: 'Property' },
-    { key: 'submarket', label: 'Market' },
-    { key: 'ai_score', label: 'Score' },
-    { key: 'building_sf', label: 'Property SF' },
-    { key: 'clear_height', label: 'Clear Ht' },
-    { key: 'land_acres', label: 'Land AC' },
-    { key: null, label: 'Coverage' },
-    { key: 'year_built', label: 'Yr Built' },
-    { key: 'owner', label: 'Owner' },
-    { key: 'lease_expiration', label: 'Lease Exp.' },
-    { key: null, label: 'Status' },
-    { key: null, label: 'Catalysts' },
+    { key: 'property_name', label: 'Property', w: null },
+    { key: 'ai_score', label: 'Score', w: 68 },
+    { key: 'building_sf', label: 'Property SF', w: 95 },
+    { key: 'clear_height', label: 'Clr Ht', w: 65 },
+    { key: 'land_acres', label: 'Land', w: 60 },
+    { key: null, label: 'Cov', w: 55 },
+    { key: 'year_built', label: 'Year', w: 55 },
+    { key: 'owner', label: 'Owner', w: null },
+    { key: null, label: 'Status', w: 80 },
+    { key: null, label: 'Catalysts', w: null },
   ];
 
   // ── RENDER ──────────────────────────────────────────────
   return (
     <>
-      {/* ═══ ① LIVE SIGNAL TICKER ═══ */}
+      {/* ═══ LIVE SIGNAL TICKER ═══ */}
       {signals.length > 0 && (
         <div style={{ background:'linear-gradient(90deg,#1A2130,#1F2840,#1A2130)', borderRadius:CL.radius, overflow:'hidden', marginBottom:20, height:38, position:'relative', border:'1px solid rgba(100,128,162,0.15)' }}>
           <div style={{ position:'absolute', left:0, top:0, bottom:0, width:110, background:'linear-gradient(90deg,#1A2130 70%,transparent)', zIndex:5, display:'flex', alignItems:'center', paddingLeft:14, gap:6 }}>
@@ -271,19 +312,10 @@ export default function PropertiesPage() {
           </p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          {/* ② VIEW TOGGLE */}
           <div style={{ display:'flex', background:CL.bg2, border:`1px solid ${CL.line}`, borderRadius:7, overflow:'hidden' }}>
-            <button style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:CL.card, color:CL.blue, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'0 1px 3px rgba(0,0,0,0.08)' }}>
-              ☰ Table
-            </button>
-            <button onClick={() => alert('Map view coming in next build — Leaflet satellite map with clustered markers.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
-              🗺 Map
-            </button>
-            <button onClick={() => alert('Cards view coming in next build — grid with aerial thumbnails and score rings.')}
-              style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'none' }}>
-              ◫ Cards
-            </button>
+            <button style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:CL.card, color:CL.blue, fontFamily:"'Instrument Sans',sans-serif", boxShadow:'0 1px 3px rgba(0,0,0,0.08)' }}>☰ Table</button>
+            <button onClick={() => alert('Map view — next build')} style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif" }}>🗺 Map</button>
+            <button onClick={() => alert('Cards view — next build')} style={{ padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer', border:'none', background:'transparent', color:CL.ink4, fontFamily:"'Instrument Sans',sans-serif" }}>◫ Cards</button>
           </div>
           <button style={ghostBtn} onClick={() => setShowFilters(prev => !prev)}>⊕ {showFilters ? 'Hide' : 'Advanced'} Filters</button>
           <button style={ghostBtn} onClick={() => setShowCompare(prev => !prev)}>⊞ Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ''}</button>
@@ -291,7 +323,7 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* ═══ ③ KPI STRIP WITH DELTAS ═══ */}
+      {/* ═══ KPI STRIP ═══ */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:20 }}>
         <KPI icon="🏢" bg={CL.blueBg} color={CL.blue} value={kpis.total} label="Total Properties" delta={deltas.props > 0 ? `+${deltas.props}` : null} up />
         <KPI icon="◫" bg={CL.amberBg} color={CL.amber} value={fmtSF(kpis.totalSF)} label="Total SF Tracked" />
@@ -300,7 +332,7 @@ export default function PropertiesPage() {
         <KPI icon="⚡" bg={CL.purpleBg} color={CL.purple} value={kpis.signals} label="Active Catalysts" delta={deltas.signals > 0 ? `+${deltas.signals}` : null} up />
       </div>
 
-      {/* ═══ ④ ADVANCED FILTER PANEL ═══ */}
+      {/* ═══ ADVANCED FILTER PANEL ═══ */}
       {showFilters && (
         <div style={{ background:CL.card, borderRadius:CL.radius, boxShadow:CL.shadowMd, border:`1px solid ${CL.line2}`, padding:20, marginBottom:16, animation:'slideDown .25s ease' }}>
           <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:CL.ink3, marginBottom:14 }}>⊕ Advanced Filters</div>
@@ -358,18 +390,18 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* ═══ FILTER CHIPS + ⑤ SAVED VIEWS + SEARCH ═══ */}
+      {/* ═══ FILTER CHIPS + SAVED VIEWS + SEARCH ═══ */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, flexWrap:'wrap' }}>
-        {[{k:'All',ct:counts.all},{k:'SGV',ct:counts.sgv},{k:'IE',ct:counts.ie}].map(f =>
-          <Chip key={f.k} label={f.k} count={f.ct} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
+        <Chip label="All" count={counts.all} active={activeFilter==='All'} onClick={() => setActiveFilter('All')} />
+        {Object.keys(MARKET_MATCH).map(k => counts[k] > 0 && <Chip key={k} label={k} count={counts[k]} active={activeFilter===k} onClick={() => setActiveFilter(k)} />)}
         <Sep />
         {[{k:'Occupied',dot:CL.green},{k:'Vacant',dot:CL.rust},{k:'Partial',dot:CL.amber}].map(f =>
           <Chip key={f.k} label={f.k} dot={f.dot} active={activeFilter===f.k} onClick={() => setActiveFilter(f.k)} />)}
         <Sep />
-        {['WARN','Lease Expiry','SLB'].map(f =>
-          <Chip key={f} label={f==='WARN'?'⚡ WARN':f} active={activeFilter===f} onClick={() => setActiveFilter(f)} />)}
+        {['WARN','Lease Expiry','SLB','Acq Target'].map(f =>
+          <Chip key={f} label={f==='WARN'?'⚡ WARN':f==='Acq Target'?'◈ Acq Target':f} active={activeFilter===f} onClick={() => setActiveFilter(f)} />)}
 
-        {/* ⑤ Saved Views */}
+        {/* Saved Views */}
         <div style={{ position:'relative', marginLeft:8 }}>
           <button onClick={() => setShowSaved(prev => !prev)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${CL.purpleBdr}`, background:CL.purpleBg, color:CL.purple, fontFamily:"'Instrument Sans',sans-serif" }}>☆ Saved Views ▾</button>
           {showSaved && (
@@ -396,16 +428,21 @@ export default function PropertiesPage() {
 
       {/* ═══ TABLE ═══ */}
       <div style={{ background:CL.card, borderRadius:12, boxShadow:CL.shadow, border:`1px solid ${CL.line2}`, overflow:'hidden' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
+          <colgroup>
+            <col style={{ width:36 }} />
+            {cols.map((c,i) => <col key={i} style={c.w ? { width: c.w } : {}} />)}
+            <col style={{ width:24 }} />
+          </colgroup>
           <thead><tr>
-            <th style={{ width:36, padding:'11px 10px', borderBottom:`2px solid ${CL.line}`, background:CL.bg }}>
+            <th style={{ padding:'11px 8px', borderBottom:`2px solid ${CL.line}`, background:CL.bg }}>
               <div onClick={toggleAll} style={{ width:18, height:18, border:`2px solid ${selected.size===filtered.length&&filtered.length>0?CL.blue:CL.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:selected.size===filtered.length&&filtered.length>0?CL.blue:'transparent' }}>
                 {selected.size===filtered.length&&filtered.length>0?'✓':''}
               </div>
             </th>
             {cols.map((col, i) => (
               <th key={i} onClick={() => col.key && handleSort(col.key)} style={{
-                padding:'11px 14px', textAlign:'left', fontSize:11, fontWeight:600,
+                padding:'11px 12px', textAlign:'left', fontSize:11, fontWeight:600,
                 letterSpacing:'.08em', textTransform:'uppercase', whiteSpace:'nowrap',
                 color:sortCol===col.key?CL.blue:CL.ink3,
                 borderBottom:`2px solid ${CL.line}`, background:CL.bg,
@@ -415,66 +452,65 @@ export default function PropertiesPage() {
                 {col.key && <span style={{ opacity:sortCol===col.key?1:0.35, fontSize:10, marginLeft:4 }}>{sortCol===col.key?(sortDir==='desc'?'↓':'↑'):'↕'}</span>}
               </th>
             ))}
-            <th style={{ width:28, borderBottom:`2px solid ${CL.line}`, background:CL.bg }} />
+            <th style={{ width:24, borderBottom:`2px solid ${CL.line}`, background:CL.bg }} />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>Loading properties…</td></tr> :
-             filtered.length === 0 ? <tr><td colSpan={15} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>No properties match filters.</td></tr> :
+            {loading ? <tr><td colSpan={cols.length+2} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>Loading properties…</td></tr> :
+             filtered.length === 0 ? <tr><td colSpan={cols.length+2} style={{ padding:48, textAlign:'center', color:CL.ink4, fontSize:16 }}>No properties match filters.</td></tr> :
              filtered.map((p, idx) => {
-              const mo = monthsUntil(p.lease_expiration);
               const isSel = selected.has(p.id);
-              const cov = (p.building_sf && p.land_acres) ? ((p.building_sf / (p.land_acres * 43560)) * 100).toFixed(1) : null;
+              const cov = (p.building_sf && p.land_acres) ? Math.round((p.building_sf / (p.land_acres * 43560)) * 100) : null;
+              const comp = getCompDot(p.data_completeness);
               return (
                 <tr key={p.id} onClick={() => router.push(`/properties/${p.id}`)}
                   style={{ borderBottom:`1px solid ${CL.line2}`, cursor:'pointer', transition:'background .1s', background:isSel?'rgba(78,110,150,0.05)':'' }}
                   onMouseEnter={e => { if (!isSel) e.currentTarget.style.background='#F8F6F2'; setHoverIdx(idx); }}
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background=''; setHoverIdx(null); }}>
                   {/* Checkbox */}
-                  <td style={{ padding:'12px 10px', verticalAlign:'middle' }}>
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
                     <div onClick={e => { e.stopPropagation(); toggleSelect(p.id); }}
                       style={{ width:18, height:18, border:`2px solid ${isSel?CL.blue:CL.line}`, borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', background:isSel?CL.blue:'transparent', transition:'all .12s' }}>
                       {isSel?'✓':''}
                     </div>
                   </td>
-                  {/* Property */}
-                  <td style={{ padding:'12px 14px', verticalAlign:'middle', maxWidth:220 }}>
-                    <div style={{ fontWeight:600, color:CL.ink, fontSize:14 }}>{p.property_name||p.address||'—'}</div>
-                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:13, color:CL.ink4, marginTop:1 }}>{[p.city,'CA',p.zip].filter(Boolean).join(', ')||'—'}</div>
+                  {/* Property — city + submarket shown under the name */}
+                  <td style={{ padding:'10px 12px', verticalAlign:'middle' }}>
+                    <div style={{ fontWeight:600, color:CL.ink, fontSize:14, lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.property_name||p.address||'—'}</div>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:12.5, color:CL.ink4, marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{[p.submarket, p.city].filter(Boolean).join(' · ')||'—'}</div>
                   </td>
-                  {/* Market */}
-                  <td style={tdM}>{p.market && p.submarket ? `${p.market} · ${p.submarket}` : (p.submarket||p.market||'—')}</td>
-                  {/* Score ring */}
-                  <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
-                    <div style={{ width:38, height:38, borderRadius:'50%', border:`2px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                      <span style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:getScoreColor(p.ai_score), lineHeight:1 }}>{p.ai_score??'—'}</span>
-                      <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{getGrade(p.ai_score)}</span>
+                  {/* Score ring + data completeness dot */}
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
+                    <div style={{ position:'relative', width:40, height:40 }}>
+                      <div title={comp.label} style={{ width:40, height:40, borderRadius:'50%', border:`2.5px solid ${getScoreColor(p.ai_score)}`, background:p.ai_score>=70?CL.blueBg:p.ai_score>=55?CL.amberBg:'rgba(0,0,0,0.03)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                        <span style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:700, color:getScoreColor(p.ai_score), lineHeight:1 }}>{p.ai_score??'—'}</span>
+                        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:8, color:getScoreColor(p.ai_score), marginTop:1 }}>{getGrade(p.ai_score)}</span>
+                      </div>
+                      {comp.show && <span title={comp.label} style={{ position:'absolute', top:-1, right:-1, width:8, height:8, borderRadius:'50%', background:comp.color, border:'1.5px solid #fff' }} />}
                     </div>
                   </td>
-                  {/* SF */}
-                  <td style={tdMono}>{fmt(p.building_sf)}</td>
+                  {/* SF — rounded to K */}
+                  <td style={tdMono}>{fmtK(p.building_sf)}</td>
                   {/* Clear Ht */}
                   <td style={tdMono}>{p.clear_height ? `${p.clear_height}'` : '—'}</td>
-                  {/* Land AC */}
-                  <td style={tdMono}>{p.land_acres ? Number(p.land_acres).toFixed(2) : '—'}</td>
-                  {/* Coverage */}
+                  {/* Land — 1 decimal */}
+                  <td style={tdMono}>{p.land_acres ? Number(p.land_acres).toFixed(1) : '—'}</td>
+                  {/* Coverage — whole number */}
                   <td style={tdMono}>{cov ? `${cov}%` : '—'}</td>
                   {/* Year Built */}
                   <td style={tdMono}>{p.year_built || '—'}</td>
                   {/* Owner */}
-                  <td style={{ ...tdM, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
-                  {/* Lease Exp */}
-                  <td style={{ ...tdMono, color:mo!=null&&mo<=12?CL.rust:mo!=null&&mo<=24?CL.amber:CL.ink2 }}>{fmtExpiry(p.lease_expiration)}</td>
+                  <td style={{ ...tdM, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.owner||'—'}</td>
                   {/* Status */}
-                  <td style={{ padding:'12px 14px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
-                  {/* Catalysts + ⑥ AI Sparkle */}
-                  <td style={{ padding:'12px 14px', verticalAlign:'middle' }}>
-                    <div style={{ display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
-                      {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c }}>{tag}</span>; })}
-                      {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:11, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}><StatusTag status={p.vacancy_status} /></td>
+                  {/* Catalysts */}
+                  <td style={{ padding:'10px 8px', verticalAlign:'middle' }}>
+                    <div style={{ display:'flex', gap:3, flexWrap:'wrap', alignItems:'center' }}>
+                      {(p.catalyst_tags||[]).slice(0,2).map((tag, i) => { const s = getTagStyle(tag); return <span key={i} style={{ display:'inline-flex', padding:'2px 6px', borderRadius:4, fontSize:10.5, fontWeight:600, background:s.bg, border:`1px solid ${s.bdr}`, color:s.c, whiteSpace:'nowrap', maxWidth:100, overflow:'hidden', textOverflow:'ellipsis' }}>{tag}</span>; })}
+                      {(p.catalyst_tags||[]).length > 2 && <span style={{ fontSize:10, color:CL.ink4, fontFamily:"'DM Mono',monospace" }}>+{(p.catalyst_tags||[]).length-2}</span>}
                       {p.ai_synthesis && <AISparkle text={p.ai_synthesis} />}
                     </div>
                   </td>
-                  <td style={{ padding:'12px 8px', color:CL.ink4, fontSize:14, opacity:0.5, verticalAlign:'middle' }}>›</td>
+                  <td style={{ padding:'10px 4px', color:CL.ink4, fontSize:14, opacity:0.4, verticalAlign:'middle' }}>›</td>
                 </tr>
               );
             })}
@@ -483,13 +519,13 @@ export default function PropertiesPage() {
       </div>
       {!loading && filtered.length > 0 && <div style={{ padding:'14px 0', fontSize:14, color:CL.ink4 }}>Showing {filtered.length} of {properties.length} properties</div>}
 
-      {/* ═══ ⑦ BULK ACTION BAR ═══ */}
+      {/* ═══ BULK ACTION BAR ═══ */}
       {selected.size > 0 && (
         <div style={{ position:'fixed', bottom:0, left:242, right:0, background:'linear-gradient(90deg,#1A2130,#1F2840)', padding:'12px 24px', display:'flex', alignItems:'center', gap:12, zIndex:50, boxShadow:'0 -4px 20px rgba(0,0,0,0.15)', borderTop:'2px solid rgba(100,128,162,0.25)' }}>
           <span style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:'#fff', marginRight:4 }}>{selected.size}</span>
           <span style={{ fontSize:13, color:'rgba(245,240,232,0.7)', marginRight:12 }}>selected</span>
           <BulkBtn>📄 Export IC Memo</BulkBtn>
-          <BulkBtn>📊 Export CSV</BulkBtn>
+          <BulkBtn onClick={exportCSV}>📊 Export CSV</BulkBtn>
           <BulkBtn>🏷 Bulk Tag</BulkBtn>
           <BulkBtn>📬 Add to Campaign</BulkBtn>
           <BulkBtn green>◈ Convert to Acq</BulkBtn>
@@ -497,7 +533,7 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* ═══ ⑧ COMPARE DRAWER ═══ */}
+      {/* ═══ COMPARE DRAWER ═══ */}
       {showCompare && (
         <div style={{ position:'fixed', right:0, top:0, bottom:0, width:480, background:CL.card, boxShadow:'-8px 0 30px rgba(0,0,0,0.12)', zIndex:200, borderLeft:`1px solid ${CL.line2}`, display:'flex', flexDirection:'column', animation:'slideIn .3s ease' }}>
           <div style={{ padding:'18px 24px', borderBottom:`1px solid ${CL.line}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -511,21 +547,20 @@ export default function PropertiesPage() {
             </div>
           ) : (
             <div style={{ flex:1, overflowY:'auto' }}>
-              {/* Header row */}
               <div style={{ display:'grid', gridTemplateColumns:`140px repeat(${compareProps.length},1fr)`, borderBottom:`1px solid ${CL.line2}`, background:CL.bg }}>
                 <div style={{ padding:'9px 14px' }} />
                 {compareProps.map(p => <div key={p.id} style={{ padding:'9px 14px', fontWeight:600, fontSize:12, color:CL.blue }}>{p.property_name||p.address||'—'}</div>)}
               </div>
-              {/* Comparison rows */}
               {[
-                { label:'Building SF', fn:p=>fmt(p.building_sf), best:'max', key:'building_sf' },
+                { label:'Building SF', fn:p=>fmtK(p.building_sf), best:'max', key:'building_sf' },
                 { label:'Clear Height', fn:p=>p.clear_height?`${p.clear_height}'`:'—', best:'max', key:'clear_height' },
                 { label:'Year Built', fn:p=>p.year_built||'—', best:'max', key:'year_built' },
-                { label:'Dock Doors', fn:p=>p.dock_doors||'—', best:'max', key:'dock_doors' },
-                { label:'Truck Court', fn:p=>p.truck_court_depth?`${p.truck_court_depth}'`:'—', best:'max', key:'truck_court_depth' },
                 { label:'Building Score', fn:p=>p.ai_score!=null?`${p.ai_score} ${getGrade(p.ai_score)}`:'—', best:'max', key:'ai_score' },
-                { label:'Land AC', fn:p=>p.land_acres?Number(p.land_acres).toFixed(2):'—', best:'max', key:'land_acres' },
-                { label:'Coverage', fn:p=>(p.building_sf&&p.land_acres)?`${((p.building_sf/(p.land_acres*43560))*100).toFixed(1)}%`:'—' },
+                { label:'Data Confidence', fn:p=>p.data_completeness!=null?`${p.data_completeness}%`:'—', best:'max', key:'data_completeness' },
+                { label:'Land AC', fn:p=>p.land_acres?Number(p.land_acres).toFixed(1):'—', best:'max', key:'land_acres' },
+                { label:'Coverage', fn:p=>(p.building_sf&&p.land_acres)?`${Math.round((p.building_sf/(p.land_acres*43560))*100)}%`:'—' },
+                { label:'Dock Doors', fn:p=>p.dock_doors||'—', best:'max', key:'dock_doors' },
+                { label:'Power Amps', fn:p=>p.power_amps?fmt(p.power_amps):'—', best:'max', key:'power_amps' },
                 { label:'In-Place Rent', fn:p=>p.in_place_rent?`$${Number(p.in_place_rent).toFixed(2)}/SF`:'—' },
                 { label:'Market Rent', fn:p=>p.market_rent?`$${Number(p.market_rent).toFixed(2)}/SF`:'—' },
                 { label:'Lease Expiry', fn:p=>fmtExpiry(p.lease_expiration) },
@@ -568,7 +603,6 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* CSS Animations */}
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
         @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
@@ -622,7 +656,7 @@ function StatusTag({ status }) {
   else if (s.includes('partial')) { label='Partial'; bg=CL.amberBg; bdr=CL.amberBdr; c=CL.amber; }
   else if (s==='active'||s==='listed') { label='Listed'; bg=CL.blueBg; bdr=CL.blueBdr; c=CL.blue; }
   else { bg='rgba(0,0,0,0.04)'; bdr=CL.line; c=CL.ink4; }
-  return <span style={{ display:'inline-flex', padding:'3px 10px', borderRadius:5, fontSize:12, fontWeight:600, background:bg, border:`1px solid ${bdr}`, color:c }}>{label}</span>;
+  return <span style={{ display:'inline-flex', padding:'3px 8px', borderRadius:5, fontSize:11, fontWeight:600, background:bg, border:`1px solid ${bdr}`, color:c }}>{label}</span>;
 }
 
 function AISparkle({ text }) {
@@ -630,7 +664,7 @@ function AISparkle({ text }) {
   const preview = text.length > 300 ? text.slice(0, 300) + '…' : text;
   return (
     <span onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)} onClick={e => e.stopPropagation()}
-      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background:CL.purpleBg, color:CL.purple, fontSize:10, cursor:'pointer', flexShrink:0, transition:'all .15s', position:'relative' }}>
+      style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:18, height:18, borderRadius:'50%', background:CL.purpleBg, color:CL.purple, fontSize:9, cursor:'pointer', flexShrink:0, transition:'all .15s', position:'relative' }}>
       ✦
       {show && (
         <div style={{ position:'absolute', bottom:'calc(100% + 8px)', right:0, width:320, background:'#1A2130', color:'rgba(245,240,232,0.9)', padding:'12px 14px', borderRadius:8, fontSize:12, lineHeight:1.6, pointerEvents:'none', zIndex:60, boxShadow:'0 4px 16px rgba(0,0,0,0.3)' }}>
@@ -643,9 +677,9 @@ function AISparkle({ text }) {
   );
 }
 
-function BulkBtn({ children, green }) {
+function BulkBtn({ children, green, onClick }) {
   return (
-    <button style={{ padding:'7px 14px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${green?'rgba(60,180,110,0.35)':'rgba(255,255,255,0.15)'}`, background:green?'rgba(21,102,54,0.30)':'rgba(255,255,255,0.08)', color:green?'#B8F0D0':'rgba(245,240,232,0.9)', fontFamily:"'Instrument Sans',sans-serif", whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5 }}>
+    <button onClick={onClick} style={{ padding:'7px 14px', borderRadius:7, fontSize:12, fontWeight:500, cursor:'pointer', border:`1px solid ${green?'rgba(60,180,110,0.35)':'rgba(255,255,255,0.15)'}`, background:green?'rgba(21,102,54,0.30)':'rgba(255,255,255,0.08)', color:green?'#B8F0D0':'rgba(245,240,232,0.9)', fontFamily:"'Instrument Sans',sans-serif", whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:5 }}>
       {children}
     </button>
   );
