@@ -71,7 +71,7 @@ Pages are **views**, not enrichers. All signal computation happens upstream in t
 
 ### Data Sources (20+)
 
-**Property & Transaction:** CoStar/LoopNet · AIRCRE (AIR CRE — SoCal industrial listings, market data) · Moody's CRE/REIS · Real Capital Analytics (MSCI) · CMBS/Trepp (loan-level data on securitized debt)
+**Property & Transaction:** CoStar/LoopNet · AIRCRE (AIR CRE — SoCal industrial listings, market data) · Landvision/Lightbox · Moody's CRE/REIS · Real Capital Analytics (MSCI) · CMBS/Trepp (loan-level data on securitized debt)
 
 **Owner & Corporate Intelligence:** LexisNexis (corporate records, liens, UCC filings, judgments) · SEC EDGAR (10-K/10-Q facility closures, lease terminations) · Dun & Bradstreet (business credit, company health) · Bankruptcy court / PACER · LinkedIn + web (headcount changes, exec moves, hiring freezes)
 
