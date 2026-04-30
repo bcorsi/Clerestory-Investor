@@ -9,7 +9,7 @@
 
 Clerestory is an **acquisition intelligence platform** for commercial industrial real estate investors.
 
-Here's the problem it solves: in industrial real estate, the best deals never hit the open market. The properties that institutional buyers want — large warehouses, distribution centers, manufacturing facilities — are owned by families, private LLCs, and small operators who have held them for 20+ years. These owners don't list their buildings. They sell when something changes: a death in the family, a loan maturing, a tenant leaving, a business restructuring.
+Here's the problem it solves: in industrial real estate, the best deals never hit the open market. The properties that institutional buyers want — large warehouses, distribution centers, manufacturing facilities — are owned by families, private LLCs, and small operators who have held them for 20+ years. These owners don't list their buildings. They sell when something changes: a death or divorce in the family, a loan maturing, a tenant leaving, a business restructuring.
 
 **If you can detect those changes before anyone else, you get the deal.**
 
