@@ -26,7 +26,7 @@ The platform replaces what a team of 5-10 analysts would do manually: track ever
 ### What Makes It Different
 
 1. **Signal convergence** — doesn't just show you data, it detects when multiple independent signals point to the same property at the same time
-2. **Owner readiness scoring** — proprietary scoring model (10 interconnected scores) that predicts how likely an owner is to sell, built from real transaction patterns across 360+ completed deals
+2. **Owner readiness scoring** — proprietary scoring model (10 interconnected scores) that predicts how likely an owner is to sell, calibrated against real transaction patterns. The current model was trained on 360+ completed IE West transactions from a single CoStar export — but the architecture is designed to ingest 25+ years of transaction history across every market. More data in, sharper predictions out.
 3. **AI synthesis** — every property gets an institutional-grade intelligence brief written in the same voice a senior acquisitions analyst would use: specific, declarative, evidence-based
 4. **Closed-loop learning** — when deals close (or die), the outcome feeds back into the model, making every score more accurate over time
 
@@ -174,7 +174,7 @@ Declarative, not hedged. Specific over general. 5 layers in every synthesis:
 
 ### Pattern Intelligence
 
-8 acquisition archetypes reverse-engineered from 360 completed IE West transactions. Each property is classified deterministically in the browser; the LLM generates a narrative brief with a pattern-matched comparable sale on first expand.
+8 acquisition archetypes currently calibrated against 360 completed IE West transactions — scales to any market with historical transaction data. Each property is classified deterministically in the browser; the LLM generates a narrative brief with a pattern-matched comparable sale on first expand.
 
 ---
 
