@@ -27,7 +27,7 @@ The platform replaces what a team of 5-10 analysts would do manually: track ever
 
 1. **Signal convergence** — doesn't just show you data, it detects when multiple independent signals point to the same property at the same time
 2. **Owner readiness scoring** — proprietary scoring model (10 interconnected scores) that predicts how likely an owner is to sell, calibrated against real transaction patterns. The current model was trained on 360+ completed IE West transactions from a single CoStar export — but the architecture is designed to ingest 25+ years of transaction history across every market. More data in, sharper predictions out.
-3. **AI synthesis** — every property gets an institutional-grade intelligence brief written in the same voice an investments executive would use: specific, declarative, evidence-based
+3. **AI synthesis** — every property gets an institutional-grade intelligence brief written in the same voice a senior acquisitions analyst would use: specific, declarative, evidence-based
 4. **Closed-loop learning** — when deals close (or die), the outcome feeds back into the model, making every score more accurate over time
 
 ---
@@ -69,9 +69,17 @@ Pages are **views**, not enrichers. All signal computation happens upstream in t
 4. **Match** — fuzzy link to properties and accounts (address normalization, APN match, company-name match)
 5. **Score + Tag** — fire catalyst tags, update scores, check thresholds, generate alerts
 
-### Data Sources (12)
+### Data Sources (20+)
 
-WARN Act filings (CA EDD) · LexisNexis (corporate records, liens, judgments) · County recorder (deeds, NODs, trustee sales) · SEC EDGAR (10-K/10-Q facility closures) · Bankruptcy court (PACER) · Building permits · Industry news feeds · City/planning agendas · CoStar/LoopNet · LinkedIn + web · Utility records (SCE) · Closed deals feedback loop
+**Property & Transaction:** CoStar/LoopNet · AIRCRE (AIR CRE — SoCal industrial listings, market data) · Moody's CRE/REIS · Real Capital Analytics (MSCI) · CMBS/Trepp (loan-level data on securitized debt)
+
+**Owner & Corporate Intelligence:** LexisNexis (corporate records, liens, UCC filings, judgments) · SEC EDGAR (10-K/10-Q facility closures, lease terminations) · Dun & Bradstreet (business credit, company health) · Bankruptcy court / PACER · LinkedIn + web (headcount changes, exec moves, hiring freezes)
+
+**Public Records:** County recorder (deeds, NODs, lis pendens, trustee sales) · Building permits (TI = new tenant, demo = redevelop, none = deferred maint) · City/planning agendas (zoning changes, entitlements) · CalOSHA (workplace violations — operational stress signal) · Environmental / DTSC (contamination records)
+
+**Market & Economic:** WARN Act filings (CA EDD — mass layoff/closure, 60-day clock) · BLS/EDD employment data (industry employment trends) · Port of LA / Port of Long Beach (trade volume — drives warehouse demand) · Utility records / SCE (load connections, disconnections, usage drops)
+
+**Feedback Loop:** Closed deals + comps (every deal outcome teaches the model) · Industry news feeds (SupplyChainDive, FreightWaves, BeverageNet, Mfg.net)
 
 ### View Surfaces (9)
 
