@@ -30,16 +30,70 @@ The platform replaces what a team of 5-10 analysts would do manually: track ever
 3. **AI synthesis** — every property gets an institutional-grade intelligence brief written in the same voice a senior acquisitions analyst would use: specific, declarative, evidence-based
 4. **Closed-loop learning** — when deals close (or die), the outcome feeds back into the model, making every score more accurate over time
 
+### Signal Convergence in Action
+
+This is what Clerestory does that nothing else can:
+
+> **14022 Nelson Ave, Baldwin Park** — 186,400 SF industrial facility.
+> Four independent signals detected within 30 days:
+> 1. Owner is 72, individual owner, held for 31 years (Owner Readiness: succession signal)
+> 2. Tenant filed WARN notice — 200 employees, closure in 60 days (Occupier Signal: vacancy incoming)
+> 3. Debt maturity in 8 months, no refinance activity detected (Financial Signal: refi pressure)
+> 4. Three institutional buyers closed deals within 2 miles in the last 6 months (Market Signal: active corridor)
+>
+> **No single signal would trigger action. The convergence of all four makes this a top-5 acquisition target in the market — and Clerestory detected it before any broker knew the building would trade.**
+
+Every property in the platform is continuously scored against this kind of multi-signal convergence. The more data sources connected, the more convergence events detected.
+
+### Why This Market
+
+- **$380B+** of U.S. industrial real estate traded in the last 3 years
+- Industrial is the **#1 performing commercial real estate asset class** since 2015 — driven by e-commerce, nearshoring, and supply chain restructuring
+- **70%+ of industrial transactions** in Southern California involve properties that were never formally listed — they trade off-market through relationships and information asymmetry
+- The information gap between institutional buyers (who have teams of 10+ analysts) and smaller investors is **the largest in any major asset class** — Clerestory closes that gap with software
+
+### The Moat
+
+The defensibility compounds over time across three layers:
+
+1. **Data moat** — every connected data source makes the signal convergence detection more accurate. 20+ sources today, designed for 50+. Each new source doesn't just add data — it creates *cross-source convergence* that didn't exist before (a WARN filing alone is noise; a WARN filing + debt maturity + vacancy = a deal).
+
+2. **Model moat** — the closed-loop feedback from deal outcomes continuously recalibrates scoring weights. Competitors who launch today start with zero outcome data. Clerestory's model gets sharper with every transaction an investor runs through it.
+
+3. **Network moat** — as multiple investors use the platform, their collective transaction outcomes (anonymized) feed a shared intelligence layer. More users = better predictions for everyone. This is the same flywheel that made Bloomberg Terminal indispensable — the data gets better because people use it.
+
+### Founder
+
+Built by **Briana Corso** — ~9 years of Southern California industrial real estate experience including institutional buy-side acquisitions at **Rexford Industrial Realty** (NYSE: REXR, $10B+ market cap, the only pure-play SoCal industrial REIT). The scoring methodology, signal taxonomy, and product logic are derived directly from the institutional acquisition process she ran at Rexford — systematized into software.
+
+### Scale
+
+The platform is currently focused on Southern California's industrial markets (SGV, Inland Empire, LA, OC, SD — 84 submarkets with benchmarks). The architecture is market-agnostic:
+
+- **Geographic expansion** — same engine, new submarket benchmarks. Dallas, Atlanta, Phoenix, Chicago — any market with industrial transaction history can be onboarded
+- **Asset class expansion** — the signal convergence engine works on any asset class where ownership changes are triggered by detectable events (multifamily, office, retail, land)
+- **Depth expansion** — every new data source plugged into the normalization engine creates exponentially more convergence detection across every property already in the system
+
+### Licensing Pathways
+
+Four commercialization vectors identified:
+
+1. **Vertical SaaS** — subscription platform for acquisition teams ($2-5K/seat/month)
+2. **Intelligence API** — signal convergence scores and alerts sold per-property to institutional investors
+3. **Submarket Data** — proprietary submarket benchmarks and scoring methodology licensed to appraisers, lenders, and brokers
+4. **White-Label** — the intelligence engine deployed behind a client's brand for internal use by large REITs and PE platforms
+
 ---
 
 ## Stack
 
 - **Framework:** Next.js 14 (App Router)
 - **Database:** Supabase (PostgreSQL)
-- **Deployment:** Vercel
+- **Deployment:** Vercel (auto-deploy from GitHub)
 - **AI:** Anthropic Claude API (claude-sonnet-4-20250514)
 - **Maps:** Leaflet + ArcGIS parcel overlays + Google Maps
 - **Fonts:** Instrument Sans · DM Mono · Playfair Display · Cormorant Garamond
+- **PWA:** Installable as native app on desktop and mobile
 
 ## Environment Variables
 
@@ -71,7 +125,7 @@ Pages are **views**, not enrichers. All signal computation happens upstream in t
 
 ### Data Sources (20+)
 
-**Property & Transaction:** CoStar/LoopNet · AIRCRE (AIR CRE — SoCal industrial listings, market data) · Landvision/Lightbox · Moody's CRE/REIS · Real Capital Analytics (MSCI) · CMBS/Trepp (loan-level data on securitized debt)
+**Property & Transaction:** CoStar/LoopNet · AIRCRE (AIR CRE — SoCal industrial listings, market data) · Moody's CRE/REIS · Real Capital Analytics (MSCI) · CMBS/Trepp (loan-level data on securitized debt)
 
 **Owner & Corporate Intelligence:** LexisNexis (corporate records, liens, UCC filings, judgments) · SEC EDGAR (10-K/10-Q facility closures, lease terminations) · Dun & Bradstreet (business credit, company health) · Bankruptcy court / PACER · LinkedIn + web (headcount changes, exec moves, hiring freezes)
 
